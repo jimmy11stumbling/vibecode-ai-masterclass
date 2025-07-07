@@ -56,33 +56,45 @@ export const ChatInterface = () => {
       }),
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     if (!response.body) throw new Error("No response stream");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const parts = buffer.split("\n\n");
-      for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i].trim();
-        if (part.startsWith("data:")) {
-          const jsonStr = part.slice(5).trim();
-          if (jsonStr === "[DONE]") return;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const token = parsed.choices?.[0]?.delta?.content;
-            if (token) onToken(token);
-          } catch (e) {
-            console.warn("JSON parse error", e);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') {
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(data);
+              const token = parsed.choices?.[0]?.delta?.content;
+              if (token) {
+                onToken(token);
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              continue;
+            }
           }
         }
       }
-      buffer = parts[parts.length - 1];
+    } finally {
+      reader.releaseLock();
     }
   };
 
@@ -112,13 +124,14 @@ export const ChatInterface = () => {
       const conversationMessages = [...messages, userMessage];
       
       await streamChatResponse(conversationMessages, (token: string) => {
-        setMessages(prev => 
-          prev.map(msg => 
+        setMessages(prev => {
+          const updated = prev.map(msg => 
             msg.id === assistantMessageId 
               ? { ...msg, content: msg.content + token }
               : msg
-          )
-        );
+          );
+          return updated;
+        });
       });
     } catch (error) {
       console.error('DeepSeek API error:', error);
