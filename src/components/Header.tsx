@@ -18,14 +18,14 @@ export const Header = () => {
               <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Vibecode AI
               </h1>
-              <p className="text-sm text-gray-400">Learn. Code. Master.</p>
+              <p className="text-sm text-gray-400">Powered by DeepSeek</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm text-white">Pro Plan</span>
+              <span className="text-sm text-white">DeepSeek AI</span>
             </div>
             <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />

@@ -26,6 +26,7 @@ export const ChatInterface = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
+  const [apiKey, setApiKey] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -35,6 +36,55 @@ export const ChatInterface = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const streamChatResponse = async (messages: any[], onToken: (token: string) => void) => {
+    if (!apiKey) {
+      throw new Error('Please enter your DeepSeek API key');
+    }
+
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: messages.map(msg => ({ role: msg.role, content: msg.content })),
+        temperature: 0.7,
+        stream: true,
+      }),
+    });
+
+    if (!response.body) throw new Error("No response stream");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split("\n\n");
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i].trim();
+        if (part.startsWith("data:")) {
+          const jsonStr = part.slice(5).trim();
+          if (jsonStr === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const token = parsed.choices?.[0]?.delta?.content;
+            if (token) onToken(token);
+          } catch (e) {
+            console.warn("JSON parse error", e);
+          }
+        }
+      }
+      buffer = parts[parts.length - 1];
+    }
+  };
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -47,58 +97,60 @@ export const ChatInterface = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responses = [
-        "Great! Let me help you create that React component. Here's a clean, modern approach:",
-        "Perfect choice! I'll show you how to implement this with best practices:",
-        "Excellent idea! Let's build this step by step with proper TypeScript support:",
-        "Nice prompt! Here's how we can implement this using modern React patterns:"
-      ];
+    // Create empty assistant message for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
 
-      const sampleCode = `import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+    setMessages(prev => [...prev, assistantMessage]);
 
-interface CounterProps {
-  initialValue?: number;
-}
-
-export const Counter: React.FC<CounterProps> = ({ initialValue = 0 }) => {
-  const [count, setCount] = useState(initialValue);
-
-  const increment = () => setCount(prev => prev + 1);
-  const decrement = () => setCount(prev => prev - 1);
-  const reset = () => setCount(initialValue);
-
-  return (
-    <div className="flex flex-col items-center space-y-4 p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800">Counter</h2>
-      <div className="text-4xl font-mono text-blue-600">{count}</div>
-      <div className="flex space-x-2">
-        <Button onClick={decrement} variant="outline">-</Button>
-        <Button onClick={reset} variant="ghost">Reset</Button>
-        <Button onClick={increment}>+</Button>
-      </div>
-    </div>
-  );
-};`;
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date(),
-        code: sampleCode,
-        language: 'typescript'
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
+    try {
+      const conversationMessages = [...messages, userMessage];
+      
+      await streamChatResponse(conversationMessages, (token: string) => {
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: msg.content + token }
+              : msg
+          )
+        );
+      });
+    } catch (error) {
+      console.error('DeepSeek API error:', error);
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: `Error: ${error instanceof Error ? error.message : 'Failed to get response from DeepSeek API'}` }
+            : msg
+        )
+      );
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col">
+      {!apiKey && (
+        <div className="p-4 bg-yellow-500/20 border-b border-white/10">
+          <div className="flex items-center space-x-2">
+            <input
+              type="password"
+              placeholder="Enter your DeepSeek API key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"
+            />
+            <span className="text-xs text-gray-300">Get your key from DeepSeek</span>
+          </div>
+        </div>
+      )}
+      
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="border-b border-white/10 px-6 py-4">
           <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20">
