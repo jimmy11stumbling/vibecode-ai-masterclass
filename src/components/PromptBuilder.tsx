@@ -1,162 +1,214 @@
 
 import React, { useState } from 'react';
-import { Wand2, Copy, Download } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Copy, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-export const PromptBuilder = () => {
-  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
-  const [customPrompt, setCustomPrompt] = useState('');
+interface PromptTemplate {
+  id: string;
+  title: string;
+  description: string;
+  template: string;
+  category: 'react' | 'javascript' | 'css' | 'general';
+  variables: string[];
+}
 
-  const templates = [
+export const PromptBuilder: React.FC = () => {
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [variables, setVariables] = useState<Record<string, string>>({});
+
+  const templates: PromptTemplate[] = [
     {
-      id: 'react-component',
+      id: '1',
       title: 'React Component',
-      description: 'Create a reusable React component',
-      prompt: 'Create a React component that'
+      description: 'Create a new React component with props and state',
+      template: 'Create a React component called {{componentName}} that {{functionality}}. The component should use {{stateType}} for state management and accept the following props: {{propsList}}.',
+      category: 'react',
+      variables: ['componentName', 'functionality', 'stateType', 'propsList']
     },
     {
-      id: 'api-integration',
+      id: '2',
       title: 'API Integration',
-      description: 'Integrate with external APIs',
-      prompt: 'Build an API integration that'
+      description: 'Integrate with an external API',
+      template: 'Create a function that fetches data from {{apiEndpoint}} using {{httpMethod}}. Handle loading states, errors, and success responses. The data should be {{dataProcessing}}.',
+      category: 'javascript',
+      variables: ['apiEndpoint', 'httpMethod', 'dataProcessing']
     },
     {
-      id: 'state-management',
-      title: 'State Management',
-      description: 'Implement state management logic',
-      prompt: 'Implement state management for'
+      id: '3',
+      title: 'CSS Animation',
+      description: 'Create smooth CSS animations',
+      template: 'Create a CSS animation for {{element}} that {{animationType}} over {{duration}}. The animation should {{triggerCondition}} and include {{easingFunction}}.',
+      category: 'css',
+      variables: ['element', 'animationType', 'duration', 'triggerCondition', 'easingFunction']
     },
     {
-      id: 'styling',
-      title: 'CSS Styling',
-      description: 'Style components with CSS',
-      prompt: 'Style the component with'
-    },
-    {
-      id: 'testing',
-      title: 'Testing',
-      description: 'Write tests for components',
-      prompt: 'Write tests for'
-    },
-    {
-      id: 'optimization',
-      title: 'Performance',
-      description: 'Optimize for performance',
-      prompt: 'Optimize the performance of'
+      id: '4',
+      title: 'Bug Fix',
+      description: 'Debug and fix code issues',
+      template: 'I have a {{issueType}} in my {{codeContext}}. The expected behavior is {{expectedBehavior}} but instead {{actualBehavior}}. Here\'s the relevant code: {{codeSnippet}}',
+      category: 'general',
+      variables: ['issueType', 'codeContext', 'expectedBehavior', 'actualBehavior', 'codeSnippet']
     }
   ];
 
-  const toggleTemplate = (templateId: string) => {
-    setSelectedTemplates(prev => 
-      prev.includes(templateId) 
-        ? prev.filter(id => id !== templateId)
-        : [...prev, templateId]
-    );
+  const handleTemplateSelect = (template: PromptTemplate) => {
+    setSelectedTemplate(template);
+    const initialVariables: Record<string, string> = {};
+    template.variables.forEach(variable => {
+      initialVariables[variable] = '';
+    });
+    setVariables(initialVariables);
   };
 
   const buildPrompt = () => {
-    const selectedPrompts = templates
-      .filter(t => selectedTemplates.includes(t.id))
-      .map(t => t.prompt)
-      .join(', ');
+    if (!selectedTemplate) return '';
     
-    return selectedPrompts + (customPrompt ? ` ${customPrompt}` : '');
+    let prompt = selectedTemplate.template;
+    Object.entries(variables).forEach(([key, value]) => {
+      prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), value || `[${key}]`);
+    });
+    return prompt;
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(buildPrompt());
+    const prompt = buildPrompt();
+    navigator.clipboard.writeText(prompt);
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'react': return 'bg-blue-500/20 text-blue-400';
+      case 'javascript': return 'bg-yellow-500/20 text-yellow-400';
+      case 'css': return 'bg-purple-500/20 text-purple-400';
+      case 'general': return 'bg-green-500/20 text-green-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
   };
 
   return (
-    <ScrollArea className="h-full p-6">
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-2">Prompt Builder</h3>
-          <p className="text-gray-400 text-sm">
-            Select templates and customize your prompt for better AI responses
-          </p>
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-white/10">
+        <div className="flex items-center space-x-2 mb-4">
+          <Sparkles className="w-5 h-5 text-purple-400" />
+          <h2 className="text-lg font-semibold text-white">Prompt Builder</h2>
         </div>
+        <p className="text-sm text-gray-400">
+          Build effective prompts using templates or create your own
+        </p>
+      </div>
 
-        <div>
-          <h4 className="text-sm font-medium text-white mb-3">Templates</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {templates.map((template) => (
-              <div
-                key={template.id}
-                onClick={() => toggleTemplate(template.id)}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedTemplates.includes(template.id)
-                    ? 'bg-purple-500/20 border-purple-400/50'
-                    : 'bg-slate-800 border-slate-700 hover:border-slate-600'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h5 className="text-sm font-medium text-white">{template.title}</h5>
-                  {selectedTemplates.includes(template.id) && (
-                    <Badge className="bg-purple-500 text-white">Selected</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400">{template.description}</p>
+      <div className="flex-1 flex">
+        {/* Template Library */}
+        <div className="w-1/3 border-r border-white/10">
+          <div className="p-4">
+            <h3 className="font-medium text-white mb-3">Templates</h3>
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-2">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
+                    onClick={() => handleTemplateSelect(template)}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedTemplate?.id === template.id
+                        ? 'bg-white/20 border border-white/30'
+                        : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-white text-sm">{template.title}</h4>
+                      <Badge className={getCategoryColor(template.category)}>
+                        {template.category}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-400">{template.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </ScrollArea>
           </div>
         </div>
 
-        <div>
-          <h4 className="text-sm font-medium text-white mb-3">Custom Instructions</h4>
-          <Textarea
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="Add your specific requirements here..."
-            className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400"
-            rows={4}
-          />
-        </div>
+        {/* Prompt Builder */}
+        <div className="flex-1 p-4">
+          {selectedTemplate ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium text-white mb-2">Variables</h3>
+                <div className="space-y-3">
+                  {selectedTemplate.variables.map((variable) => (
+                    <div key={variable}>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        {variable}
+                      </label>
+                      <input
+                        type="text"
+                        value={variables[variable] || ''}
+                        onChange={(e) => setVariables(prev => ({
+                          ...prev,
+                          [variable]: e.target.value
+                        }))}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"
+                        placeholder={`Enter ${variable}...`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        <div>
-          <h4 className="text-sm font-medium text-white mb-3">Generated Prompt</h4>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <p className="text-sm text-gray-300 mb-4">
-              {buildPrompt() || 'Select templates and add custom instructions to build your prompt'}
-            </p>
-            <div className="flex space-x-2">
-              <Button
-                size="sm"
-                onClick={copyPrompt}
-                disabled={!buildPrompt()}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Copy className="w-4 h-4 mr-2" />
-                Copy
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!buildPrompt()}
-                className="border-slate-600"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Save
-              </Button>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-white">Generated Prompt</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={copyPrompt}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+                <div className="bg-white/10 border border-white/20 rounded-lg p-3">
+                  <p className="text-white text-sm whitespace-pre-wrap">
+                    {buildPrompt()}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="h-full flex flex-col">
+              <div className="mb-4">
+                <h3 className="font-medium text-white mb-2">Custom Prompt</h3>
+                <Textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Write your custom prompt here..."
+                  className="bg-white/10 border border-white/20 text-white placeholder:text-gray-400 min-h-[200px]"
+                />
+              </div>
 
-        <div>
-          <h4 className="text-sm font-medium text-white mb-3">Tips</h4>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-            <ul className="text-sm text-blue-300 space-y-2">
-              <li>• Be specific about what you want to build</li>
-              <li>• Mention the technologies you want to use</li>
-              <li>• Include any constraints or requirements</li>
-              <li>• Ask for explanations if you want to learn</li>
-            </ul>
-          </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => navigator.clipboard.writeText(customPrompt)}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy
+                </Button>
+                <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Use Prompt
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 };
