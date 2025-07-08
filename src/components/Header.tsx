@@ -1,13 +1,23 @@
 
 import React from 'react';
-import { Code2, Zap, Brain } from 'lucide-react';
+import { Code2, Zap, Brain, Home, Monitor, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Link, useLocation } from 'react-router-dom';
 
 export const Header = () => {
+  const location = useLocation();
+
+  const navItems = [
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { href: '/ide', label: 'IDE', icon: Monitor }
+  ];
+
   return (
     <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3">
             <div className="relative">
               <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
                 <Code2 className="w-6 h-6 text-white" />
@@ -20,7 +30,28 @@ export const Header = () => {
               </h1>
               <p className="text-sm text-gray-400">Powered by DeepSeek</p>
             </div>
-          </div>
+          </Link>
+
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            {navItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = location.pathname === item.href;
+              
+              return (
+                <Link key={item.href} to={item.href}>
+                  <Button 
+                    variant={isActive ? "secondary" : "ghost"} 
+                    size="sm"
+                    className={`text-white hover:bg-white/10 ${isActive ? 'bg-white/20' : ''}`}
+                  >
+                    <IconComponent className="w-4 h-4 mr-2" />
+                    {item.label}
+                  </Button>
+                </Link>
+              );
+            })}
+          </nav>
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
