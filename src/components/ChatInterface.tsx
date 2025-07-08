@@ -4,6 +4,8 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { PromptBuilder } from './PromptBuilder';
 import { CodePreview } from './CodePreview';
+import { ApiKeyInput } from './ApiKeyInput';
+import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Message {
@@ -26,8 +28,8 @@ export const ChatInterface = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
-  const [apiKey, setApiKey] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { apiKey, setApiKey, streamChatResponse } = useDeepSeekAPI();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,67 +38,6 @@ export const ChatInterface = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const streamChatResponse = async (messages: any[], onToken: (token: string) => void) => {
-    if (!apiKey) {
-      throw new Error('Please enter your DeepSeek API key');
-    }
-
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: messages.map(msg => ({ role: msg.role, content: msg.content })),
-        temperature: 0.7,
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    if (!response.body) throw new Error("No response stream");
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') {
-              return;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              const token = parsed.choices?.[0]?.delta?.content;
-              if (token) {
-                onToken(token);
-              }
-            } catch (e) {
-              // Skip invalid JSON lines
-              continue;
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-  };
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -109,7 +50,6 @@ export const ChatInterface = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Create empty assistant message for streaming
     const assistantMessageId = (Date.now() + 1).toString();
     const assistantMessage: Message = {
       id: assistantMessageId,
@@ -149,20 +89,7 @@ export const ChatInterface = () => {
 
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col">
-      {!apiKey && (
-        <div className="p-4 bg-yellow-500/20 border-b border-white/10">
-          <div className="flex items-center space-x-2">
-            <input
-              type="password"
-              placeholder="Enter your DeepSeek API key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"
-            />
-            <span className="text-xs text-gray-300">Get your key from DeepSeek</span>
-          </div>
-        </div>
-      )}
+      <ApiKeyInput apiKey={apiKey} onApiKeyChange={setApiKey} />
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="border-b border-white/10 px-6 py-4">
