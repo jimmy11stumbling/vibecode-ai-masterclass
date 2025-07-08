@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, Square, RefreshCw, Maximize2, ExternalLink } from 'lucide-react';
+import { Play, Square, RefreshCw, Maximize2, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LivePreviewProps {
