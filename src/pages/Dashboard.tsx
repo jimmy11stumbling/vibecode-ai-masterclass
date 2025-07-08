@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Code2, 
@@ -11,7 +10,8 @@ import {
   Star,
   Clock,
   Target,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';

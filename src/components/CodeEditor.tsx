@@ -1,127 +1,174 @@
 
 import React, { useState, useRef } from 'react';
-import { Copy, Download, Play, Save, RefreshCw, Eye, Code2 } from 'lucide-react';
+import { Play, Save, Download, Upload, Settings, Maximize2, Copy, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface CodeFile {
+  id: string;
   name: string;
   content: string;
   language: string;
-  id: string;
 }
 
 interface CodeEditorProps {
-  initialFiles?: CodeFile[];
   onCodeChange?: (files: CodeFile[]) => void;
   onRun?: (code: string) => void;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ 
-  initialFiles = [], 
-  onCodeChange,
-  onRun 
-}) => {
-  const [files, setFiles] = useState<CodeFile[]>(initialFiles.length > 0 ? initialFiles : [
+export const CodeEditor: React.FC<CodeEditorProps> = ({ onCodeChange, onRun }) => {
+  const [files, setFiles] = useState<CodeFile[]>([
     {
       id: '1',
       name: 'App.tsx',
-      language: 'typescript',
       content: `import React from 'react';
 
-function App() {
+const App = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-lg">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">
-          Welcome to Vibecode AI
+          Hello, World!
         </h1>
         <p className="text-gray-600">
-          Start building something amazing!
+          Welcome to your React application.
         </p>
       </div>
     </div>
   );
+};
+
+export default App;`,
+      language: 'typescript'
+    },
+    {
+      id: '2',
+      name: 'styles.css',
+      content: `/* Global Styles */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-export default App;`
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}`,
+      language: 'css'
     }
   ]);
-  
-  const [activeFile, setActiveFile] = useState(files[0]?.id || '1');
-  const [isRunning, setIsRunning] = useState(false);
+
+  const [activeFileId, setActiveFileId] = useState('1');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const getCurrentFile = () => files.find(f => f.id === activeFile) || files[0];
-  
-  const updateFileContent = (content: string) => {
-    const updatedFiles = files.map(file => 
-      file.id === activeFile ? { ...file, content } : file
+  const activeFile = files.find(file => file.id === activeFileId) || files[0];
+
+  const updateFileContent = (fileId: string, content: string) => {
+    const updatedFiles = files.map(file =>
+      file.id === fileId ? { ...file, content } : file
     );
     setFiles(updatedFiles);
     onCodeChange?.(updatedFiles);
   };
 
-  const addNewFile = () => {
-    const newFile: CodeFile = {
-      id: Date.now().toString(),
-      name: `Component${files.length + 1}.tsx`,
-      language: 'typescript',
-      content: `import React from 'react';
+  const handleRun = () => {
+    const mainFile = files.find(file => file.name.includes('App')) || files[0];
+    onRun?.(mainFile.content);
+  };
 
-const Component${files.length + 1} = () => {
+  const handleSave = () => {
+    console.log('Saving files...', files);
+    // In production, this would save to backend
+  };
+
+  const handleDownload = () => {
+    const content = JSON.stringify(files, null, 2);
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'project-files.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(activeFile.content);
+  };
+
+  const resetFile = () => {
+    if (activeFile.name === 'App.tsx') {
+      updateFileContent(activeFile.id, `import React from 'react';
+
+const App = () => {
   return (
-    <div>
-      <h2>New Component</h2>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">
+          Hello, World!
+        </h1>
+        <p className="text-gray-600">
+          Welcome to your React application.
+        </p>
+      </div>
     </div>
   );
 };
 
-export default Component${files.length + 1};`
-    };
-    
-    const updatedFiles = [...files, newFile];
-    setFiles(updatedFiles);
-    setActiveFile(newFile.id);
-    onCodeChange?.(updatedFiles);
-  };
-
-  const runCode = async () => {
-    setIsRunning(true);
-    const currentFile = getCurrentFile();
-    onRun?.(currentFile.content);
-    
-    // Simulate compilation time
-    setTimeout(() => {
-      setIsRunning(false);
-    }, 2000);
-  };
-
-  const copyToClipboard = () => {
-    const currentFile = getCurrentFile();
-    navigator.clipboard.writeText(currentFile.content);
-  };
-
-  const downloadFile = () => {
-    const currentFile = getCurrentFile();
-    const blob = new Blob([currentFile.content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = currentFile.name;
-    a.click();
-    URL.revokeObjectURL(url);
+export default App;`);
+    }
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700">
+    <div className={`h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700">
         <div className="flex items-center space-x-2">
-          <Code2 className="w-5 h-5 text-blue-400" />
           <h3 className="font-semibold text-white">Code Editor</h3>
+          <span className="text-xs text-slate-400">
+            {files.length} file{files.length !== 1 ? 's' : ''}
+          </span>
         </div>
-        
+
         <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            onClick={handleRun}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Play className="w-4 h-4 mr-2" />
+            Run
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSave}
+            className="text-slate-400 hover:text-white"
+          >
+            <Save className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleDownload}
+            className="text-slate-400 hover:text-white"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+          
           <Button
             size="sm"
             variant="ghost"
@@ -130,78 +177,90 @@ export default Component${files.length + 1};`
           >
             <Copy className="w-4 h-4" />
           </Button>
+          
           <Button
             size="sm"
             variant="ghost"
-            onClick={downloadFile}
+            onClick={resetFile}
             className="text-slate-400 hover:text-white"
           >
-            <Download className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" />
           </Button>
+          
           <Button
             size="sm"
             variant="ghost"
-            onClick={addNewFile}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             className="text-slate-400 hover:text-white"
           >
-            <Save className="w-4 h-4" />
+            <Maximize2 className="w-4 h-4" />
           </Button>
+          
           <Button
             size="sm"
-            onClick={runCode}
-            disabled={isRunning}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
           >
-            {isRunning ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
+            <Settings className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeFile} onValueChange={setActiveFile} className="flex-1 flex flex-col">
-        <div className="border-b border-slate-700 px-4">
-          <TabsList className="bg-transparent">
-            {files.map((file) => (
-              <TabsTrigger
-                key={file.id}
-                value={file.id}
-                className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400"
-              >
-                {file.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
+      {/* File Tabs */}
+      <Tabs value={activeFileId} onValueChange={setActiveFileId} className="flex-1 flex flex-col">
+        <TabsList className="bg-slate-800 border-b border-slate-700 rounded-none justify-start h-auto p-0">
           {files.map((file) => (
-            <TabsContent key={file.id} value={file.id} className="m-0 h-full">
-              <textarea
-                ref={textareaRef}
-                value={file.content}
-                onChange={(e) => updateFileContent(e.target.value)}
-                className="w-full h-full p-4 bg-slate-900 text-slate-100 font-mono text-sm resize-none focus:outline-none"
-                style={{
-                  tabSize: 2,
-                  fontFamily: '"Fira Code", "JetBrains Mono", Consolas, monospace'
-                }}
-                placeholder="Start coding..."
-              />
-            </TabsContent>
+            <TabsTrigger
+              key={file.id}
+              value={file.id}
+              className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400 rounded-none border-r border-slate-700 px-4 py-2"
+            >
+              {file.name}
+            </TabsTrigger>
           ))}
-        </div>
-      </Tabs>
+        </TabsList>
 
-      <div className="p-2 border-t border-slate-700 bg-slate-800">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Lines: {getCurrentFile().content.split('\n').length}</span>
-          <span>Language: {getCurrentFile().language}</span>
-          <span>Encoding: UTF-8</span>
-        </div>
-      </div>
+        {files.map((file) => (
+          <TabsContent key={file.id} value={file.id} className="flex-1 m-0">
+            <div className="h-full flex flex-col">
+              {/* Code Editor Area */}
+              <div className="flex-1 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={file.content}
+                  onChange={(e) => updateFileContent(file.id, e.target.value)}
+                  className="w-full h-full bg-slate-800 text-slate-100 font-mono text-sm p-4 border-0 resize-none focus:outline-none"
+                  placeholder={`Write your ${file.language} code here...`}
+                  spellCheck={false}
+                />
+                
+                {/* Line Numbers */}
+                <div className="absolute left-0 top-0 bottom-0 w-12 bg-slate-900 border-r border-slate-700 flex flex-col text-slate-500 text-xs font-mono pt-4">
+                  {file.content.split('\n').map((_, index) => (
+                    <div key={index} className="h-[1.25rem] flex items-center justify-end pr-2">
+                      {index + 1}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Bar */}
+              <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-t border-slate-700 text-xs text-slate-400">
+                <div className="flex items-center space-x-4">
+                  <span>Language: {file.language}</span>
+                  <span>Lines: {file.content.split('\n').length}</span>
+                  <span>Characters: {file.content.length}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span>UTF-8</span>
+                  <span>•</span>
+                  <span>Spaces: 2</span>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 };

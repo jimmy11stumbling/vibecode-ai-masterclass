@@ -1,239 +1,297 @@
 
 import React, { useState } from 'react';
-import { Trophy, Target, CheckCircle2, Clock, Star, Award, BookOpen } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Trophy, Target, Clock, Star, TrendingUp, Award, BookOpen, Code2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface Skill {
+  id: string;
+  name: string;
+  level: number;
+  maxLevel: number;
+  category: string;
+  experience: number;
+  maxExperience: number;
+}
 
 interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: React.ReactNode;
   unlocked: boolean;
-  date?: Date;
-  points: number;
+  unlockedAt?: Date;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
-interface LearningGoal {
-  id: string;
-  title: string;
-  description: string;
-  progress: number;
-  target: number;
-  category: string;
-  deadline?: Date;
-}
+export const LearningProgress: React.FC = () => {
+  const [skills] = useState<Skill[]>([
+    {
+      id: '1',
+      name: 'React',
+      level: 5,
+      maxLevel: 10,
+      category: 'Frontend',
+      experience: 750,
+      maxExperience: 1000
+    },
+    {
+      id: '2',
+      name: 'TypeScript',
+      level: 4,
+      maxLevel: 10,
+      category: 'Language',
+      experience: 600,
+      maxExperience: 800
+    },
+    {
+      id: '3',
+      name: 'Node.js',
+      level: 3,
+      maxLevel: 10,
+      category: 'Backend',
+      experience: 400,
+      maxExperience: 600
+    },
+    {
+      id: '4',
+      name: 'Database Design',
+      level: 2,
+      maxLevel: 10,
+      category: 'Backend',
+      experience: 150,
+      maxExperience: 400
+    }
+  ]);
 
-export const LearningProgress = () => {
   const [achievements] = useState<Achievement[]>([
     {
       id: '1',
       title: 'First Steps',
-      description: 'Completed your first coding lesson',
-      icon: Star,
+      description: 'Complete your first lesson',
+      icon: <Star className="w-4 h-4" />,
       unlocked: true,
-      date: new Date('2024-01-15'),
-      points: 100
+      unlockedAt: new Date('2024-01-01'),
+      rarity: 'common'
     },
     {
       id: '2',
-      title: 'React Master',
-      description: 'Built 10 React components',
-      icon: Trophy,
+      title: 'Code Warrior',
+      description: 'Write 1000 lines of code',
+      icon: <Code2 className="w-4 h-4" />,
       unlocked: true,
-      date: new Date('2024-01-20'),
-      points: 500
+      unlockedAt: new Date('2024-01-15'),
+      rarity: 'rare'
     },
     {
       id: '3',
-      title: 'API Expert',
-      description: 'Created 5 RESTful APIs',
-      icon: Award,
-      unlocked: false,
-      points: 750
+      title: 'Quick Learner',
+      description: 'Complete 5 lessons in one day',
+      icon: <TrendingUp className="w-4 h-4" />,
+      unlocked: true,
+      unlockedAt: new Date('2024-01-20'),
+      rarity: 'epic'
     },
     {
       id: '4',
-      title: 'Full Stack Hero',
-      description: 'Complete a full-stack project',
-      icon: Target,
+      title: 'Master Builder',
+      description: 'Build and deploy 10 projects',
+      icon: <Trophy className="w-4 h-4" />,
       unlocked: false,
-      points: 1000
+      rarity: 'legendary'
     }
   ]);
 
-  const [goals] = useState<LearningGoal[]>([
-    {
-      id: '1',
-      title: 'Master React Hooks',
-      description: 'Learn and implement all React hooks',
-      progress: 7,
-      target: 10,
-      category: 'Frontend'
-    },
-    {
-      id: '2',
-      title: 'Database Design',
-      description: 'Complete database design course',
-      progress: 3,
-      target: 8,
-      category: 'Backend',
-      deadline: new Date('2024-02-15')
-    },
-    {
-      id: '3',
-      title: 'Build Portfolio',
-      description: 'Create 5 showcase projects',
-      progress: 2,
-      target: 5,
-      category: 'Projects'
-    }
-  ]);
+  const [stats] = useState({
+    totalLessons: 45,
+    completedLessons: 32,
+    studyStreak: 12,
+    totalHours: 89,
+    projectsBuilt: 7,
+    skillPoints: 2150
+  });
 
-  const totalPoints = achievements.filter(a => a.unlocked).reduce((sum, a) => sum + a.points, 0);
-  const overallProgress = (achievements.filter(a => a.unlocked).length / achievements.length) * 100;
+  const getRarityColor = (rarity: Achievement['rarity']) => {
+    switch (rarity) {
+      case 'common': return 'bg-gray-500';
+      case 'rare': return 'bg-blue-500';
+      case 'epic': return 'bg-purple-500';
+      case 'legendary': return 'bg-yellow-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
   const getCategoryColor = (category: string) => {
-    const colors = {
-      Frontend: 'bg-blue-500',
-      Backend: 'bg-green-500',
-      Projects: 'bg-purple-500',
-      Database: 'bg-yellow-500'
-    };
-    return colors[category as keyof typeof colors] || 'bg-gray-500';
+    switch (category.toLowerCase()) {
+      case 'frontend': return 'bg-blue-500/20 text-blue-400';
+      case 'backend': return 'bg-green-500/20 text-green-400';
+      case 'language': return 'bg-purple-500/20 text-purple-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
   };
 
   return (
-    <div className="h-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-slate-700 p-6 overflow-y-auto">
+    <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">Learning Progress</h2>
-          <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full">
-            <Trophy className="w-5 h-5" />
-            <span className="font-semibold">{totalPoints} XP</span>
-          </div>
+      <div className="flex items-center justify-between p-4 border-b border-slate-700">
+        <div className="flex items-center space-x-2">
+          <Trophy className="w-5 h-5 text-yellow-400" />
+          <h3 className="font-semibold text-white">Learning Progress</h3>
         </div>
-        
-        <div className="bg-slate-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-slate-300">Overall Progress</span>
-            <span className="text-white font-semibold">{Math.round(overallProgress)}%</span>
-          </div>
-          <Progress value={overallProgress} className="h-2" />
-        </div>
+        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400">
+          Level {Math.floor(stats.skillPoints / 500) + 1}
+        </Badge>
       </div>
 
-      {/* Current Goals */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Target className="w-5 h-5 mr-2 text-blue-400" />
-          Current Goals
-        </h3>
-        <div className="space-y-3">
-          {goals.map((goal) => (
-            <div key={goal.id} className="bg-slate-800 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <h4 className="font-medium text-white">{goal.title}</h4>
-                  <Badge variant="secondary" className={`${getCategoryColor(goal.category)} text-white text-xs`}>
-                    {goal.category}
-                  </Badge>
-                </div>
-                <span className="text-sm text-slate-300">
-                  {goal.progress}/{goal.target}
-                </span>
-              </div>
-              <p className="text-sm text-slate-400 mb-3">{goal.description}</p>
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-6">
+          {/* Overall Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-800 rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <Progress value={(goal.progress / goal.target) * 100} className="flex-1 h-2 mr-4" />
-                {goal.deadline && (
-                  <div className="flex items-center text-xs text-slate-400">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {goal.deadline.toLocaleDateString()}
-                  </div>
-                )}
+                <BookOpen className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-slate-400">Lessons</span>
+              </div>
+              <div className="mt-1">
+                <div className="text-lg font-bold text-white">{stats.completedLessons}</div>
+                <div className="text-xs text-slate-400">of {stats.totalLessons}</div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Achievements */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Award className="w-5 h-5 mr-2 text-yellow-400" />
-          Achievements
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {achievements.map((achievement) => {
-            const IconComponent = achievement.icon;
-            return (
-              <div
-                key={achievement.id}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  achievement.unlocked
-                    ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50'
-                    : 'bg-slate-800 border-slate-700 opacity-60'
-                }`}
-              >
-                <div className="flex items-start space-x-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    achievement.unlocked ? 'bg-yellow-500' : 'bg-slate-600'
-                  }`}>
-                    <IconComponent className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className={`font-medium ${achievement.unlocked ? 'text-white' : 'text-slate-400'}`}>
-                        {achievement.title}
-                      </h4>
-                      <span className={`text-sm font-semibold ${
-                        achievement.unlocked ? 'text-yellow-400' : 'text-slate-500'
-                      }`}>
-                        +{achievement.points} XP
-                      </span>
+            <div className="bg-slate-800 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <Target className="w-4 h-4 text-green-400" />
+                <span className="text-xs text-slate-400">Streak</span>
+              </div>
+              <div className="mt-1">
+                <div className="text-lg font-bold text-white">{stats.studyStreak}</div>
+                <div className="text-xs text-slate-400">days</div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <Clock className="w-4 h-4 text-purple-400" />
+                <span className="text-xs text-slate-400">Hours</span>
+              </div>
+              <div className="mt-1">
+                <div className="text-lg font-bold text-white">{stats.totalHours}</div>
+                <div className="text-xs text-slate-400">studied</div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <Code2 className="w-4 h-4 text-orange-400" />
+                <span className="text-xs text-slate-400">Projects</span>
+              </div>
+              <div className="mt-1">
+                <div className="text-lg font-bold text-white">{stats.projectsBuilt}</div>
+                <div className="text-xs text-slate-400">built</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Skills Progress */}
+          <div>
+            <h4 className="text-sm font-medium text-white mb-3 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />
+              Skills Progress
+            </h4>
+            <div className="space-y-3">
+              {skills.map((skill) => (
+                <div key={skill.id} className="bg-slate-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-white">{skill.name}</span>
+                      <Badge className={`text-xs ${getCategoryColor(skill.category)}`}>
+                        {skill.category}
+                      </Badge>
                     </div>
-                    <p className={`text-sm ${achievement.unlocked ? 'text-slate-300' : 'text-slate-500'}`}>
+                    <span className="text-xs text-slate-400">
+                      Level {skill.level}/{skill.maxLevel}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Progress 
+                      value={(skill.level / skill.maxLevel) * 100} 
+                      className="h-2"
+                    />
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>{skill.experience} XP</span>
+                      <span>{skill.maxExperience} XP</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Achievements */}
+          <div>
+            <h4 className="text-sm font-medium text-white mb-3 flex items-center">
+              <Award className="w-4 h-4 mr-2 text-yellow-400" />
+              Achievements
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {achievements.map((achievement) => (
+                <div
+                  key={achievement.id}
+                  className={`bg-slate-800 rounded-lg p-3 flex items-center space-x-3 ${
+                    achievement.unlocked ? 'opacity-100' : 'opacity-50'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRarityColor(achievement.rarity)}`}>
+                    {achievement.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h5 className="text-sm font-medium text-white truncate">
+                        {achievement.title}
+                      </h5>
+                      <Badge 
+                        className={`text-xs ${getRarityColor(achievement.rarity)} text-white`}
+                      >
+                        {achievement.rarity}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-400 line-clamp-2">
                       {achievement.description}
                     </p>
-                    {achievement.unlocked && achievement.date && (
-                      <p className="text-xs text-slate-400 mt-1">
-                        Unlocked {achievement.date.toLocaleDateString()}
+                    {achievement.unlocked && achievement.unlockedAt && (
+                      <p className="text-xs text-green-400 mt-1">
+                        Unlocked {achievement.unlockedAt.toLocaleDateString()}
                       </p>
                     )}
                   </div>
                 </div>
-                {achievement.unlocked && (
-                  <div className="mt-3 flex justify-end">
-                    <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              ))}
+            </div>
+          </div>
 
-      {/* Study Stats */}
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <div className="bg-slate-800 rounded-lg p-4 text-center">
-          <BookOpen className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-          <div className="text-2xl font-bold text-white">24</div>
-          <div className="text-sm text-slate-400">Lessons Completed</div>
+          {/* Experience Progress */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-white">Overall Progress</h4>
+              <span className="text-xs text-slate-400">
+                {stats.skillPoints} XP
+              </span>
+            </div>
+            
+            <Progress 
+              value={(stats.completedLessons / stats.totalLessons) * 100} 
+              className="h-3 mb-2"
+            />
+            
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>{Math.round((stats.completedLessons / stats.totalLessons) * 100)}% Complete</span>
+              <span>{stats.totalLessons - stats.completedLessons} lessons remaining</span>
+            </div>
+          </div>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4 text-center">
-          <Clock className="w-8 h-8 text-green-400 mx-auto mb-2" />
-          <div className="text-2xl font-bold text-white">18h</div>
-          <div className="text-sm text-slate-400">Study Time</div>
-        </div>
-        <div className="bg-slate-800 rounded-lg p-4 text-center">
-          <Target className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-          <div className="text-2xl font-bold text-white">7</div>
-          <div className="text-sm text-slate-400">Projects Built</div>
-        </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 };
