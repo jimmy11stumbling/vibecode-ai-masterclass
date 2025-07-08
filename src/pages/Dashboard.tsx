@@ -1,252 +1,147 @@
 import React, { useState } from 'react';
-import { 
-  Code2, 
-  BookOpen, 
-  Trophy, 
-  Users, 
-  TrendingUp, 
-  Calendar,
-  Play,
-  Star,
-  Clock,
-  Target,
-  ChevronRight,
-  Plus
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/Header';
-import { Link } from 'react-router-dom';
+import { LearningProgress } from '@/components/LearningProgress';
+import { AIChatBot } from '@/components/AIChatBot';
+import { CodeEditor } from '@/components/CodeEditor';
+import { LivePreview } from '@/components/LivePreview';
+import { Settings } from '@/components/Settings';
+import { Tutorial } from '@/components/Tutorial';
+import { ResourceLibrary } from '@/components/ResourceLibrary';
+import { Analytics } from '@/components/Analytics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  BarChart3, 
+  Book, 
+  Bot, 
+  Code, 
+  Eye, 
+  Settings as SettingsIcon, 
+  GraduationCap,
+  Library,
+  Plus,
+  Zap
+} from 'lucide-react';
 
 const Dashboard = () => {
-  const [activeProjects] = useState([
-    {
-      id: 1,
-      name: 'E-commerce React App',
-      progress: 75,
-      lastWorked: '2 hours ago',
-      tech: ['React', 'TypeScript', 'Tailwind']
-    },
-    {
-      id: 2,
-      name: 'Node.js API Server',
-      progress: 40,
-      lastWorked: '1 day ago',
-      tech: ['Node.js', 'Express', 'MongoDB']
-    },
-    {
-      id: 3,
-      name: 'Portfolio Website',
-      progress: 90,
-      lastWorked: '3 days ago',
-      tech: ['Next.js', 'Framer Motion']
-    }
-  ]);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [codeContent, setCodeContent] = useState('');
 
-  const [recentLessons] = useState([
-    {
-      id: 1,
-      title: 'Advanced React Hooks',
-      category: 'Frontend',
-      completed: true,
-      duration: '45 min'
-    },
-    {
-      id: 2,
-      title: 'Database Design Patterns',
-      category: 'Backend',
-      completed: false,
-      duration: '60 min'
-    },
-    {
-      id: 3,
-      title: 'RESTful API Design',
-      category: 'Backend',
-      completed: true,
-      duration: '30 min'
-    }
-  ]);
-
-  const stats = {
-    totalProjects: 12,
-    completedLessons: 24,
-    studyHours: 156,
-    currentStreak: 7
+  const handleCodeGenerated = (code: string) => {
+    setCodeContent(code);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+      {/* Background texture */}
+      <div className="absolute inset-0 opacity-20" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+      
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back, Developer! 👋</h1>
-          <p className="text-gray-300">Continue your learning journey and build amazing projects.</p>
+      <div className="container mx-auto px-4 py-6 h-[calc(100vh-80px)]">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-white mb-2">Learning Dashboard</h1>
+          <p className="text-gray-300">Track your progress and explore new technologies</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Total Projects</p>
-                <p className="text-2xl font-bold text-white">{stats.totalProjects}</p>
-              </div>
-              <Code2 className="w-8 h-8 text-blue-400" />
-            </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <div className="mb-6">
+            <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20 p-1">
+              <TabsTrigger 
+                value="overview" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Overview</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="learning" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Learning</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="coding" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <Code className="w-4 h-4" />
+                <span>Coding</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="ai-chat" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <Bot className="w-4 h-4" />
+                <span>AI Assistant</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="resources" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <Library className="w-4 h-4" />
+                <span>Resources</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="tutorial" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <Book className="w-4 h-4" />
+                <span>Tutorial</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="settings" 
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white flex items-center space-x-2"
+              >
+                <SettingsIcon className="w-4 h-4" />
+                <span>Settings</span>
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Lessons Completed</p>
-                <p className="text-2xl font-bold text-white">{stats.completedLessons}</p>
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="overview" className="h-full m-0">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full">
+                <div className="xl:col-span-2">
+                  <Analytics />
+                </div>
+                <div>
+                  <LearningProgress />
+                </div>
               </div>
-              <BookOpen className="w-8 h-8 text-green-400" />
-            </div>
+            </TabsContent>
+
+            <TabsContent value="learning" className="h-full m-0">
+              <LearningProgress />
+            </TabsContent>
+
+            <TabsContent value="coding" className="h-full m-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                <CodeEditor onCodeChange={() => {}} onRun={() => {}} />
+                <LivePreview code={codeContent} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="ai-chat" className="h-full m-0">
+              <AIChatBot onCodeGenerated={handleCodeGenerated} />
+            </TabsContent>
+
+            <TabsContent value="resources" className="h-full m-0">
+              <ResourceLibrary />
+            </TabsContent>
+
+            <TabsContent value="tutorial" className="h-full m-0">
+              <Tutorial />
+            </TabsContent>
+
+            <TabsContent value="settings" className="h-full m-0">
+              <Settings />
+            </TabsContent>
           </div>
-
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Study Hours</p>
-                <p className="text-2xl font-bold text-white">{stats.studyHours}h</p>
-              </div>
-              <Clock className="w-8 h-8 text-purple-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Current Streak</p>
-                <p className="text-2xl font-bold text-white">{stats.currentStreak} days</p>
-              </div>
-              <Trophy className="w-8 h-8 text-yellow-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Active Projects */}
-          <div className="lg:col-span-2">
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Active Projects</h2>
-                <Link to="/ide">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Project
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {activeProjects.map((project) => (
-                  <div key={project.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium text-white mb-1">{project.name}</h3>
-                        <p className="text-sm text-gray-400">Last worked: {project.lastWorked}</p>
-                      </div>
-                      <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300">
-                        <Play className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-300">Progress</span>
-                        <span className="text-white">{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {project.tech.map((tech) => (
-                        <Badge key={tech} variant="secondary" className="text-xs bg-white/20 text-gray-300">
-                          {tech}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Lessons & Quick Actions */}
-          <div className="space-y-6">
-            {/* Recent Lessons */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Recent Lessons</h2>
-              <div className="space-y-3">
-                {recentLessons.map((lesson) => (
-                  <div key={lesson.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-white text-sm">{lesson.title}</h4>
-                      <div className="flex items-center justify-between mt-1">
-                        <Badge variant="secondary" className="text-xs bg-blue-500/20 text-blue-300">
-                          {lesson.category}
-                        </Badge>
-                        <span className="text-xs text-gray-400">{lesson.duration}</span>
-                      </div>
-                    </div>
-                    <div className="ml-2">
-                      {lesson.completed ? (
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      ) : (
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-blue-400">
-                          <Play className="w-3 h-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Quick Actions</h2>
-              <div className="space-y-3">
-                <Link to="/ide" className="block">
-                  <Button variant="ghost" className="w-full justify-start text-left hover:bg-white/10">
-                    <Code2 className="w-4 h-4 mr-3" />
-                    Open IDE
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-                
-                <Link to="/lessons" className="block">
-                  <Button variant="ghost" className="w-full justify-start text-left hover:bg-white/10">
-                    <BookOpen className="w-4 h-4 mr-3" />
-                    Browse Lessons
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-
-                <Link to="/progress" className="block">
-                  <Button variant="ghost" className="w-full justify-start text-left hover:bg-white/10">
-                    <Trophy className="w-4 h-4 mr-3" />
-                    View Progress
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-
-                <Link to="/community" className="block">
-                  <Button variant="ghost" className="w-full justify-start text-left hover:bg-white/10">
-                    <Users className="w-4 h-4 mr-3" />
-                    Join Community
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        </Tabs>
       </div>
     </div>
   );
