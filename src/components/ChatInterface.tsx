@@ -113,7 +113,7 @@ export const ChatInterface = () => {
 
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col relative">
-      <ApiKeyInput apiKey={apiKey} onApiKeyChange={setApiKey} />
+      <ApiKeyInput onApiKeySet={setApiKey} />
       
       {/* Real-time Progress Indicator */}
       <div className="px-6 py-2">

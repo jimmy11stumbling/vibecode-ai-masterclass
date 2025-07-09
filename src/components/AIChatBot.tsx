@@ -201,7 +201,7 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
           {isTyping && (
             <div className="flex justify-start">
               <div className="bg-slate-800 text-slate-100 rounded-lg p-3">
-                <TypingIndicator />
+                <TypingIndicator isVisible={isTyping} />
               </div>
             </div>
           )}
