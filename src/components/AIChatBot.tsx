@@ -1,10 +1,13 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Mic, Settings, RefreshCw, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bot, Send, Mic, Settings, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
+import { RealTimeProgress } from './RealTimeProgress';
+import { TypingIndicator } from './TypingIndicator';
+import { ApiKeyInput } from './ApiKeyInput';
 
 interface Message {
   id: string;
@@ -25,132 +28,100 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
     {
       id: '1',
       role: 'assistant',
-      content: `Hello! I'm your AI coding assistant. I can help you with:\n\n• Writing React components\n• Debugging code\n• Code reviews\n• Best practices\n• TypeScript assistance\n\nWhat would you like to work on?`,
-      timestamp: new Date(),
+      content: 'Hello! I\'m your AI coding assistant. I can help you write code, debug issues, and explain programming concepts. What would you like to work on today?',
+      timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = async (content: string) => {
-    if (!content.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content,
-      timestamp: new Date(),
+      content: inputValue,
+      timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
-    setIsLoading(true);
+    setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      let assistantResponse = '';
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: generateResponse(content),
-        timestamp: new Date(),
+        content: '',
+        timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1500);
-  };
 
-  const generateResponse = (userInput: string) => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('component') || input.includes('react')) {
-      const code = `const MyComponent = () => {
-  return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-2">My Component</h2>
-      <p className="text-gray-600">This is a sample component.</p>
-    </div>
-  );
-};
+      const contextualPrompt = context 
+        ? `Context: ${context}\n\nUser request: ${inputValue}`
+        : inputValue;
 
-export default MyComponent;`;
-      
-      onCodeGenerated?.(code);
-      return `Here's a React component template:\n\n\`\`\`jsx\n${code}\n\`\`\`\n\nThis component includes:\n• Responsive design with Tailwind CSS\n• Proper TypeScript typing\n• Clean structure\n\nWould you like me to modify anything?`;
-    }
-    
-    if (input.includes('debug') || input.includes('error')) {
-      return `I can help you debug! Please share:\n\n• The error message\n• The problematic code\n• What you expected to happen\n\nCommon issues I can help with:\n• TypeScript errors\n• React hooks problems\n• CSS styling issues\n• API integration problems`;
-    }
-    
-    if (input.includes('api') || input.includes('fetch')) {
-      const code = `const fetchData = async () => {
-  try {
-    const response = await fetch('/api/data');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    throw error;
-  }
-};`;
-      
-      return `Here's a robust API call pattern:\n\n\`\`\`javascript\n${code}\n\`\`\`\n\nKey features:\n• Proper error handling\n• Async/await syntax\n• TypeScript compatible\n\nNeed help with a specific API integration?`;
-    }
-    
-    return `I understand you're asking about "${userInput}". I can help you with:\n\n• Code implementation\n• Best practices\n• Debugging assistance\n• Architecture decisions\n\nCould you provide more specific details about what you'd like to accomplish?`;
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const formatMessage = (content: string) => {
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        const code = part.slice(3, -3);
-        const lines = code.split('\n');
-        const language = lines[0].trim() || 'code';
-        const codeContent = lines.slice(1).join('\n');
-        
-        return (
-          <div key={index} className="mt-4 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-              <span className="text-xs text-gray-300 uppercase tracking-wide">
-                {language}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => copyToClipboard(codeContent)}
-                className="text-gray-300 hover:text-white h-6 px-2"
-              >
-                <Copy className="w-3 h-3" />
-              </Button>
-            </div>
-            <pre className="p-4 text-sm overflow-x-auto">
-              <code className="text-gray-100 whitespace-pre-wrap">{codeContent}</code>
-            </pre>
-          </div>
-        );
-      }
-      
-      return (
-        <div key={index} className="whitespace-pre-wrap">
-          {part}
-        </div>
+      await streamChatResponse(
+        [...messages, { ...userMessage, content: contextualPrompt }],
+        (token) => {
+          assistantResponse += token;
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessage.id 
+                ? { ...msg, content: assistantResponse }
+                : msg
+            )
+          );
+        },
+        (stats) => {
+          // Progress updates handled by the hook
+        }
       );
-    });
+
+      // Extract code blocks if any
+      const codeMatch = assistantResponse.match(/```(?:javascript|typescript|jsx|tsx)?\n([\s\S]*?)```/);
+      if (codeMatch && onCodeGenerated) {
+        onCodeGenerated(codeMatch[1]);
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please check your API key and try again.',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const clearChat = () => {
+    setMessages([{
+      id: '1',
+      role: 'assistant',
+      content: 'Chat cleared. How can I help you with your code today?',
+      timestamp: new Date()
+    }]);
+  };
+
+  const exportChat = () => {
+    const chatData = JSON.stringify(messages, null, 2);
+    const blob = new Blob([chatData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai-chat-export.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -158,20 +129,50 @@ export default MyComponent;`;
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-white">AI Assistant</h3>
-            {context && (
-              <p className="text-xs text-slate-400">Context: {context}</p>
-            )}
-          </div>
+          <Bot className="w-5 h-5 text-blue-400" />
+          <h3 className="font-semibold text-white">AI Assistant</h3>
         </div>
-        <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white">
-          <Settings className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={clearChat}
+            className="text-slate-400 hover:text-white"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={exportChat}
+            className="text-slate-400 hover:text-white"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* API Key Input */}
+      {!apiKey && (
+        <div className="p-4 border-b border-slate-700">
+          <ApiKeyInput onApiKeySet={setApiKey} />
+        </div>
+      )}
+
+      {/* Real-time Progress */}
+      <RealTimeProgress
+        isStreaming={streamingStats.status === 'streaming'}
+        tokensReceived={streamingStats.tokensReceived}
+        responseTime={streamingStats.responseTime}
+        status={streamingStats.status}
+      />
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
@@ -179,66 +180,31 @@ export default MyComponent;`;
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex space-x-3 ${message.role === 'user' ? 'justify-end' : ''}`}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.role === 'assistant' && (
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="w-4 h-4 text-white" />
+              <div
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 text-slate-100'
+                }`}
+              >
+                <pre className="whitespace-pre-wrap text-sm font-sans">
+                  {message.content}
+                </pre>
+                <div className="text-xs opacity-70 mt-2">
+                  {message.timestamp.toLocaleTimeString()}
                 </div>
-              )}
-              
-              <div className={`max-w-[80%] ${message.role === 'user' ? 'order-first' : ''}`}>
-                <div
-                  className={`p-3 rounded-xl ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white ml-auto'
-                      : 'bg-slate-800 text-slate-100'
-                  }`}
-                >
-                  <div className="text-sm">
-                    {message.role === 'assistant' ? formatMessage(message.content) : message.content}
-                  </div>
-                </div>
-                
-                {message.role === 'assistant' && (
-                  <div className="flex items-center space-x-2 mt-2 ml-2">
-                    <Button size="sm" variant="ghost" className="text-slate-400 hover:text-green-400 h-6 px-2">
-                      <ThumbsUp className="w-3 h-3" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-slate-400 hover:text-red-400 h-6 px-2">
-                      <ThumbsDown className="w-3 h-3" />
-                    </Button>
-                    <span className="text-xs text-slate-500">
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                )}
               </div>
-
-              {message.role === 'user' && (
-                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <span className="text-white text-xs font-medium">U</span>
-                </div>
-              )}
             </div>
           ))}
-          
-          {isLoading && (
-            <div className="flex space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <div className="bg-slate-800 p-3 rounded-xl">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-slate-800 text-slate-100 rounded-lg p-3">
+                <TypingIndicator />
               </div>
             </div>
           )}
-          
-          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
@@ -250,11 +216,11 @@ export default MyComponent;`;
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask me anything about coding..."
-              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 resize-none min-h-[40px] pr-20"
+              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 resize-none min-h-[60px] pr-20"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage(inputValue);
+                  handleSendMessage();
                 }
               }}
             />
@@ -271,17 +237,17 @@ export default MyComponent;`;
           </div>
           
           <Button
-            onClick={() => handleSendMessage(inputValue)}
-            disabled={!inputValue.trim() || isLoading}
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isTyping || !apiKey}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
         
-        <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+        <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
           <span>Press Shift + Enter for new line</span>
-          <span>AI Assistant Ready</span>
+          <span>{apiKey ? 'AI Ready' : 'API Key Required'}</span>
         </div>
       </div>
     </div>

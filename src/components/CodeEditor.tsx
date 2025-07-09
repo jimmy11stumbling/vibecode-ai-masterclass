@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { Play, Save, Download, Upload, Settings, Maximize2, Copy, RotateCcw } from 'lucide-react';
+import { Play, Save, Download, Upload, Settings, Maximize2, Copy, RotateCcw, FileText, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 
 interface CodeFile {
   id: string;
@@ -14,9 +15,10 @@ interface CodeFile {
 interface CodeEditorProps {
   onCodeChange?: (files: CodeFile[]) => void;
   onRun?: (code: string) => void;
+  selectedFile?: any;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ onCodeChange, onRun }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ onCodeChange, onRun, selectedFile }) => {
   const [files, setFiles] = useState<CodeFile[]>([
     {
       id: '1',
@@ -68,9 +70,52 @@ body {
 
   const [activeFileId, setActiveFileId] = useState('1');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const activeFile = files.find(file => file.id === activeFileId) || files[0];
+
+  // Update active file when selectedFile changes
+  React.useEffect(() => {
+    if (selectedFile && selectedFile.type === 'file') {
+      // Check if file already exists
+      const existingFile = files.find(f => f.name === selectedFile.name);
+      if (existingFile) {
+        setActiveFileId(existingFile.id);
+      } else {
+        // Create new file
+        const newFile: CodeFile = {
+          id: Date.now().toString(),
+          name: selectedFile.name,
+          content: selectedFile.content || '// New file',
+          language: getLanguageFromFileName(selectedFile.name)
+        };
+        setFiles(prev => [...prev, newFile]);
+        setActiveFileId(newFile.id);
+      }
+    }
+  }, [selectedFile]);
+
+  const getLanguageFromFileName = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'ts':
+      case 'tsx':
+        return 'typescript';
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'css':
+        return 'css';
+      case 'html':
+        return 'html';
+      case 'json':
+        return 'json';
+      default:
+        return 'text';
+    }
+  };
 
   const updateFileContent = (fileId: string, content: string) => {
     const updatedFiles = files.map(file =>
@@ -80,6 +125,33 @@ body {
     onCodeChange?.(updatedFiles);
   };
 
+  const createNewFile = () => {
+    if (!newFileName.trim()) return;
+    
+    const newFile: CodeFile = {
+      id: Date.now().toString(),
+      name: newFileName.trim(),
+      content: `// ${newFileName}\n`,
+      language: getLanguageFromFileName(newFileName)
+    };
+    
+    setFiles(prev => [...prev, newFile]);
+    setActiveFileId(newFile.id);
+    setIsCreatingFile(false);
+    setNewFileName('');
+  };
+
+  const deleteFile = (fileId: string) => {
+    if (files.length <= 1) return; // Keep at least one file
+    
+    const updatedFiles = files.filter(file => file.id !== fileId);
+    setFiles(updatedFiles);
+    
+    if (activeFileId === fileId) {
+      setActiveFileId(updatedFiles[0]?.id || '');
+    }
+  };
+
   const handleRun = () => {
     const mainFile = files.find(file => file.name.includes('App')) || files[0];
     onRun?.(mainFile.content);
@@ -87,7 +159,21 @@ body {
 
   const handleSave = () => {
     console.log('Saving files...', files);
-    // In production, this would save to backend
+    // In production, this would save to backend or local storage
+    localStorage.setItem('ide_files', JSON.stringify(files));
+  };
+
+  const handleLoad = () => {
+    const savedFiles = localStorage.getItem('ide_files');
+    if (savedFiles) {
+      try {
+        const parsedFiles = JSON.parse(savedFiles);
+        setFiles(parsedFiles);
+        setActiveFileId(parsedFiles[0]?.id || '');
+      } catch (error) {
+        console.error('Error loading files:', error);
+      }
+    }
   };
 
   const handleDownload = () => {
@@ -163,6 +249,15 @@ export default App;`);
           <Button
             size="sm"
             variant="ghost"
+            onClick={handleLoad}
+            className="text-slate-400 hover:text-white"
+          >
+            <Upload className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
             onClick={handleDownload}
             className="text-slate-400 hover:text-white"
           >
@@ -208,17 +303,66 @@ export default App;`);
 
       {/* File Tabs */}
       <Tabs value={activeFileId} onValueChange={setActiveFileId} className="flex-1 flex flex-col">
-        <TabsList className="bg-slate-800 border-b border-slate-700 rounded-none justify-start h-auto p-0">
-          {files.map((file) => (
-            <TabsTrigger
-              key={file.id}
-              value={file.id}
-              className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400 rounded-none border-r border-slate-700 px-4 py-2"
-            >
-              {file.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex items-center border-b border-slate-700">
+          <TabsList className="bg-slate-800 border-b border-slate-700 rounded-none justify-start h-auto p-0 flex-1">
+            {files.map((file) => (
+              <TabsTrigger
+                key={file.id}
+                value={file.id}
+                className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400 rounded-none border-r border-slate-700 px-4 py-2 relative group"
+              >
+                <FileText className="w-3 h-3 mr-1" />
+                {file.name}
+                {files.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFile(file.id);
+                    }}
+                    className="ml-2 h-4 w-4 p-0 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </Button>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          <div className="p-2">
+            {isCreatingFile ? (
+              <div className="flex items-center space-x-2">
+                <Input
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  placeholder="filename.tsx"
+                  className="w-32 h-6 text-xs bg-slate-800 border-slate-600"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') createNewFile();
+                    if (e.key === 'Escape') {
+                      setIsCreatingFile(false);
+                      setNewFileName('');
+                    }
+                  }}
+                  autoFocus
+                />
+                <Button size="sm" onClick={createNewFile} className="h-6 px-2 text-xs">
+                  Add
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsCreatingFile(true)}
+                className="text-slate-400 hover:text-white h-6 w-6 p-0"
+              >
+                <Plus className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        </div>
 
         {files.map((file) => (
           <TabsContent key={file.id} value={file.id} className="flex-1 m-0">
@@ -229,7 +373,7 @@ export default App;`);
                   ref={textareaRef}
                   value={file.content}
                   onChange={(e) => updateFileContent(file.id, e.target.value)}
-                  className="w-full h-full bg-slate-800 text-slate-100 font-mono text-sm p-4 border-0 resize-none focus:outline-none"
+                  className="w-full h-full bg-slate-800 text-slate-100 font-mono text-sm p-4 pl-16 border-0 resize-none focus:outline-none"
                   placeholder={`Write your ${file.language} code here...`}
                   spellCheck={false}
                 />

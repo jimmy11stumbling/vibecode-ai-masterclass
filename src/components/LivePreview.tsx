@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Play, Square, RefreshCw, Maximize2, ExternalLink, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Square, RefreshCw, Maximize2, ExternalLink, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface LivePreviewProps {
@@ -11,42 +11,185 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
+  const [logs, setLogs] = useState<string[]>([]);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const createPreviewHTML = (code: string) => {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .error { color: red; padding: 20px; background: #fee; border: 1px solid #fcc; margin: 20px; border-radius: 8px; }
+    .console-log { padding: 10px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="console-output"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, createElement } = React;
+    const { createRoot } = ReactDOM;
+    
+    // Capture console logs
+    const originalLog = console.log;
+    const originalError = console.error;
+    const consoleOutput = document.getElementById('console-output');
+    
+    console.log = (...args) => {
+      originalLog(...args);
+      const logDiv = document.createElement('div');
+      logDiv.className = 'console-log';
+      logDiv.textContent = '> ' + args.join(' ');
+      consoleOutput.appendChild(logDiv);
+      window.parent.postMessage({ type: 'console', level: 'log', message: args.join(' ') }, '*');
+    };
+    
+    console.error = (...args) => {
+      originalError(...args);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'console-log';
+      errorDiv.style.color = 'red';
+      errorDiv.textContent = '✗ ' + args.join(' ');
+      consoleOutput.appendChild(errorDiv);
+      window.parent.postMessage({ type: 'console', level: 'error', message: args.join(' ') }, '*');
+    };
+    
+    try {
+      // Transform the code
+      const transformedCode = \`${code.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`;
+      
+      // Create a function that returns the component
+      const componentCode = transformedCode.includes('export default') 
+        ? transformedCode.replace('export default', 'return') 
+        : \`return (\${transformedCode})\`;
+      
+      const ComponentFunction = new Function('React', 'useState', 'useEffect', componentCode);
+      const Component = ComponentFunction(React, useState, useEffect);
+      
+      const root = createRoot(document.getElementById('root'));
+      
+      if (typeof Component === 'function') {
+        root.render(createElement(Component));
+      } else {
+        root.render(Component);
+      }
+      
+      window.parent.postMessage({ type: 'success', message: 'Component rendered successfully' }, '*');
+      
+    } catch (error) {
+      console.error('Preview Error:', error);
+      document.getElementById('root').innerHTML = \`
+        <div class="error">
+          <h3>Preview Error</h3>
+          <p>\${error.message}</p>
+          <pre>\${error.stack}</pre>
+        </div>
+      \`;
+      window.parent.postMessage({ type: 'error', message: error.message }, '*');
+    }
+  </script>
+</body>
+</html>`;
+  };
 
   useEffect(() => {
-    if (code && isRunning) {
-      try {
-        // This is a simplified preview - in a real implementation,
-        // you'd need a proper code execution environment
-        setOutput('Code executed successfully!');
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'console') {
+        setLogs(prev => [...prev, `[${event.data.level}] ${event.data.message}`]);
+      } else if (event.data.type === 'error') {
+        setError(event.data.message);
+        setIsRunning(false);
+      } else if (event.data.type === 'success') {
         setError('');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setOutput('');
+        setOutput(event.data.message);
       }
-    }
-  }, [code, isRunning]);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const handleRun = () => {
+    if (!code.trim()) {
+      setError('No code to preview');
+      return;
+    }
+
     setIsRunning(true);
     setError('');
-    setOutput('Running code...');
+    setOutput('');
+    setLogs([]);
+
+    try {
+      const previewHTML = createPreviewHTML(code);
+      const blob = new Blob([previewHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      if (iframeRef.current) {
+        iframeRef.current.src = url;
+      }
+      
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsRunning(false);
+    }
   };
 
   const handleStop = () => {
     setIsRunning(false);
+    if (iframeRef.current) {
+      iframeRef.current.src = 'about:blank';
+    }
     setOutput('');
     setError('');
+    setLogs([]);
   };
 
   const handleRefresh = () => {
-    if (isRunning) {
+    if (code) {
       handleRun();
     }
   };
 
+  const openInNewTab = () => {
+    if (code) {
+      const previewHTML = createPreviewHTML(code);
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(previewHTML);
+        newWindow.document.close();
+      }
+    }
+  };
+
+  // Auto-run when code changes
+  useEffect(() => {
+    if (code && isRunning) {
+      const timeoutId = setTimeout(() => {
+        handleRun();
+      }, 1000); // Debounce for 1 second
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [code]);
+
   return (
-    <div className="h-full bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 flex flex-col">
-      <div className="p-4 border-b border-white/10">
+    <div className="h-full bg-slate-900 rounded-lg border border-slate-700 flex flex-col">
+      <div className="p-4 border-b border-slate-700">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-white">Live Preview</h3>
           <div className="flex items-center space-x-2">
@@ -55,6 +198,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
                 size="sm"
                 onClick={handleRun}
                 className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!code.trim()}
               >
                 <Play className="w-4 h-4 mr-2" />
                 Run
@@ -73,21 +217,17 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
               size="sm"
               variant="ghost"
               onClick={handleRefresh}
-              className="text-gray-400 hover:text-white"
+              className="text-slate-400 hover:text-white"
+              disabled={!code.trim()}
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              className="text-gray-400 hover:text-white"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-gray-400 hover:text-white"
+              onClick={openInNewTab}
+              className="text-slate-400 hover:text-white"
+              disabled={!code.trim()}
             >
               <ExternalLink className="w-4 h-4" />
             </Button>
@@ -95,68 +235,80 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Status Bar */}
+        {(isRunning || error || output) && (
+          <div className="px-4 py-2 border-b border-slate-700 bg-slate-800">
+            <div className="flex items-center space-x-2 text-sm">
+              {error ? (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
+                  <span className="text-red-400">Error: {error}</span>
+                </>
+              ) : output ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-green-400">{output}</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-blue-400">Running preview...</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Preview Frame */}
-        <div className="h-full bg-white rounded-lg m-4 border border-gray-200 overflow-auto">
-          {isRunning && !error && (
-            <div className="p-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">Preview Running</h3>
-                <p className="text-gray-600 mb-4">
-                  Your code is executing in a sandboxed environment
-                </p>
-                <div className="bg-gray-100 rounded-lg p-4 text-left">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap">
-                    {output}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="p-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <X className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-red-600 mb-2">Error</h3>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
-                  <pre className="text-sm text-red-800 whitespace-pre-wrap">
-                    {error}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!isRunning && !error && (
-            <div className="h-full flex items-center justify-center">
+        <div className="flex-1 relative">
+          {isRunning && code ? (
+            <iframe
+              ref={iframeRef}
+              className="w-full h-full border-0"
+              sandbox="allow-scripts allow-same-origin"
+              title="Live Preview"
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center bg-white">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Play className="w-8 h-8 text-gray-500" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-500 mb-2">Ready to Preview</h3>
                 <p className="text-gray-400">
-                  Click the Run button to execute your code
+                  {!code.trim() ? 'Write some code and click Run to see the preview' : 'Click the Run button to execute your code'}
                 </p>
               </div>
             </div>
           )}
         </div>
+
+        {/* Console Logs */}
+        {logs.length > 0 && (
+          <div className="h-32 border-t border-slate-700 bg-slate-800 overflow-auto">
+            <div className="p-2">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Console Output</h4>
+              {logs.map((log, index) => (
+                <div key={index} className="text-xs text-slate-300 font-mono mb-1">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="p-3 border-t border-white/10 bg-white/5">
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>Sandboxed Environment</span>
+      <div className="p-3 border-t border-slate-700 bg-slate-800">
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span>React • Live Preview</span>
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${
-              isRunning ? 'bg-green-500' : 'bg-gray-500'
+              isRunning ? 'bg-green-500' : error ? 'bg-red-500' : 'bg-gray-500'
             }`} />
-            <span>{isRunning ? 'Running' : 'Stopped'}</span>
+            <span>
+              {isRunning ? 'Running' : error ? 'Error' : 'Stopped'}
+            </span>
           </div>
         </div>
       </div>
