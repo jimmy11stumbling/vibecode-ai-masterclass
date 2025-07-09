@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, RefreshCw, Maximize2, ExternalLink, X, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Play } from 'lucide-react';
+import { PreviewControls } from './PreviewControls';
+import { PreviewStatus } from './PreviewStatus';
 
 interface LivePreviewProps {
   code: string;
@@ -181,7 +182,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
     if (code && isRunning) {
       const timeoutId = setTimeout(() => {
         handleRun();
-      }, 1000); // Debounce for 1 second
+      }, 1000);
       
       return () => clearTimeout(timeoutId);
     }
@@ -189,76 +190,17 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ code }) => {
 
   return (
     <div className="h-full bg-slate-900 rounded-lg border border-slate-700 flex flex-col">
-      <div className="p-4 border-b border-slate-700">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white">Live Preview</h3>
-          <div className="flex items-center space-x-2">
-            {!isRunning ? (
-              <Button
-                size="sm"
-                onClick={handleRun}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={!code.trim()}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Run
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={handleStop}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                <Square className="w-4 h-4 mr-2" />
-                Stop
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleRefresh}
-              className="text-slate-400 hover:text-white"
-              disabled={!code.trim()}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={openInNewTab}
-              className="text-slate-400 hover:text-white"
-              disabled={!code.trim()}
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PreviewControls
+        isRunning={isRunning}
+        hasCode={!!code.trim()}
+        onRun={handleRun}
+        onStop={handleStop}
+        onRefresh={handleRefresh}
+        onOpenInNewTab={openInNewTab}
+      />
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Status Bar */}
-        {(isRunning || error || output) && (
-          <div className="px-4 py-2 border-b border-slate-700 bg-slate-800">
-            <div className="flex items-center space-x-2 text-sm">
-              {error ? (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-400">Error: {error}</span>
-                </>
-              ) : output ? (
-                <>
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span className="text-green-400">{output}</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-blue-400">Running preview...</span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        <PreviewStatus isRunning={isRunning} error={error} output={output} />
 
         {/* Preview Frame */}
         <div className="flex-1 relative">

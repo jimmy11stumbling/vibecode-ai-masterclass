@@ -6,21 +6,15 @@ import { LivePreview } from '@/components/LivePreview';
 import { ProjectManager } from '@/components/ProjectManager';
 import { AIChatBot } from '@/components/AIChatBot';
 import { Terminal } from '@/components/Terminal';
-import { Button } from '@/components/ui/button';
+import { IDEToolbar } from '@/components/IDEToolbar';
+import { IDEStatusBar } from '@/components/IDEStatusBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { 
   Code, 
   Eye, 
   FolderTree, 
-  Bot, 
-  Terminal as TerminalIcon, 
-  Settings,
-  Play,
-  Save,
-  Download,
-  Maximize2,
-  Layout
+  Bot
 } from 'lucide-react';
 
 interface ProjectFile {
@@ -38,7 +32,7 @@ const FullIDE = () => {
   const [previewCode, setPreviewCode] = useState('');
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
-  const [layout, setLayout] = useState('horizontal'); // 'horizontal' | 'vertical'
+  const [layout, setLayout] = useState('horizontal');
 
   const handleFileSelect = (file: ProjectFile) => {
     setSelectedFile(file);
@@ -81,53 +75,11 @@ const FullIDE = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
       <Header />
       
-      {/* IDE Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-white font-semibold">Vibecode IDE</h1>
-            <div className="flex items-center space-x-2">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                <Play className="w-4 h-4 mr-2" />
-                Run
-              </Button>
-              <Button size="sm" variant="outline" className="border-slate-600">
-                <Save className="w-4 h-4 mr-2" />
-                Save
-              </Button>
-              <Button size="sm" variant="outline" className="border-slate-600">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="text-slate-400"
-              onClick={toggleTerminal}
-            >
-              <TerminalIcon className="w-4 h-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="text-slate-400"
-              onClick={toggleLayout}
-            >
-              <Layout className="w-4 h-4" />
-            </Button>
-            <Button size="sm" variant="ghost" className="text-slate-400">
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-            <Button size="sm" variant="ghost" className="text-slate-400">
-              <Settings className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <IDEToolbar 
+        onToggleTerminal={toggleTerminal}
+        onToggleLayout={toggleLayout}
+        layout={layout}
+      />
 
       {/* Main IDE Layout */}
       <div className="flex-1 flex overflow-hidden">
@@ -238,31 +190,7 @@ const FullIDE = () => {
         </div>
       )}
 
-      {/* Status Bar */}
-      <div className="bg-slate-800 border-t border-slate-700 px-4 py-1">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center space-x-4">
-            <span>Ready</span>
-            <span>•</span>
-            <span>TypeScript</span>
-            <span>•</span>
-            <span>UTF-8</span>
-            {selectedFile && (
-              <>
-                <span>•</span>
-                <span>{selectedFile.name}</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Ln 1, Col 1</span>
-            <span>•</span>
-            <span>Spaces: 2</span>
-            <span>•</span>
-            <span>Layout: {layout}</span>
-          </div>
-        </div>
-      </div>
+      <IDEStatusBar selectedFile={selectedFile} layout={layout} />
     </div>
   );
 };

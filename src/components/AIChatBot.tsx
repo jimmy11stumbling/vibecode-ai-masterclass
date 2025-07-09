@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { Bot, Send, Mic, Settings, Trash2, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { RealTimeProgress } from './RealTimeProgress';
 import { TypingIndicator } from './TypingIndicator';
 import { ApiKeyInput } from './ApiKeyInput';
+import { ChatHeader } from './ChatHeader';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
 
 interface Message {
   id: string;
@@ -126,47 +126,14 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
 
   return (
     <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-700">
-        <div className="flex items-center space-x-2">
-          <Bot className="w-5 h-5 text-blue-400" />
-          <h3 className="font-semibold text-white">AI Assistant</h3>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={clearChat}
-            className="text-slate-400 hover:text-white"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={exportChat}
-            className="text-slate-400 hover:text-white"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-slate-400 hover:text-white"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      <ChatHeader onClearChat={clearChat} onExportChat={exportChat} />
 
-      {/* API Key Input */}
       {!apiKey && (
         <div className="p-4 border-b border-slate-700">
           <ApiKeyInput onApiKeySet={setApiKey} />
         </div>
       )}
 
-      {/* Real-time Progress */}
       <RealTimeProgress
         isStreaming={streamingStats.status === 'streaming'}
         tokensReceived={streamingStats.tokensReceived}
@@ -174,29 +141,10 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
         status={streamingStats.status}
       />
 
-      {/* Messages */}
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-100'
-                }`}
-              >
-                <pre className="whitespace-pre-wrap text-sm font-sans">
-                  {message.content}
-                </pre>
-                <div className="text-xs opacity-70 mt-2">
-                  {message.timestamp.toLocaleTimeString()}
-                </div>
-              </div>
-            </div>
+            <ChatMessage key={message.id} message={message} />
           ))}
           {isTyping && (
             <div className="flex justify-start">
@@ -208,48 +156,13 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t border-slate-700">
-        <div className="flex space-x-2">
-          <div className="flex-1 relative">
-            <Textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me anything about coding..."
-              className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 resize-none min-h-[60px] pr-20"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-            />
-            <div className="absolute right-2 bottom-2 flex space-x-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-slate-400 hover:text-white h-6 w-6 p-0"
-              >
-                <Mic className="w-3 h-3" />
-              </Button>
-            </div>
-          </div>
-          
-          <Button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isTyping || !apiKey}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
-          <span>Press Shift + Enter for new line</span>
-          <span>{apiKey ? 'AI Ready' : 'API Key Required'}</span>
-        </div>
-      </div>
+      <ChatInput
+        value={inputValue}
+        onChange={setInputValue}
+        onSubmit={handleSendMessage}
+        disabled={isTyping}
+        apiKey={apiKey}
+      />
     </div>
   );
 };
