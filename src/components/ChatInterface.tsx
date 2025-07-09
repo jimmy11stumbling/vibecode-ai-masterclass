@@ -5,8 +5,13 @@ import { MessageInput } from './MessageInput';
 import { PromptBuilder } from './PromptBuilder';
 import { CodePreview } from './CodePreview';
 import { ApiKeyInput } from './ApiKeyInput';
+import { TypingIndicator } from './TypingIndicator';
+import { RealTimeProgress } from './RealTimeProgress';
+import { ConsoleLogger } from './ConsoleLogger';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Terminal } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -28,8 +33,9 @@ export const ChatInterface = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
+  const [showConsole, setShowConsole] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { apiKey, setApiKey, streamChatResponse } = useDeepSeekAPI();
+  const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,7 +45,14 @@ export const ChatInterface = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Log real-time validation info
+  useEffect(() => {
+    console.log('Real-time streaming stats updated:', streamingStats);
+  }, [streamingStats]);
+
   const handleSendMessage = async (content: string) => {
+    console.log('User message sent:', content);
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -63,18 +76,29 @@ export const ChatInterface = () => {
     try {
       const conversationMessages = [...messages, userMessage];
       
-      await streamChatResponse(conversationMessages, (token: string) => {
-        setMessages(prev => {
-          const updated = prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, content: msg.content + token }
-              : msg
-          );
-          return updated;
-        });
-      });
+      console.log('Starting real-time response streaming...');
+      
+      await streamChatResponse(
+        conversationMessages, 
+        (token: string) => {
+          console.log('Real-time token received:', token);
+          setMessages(prev => {
+            const updated = prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + token }
+                : msg
+            );
+            return updated;
+          });
+        },
+        (stats) => {
+          console.log('Real-time progress update:', stats);
+        }
+      );
+      
+      console.log('Real-time response completed successfully');
     } catch (error) {
-      console.error('DeepSeek API error:', error);
+      console.error('Real-time response error:', error);
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantMessageId 
@@ -88,22 +112,44 @@ export const ChatInterface = () => {
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col">
+    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col relative">
       <ApiKeyInput apiKey={apiKey} onApiKeyChange={setApiKey} />
+      
+      {/* Real-time Progress Indicator */}
+      <div className="px-6 py-2">
+        <RealTimeProgress
+          isStreaming={isLoading}
+          tokensReceived={streamingStats.tokensReceived}
+          responseTime={streamingStats.responseTime}
+          status={streamingStats.status}
+        />
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="border-b border-white/10 px-6 py-4">
-          <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20">
-            <TabsTrigger value="chat" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="builder" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-              Prompt Builder
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-              Code Preview
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20">
+              <TabsTrigger value="chat" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="builder" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
+                Prompt Builder
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
+                Code Preview
+              </TabsTrigger>
+            </TabsList>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowConsole(!showConsole)}
+              className="text-white/70 hover:text-white"
+            >
+              <Terminal className="w-4 h-4 mr-2" />
+              Console
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden">
@@ -113,6 +159,17 @@ export const ChatInterface = () => {
               isLoading={isLoading} 
               messagesEndRef={messagesEndRef}
             />
+            
+            {/* Typing Indicator */}
+            {isLoading && (
+              <div className="px-4 pb-2">
+                <TypingIndicator 
+                  isVisible={isLoading}
+                  typingText={`AI is generating response... (${streamingStats.tokensReceived} tokens)`}
+                />
+              </div>
+            )}
+            
             <MessageInput onSendMessage={handleSendMessage} />
           </TabsContent>
 
@@ -125,6 +182,12 @@ export const ChatInterface = () => {
           </TabsContent>
         </div>
       </Tabs>
+
+      {/* Real-time Console Logger */}
+      <ConsoleLogger 
+        isVisible={showConsole}
+        onToggle={() => setShowConsole(!showConsole)}
+      />
     </div>
   );
 };
