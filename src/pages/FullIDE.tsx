@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
@@ -10,6 +11,7 @@ import { IDEStatusBar } from '@/components/IDEStatusBar';
 import { ToastProvider } from '@/components/ToastProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Button } from '@/components/ui/button';
 import { 
   Code, 
   Eye, 
