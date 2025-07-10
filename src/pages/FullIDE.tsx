@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
@@ -15,8 +14,13 @@ import {
   Code, 
   Eye, 
   FolderTree, 
-  Bot
+  Bot,
+  Database,
+  Settings,
+  Zap
 } from 'lucide-react';
+import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
+import { DatabaseManager } from '@/components/DatabaseManager';
 
 interface ProjectFile {
   id: string;
@@ -34,6 +38,15 @@ const FullIDE = () => {
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [layout, setLayout] = useState('horizontal');
+  const [aiApiKey, setAiApiKey] = useState('');
+
+  // Load API key from localStorage
+  React.useEffect(() => {
+    const savedApiKey = localStorage.getItem('deepseek_api_key');
+    if (savedApiKey) {
+      setAiApiKey(savedApiKey);
+    }
+  }, []);
 
   const handleFileSelect = (file: ProjectFile) => {
     console.log('File selected:', file);
@@ -95,14 +108,18 @@ const FullIDE = () => {
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2">
-                    <TabsList className="bg-slate-800 w-full">
-                      <TabsTrigger value="files" className="flex-1 data-[state=active]:bg-slate-700">
-                        <FolderTree className="w-4 h-4 mr-2" />
-                        Files
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-4">
+                      <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
+                        <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="ai" className="flex-1 data-[state=active]:bg-slate-700">
-                        <Bot className="w-4 h-4 mr-2" />
-                        AI
+                      <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
+                        <Bot className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="database" className="data-[state=active]:bg-slate-700">
+                        <Database className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="deploy" className="data-[state=active]:bg-slate-700">
+                        <Zap className="w-4 h-4" />
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -116,10 +133,54 @@ const FullIDE = () => {
                     </TabsContent>
 
                     <TabsContent value="ai" className="h-full m-0">
-                      <AIChatBot 
-                        context={selectedFile ? `Working on: ${selectedFile.name}` : undefined}
+                      <EnhancedAIChatBot 
+                        projectFiles={projectFiles}
+                        onFilesChange={setProjectFiles}
                         onCodeGenerated={handleCodeGenerated}
+                        apiKey={aiApiKey}
                       />
+                    </TabsContent>
+
+                    <TabsContent value="database" className="h-full m-0">
+                      <DatabaseManager 
+                        onSchemaChange={(tables) => {
+                          console.log('Database schema updated:', tables);
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="deploy" className="h-full m-0">
+                      <div className="p-4">
+                        <h3 className="font-semibold text-white mb-4">Deployment</h3>
+                        <div className="space-y-4">
+                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <h4 className="font-medium text-slate-200 mb-2">Build Status</h4>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-sm text-slate-400">Ready to deploy</span>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <h4 className="font-medium text-slate-200 mb-2">Environment</h4>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-400">Framework:</span>
+                                <span className="text-white">React + TypeScript</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-400">Database:</span>
+                                <span className="text-white">Supabase</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <Button className="w-full bg-green-600 hover:bg-green-700">
+                            <Zap className="w-4 h-4 mr-2" />
+                            Deploy to Production
+                          </Button>
+                        </div>
+                      </div>
                     </TabsContent>
                   </div>
                 </Tabs>
