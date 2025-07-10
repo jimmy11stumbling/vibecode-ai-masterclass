@@ -35,11 +35,23 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     startEditing,
     saveEdit,
     createNewFile,
-    deleteFile
-  } = useProjectFiles(onProjectChange);
+    deleteFile,
+    applyFileChanges
+  } = useProjectFiles((updatedFiles) => {
+    console.log('Project files updated:', updatedFiles);
+    onProjectChange?.(updatedFiles);
+  });
 
   const [isCreating, setIsCreating] = useState(false);
   const [newFileName, setNewFileName] = useState('');
+
+  // Expose applyFileChanges to parent components
+  React.useEffect(() => {
+    if (onProjectChange) {
+      // Store the applyFileChanges function on the component for external access
+      (window as any).applyFileChanges = applyFileChanges;
+    }
+  }, [applyFileChanges, onProjectChange]);
 
   const handleCreateFile = () => {
     if (newFileName.trim()) {
@@ -107,7 +119,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <Input
               value={newFileName}
               onChange={(e) => setNewFileName(e.target.value)}
-              placeholder="filename.tsx"
+              placeholder="Component.tsx"
               className="text-xs bg-slate-800 border-slate-600"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreateFile();
@@ -130,6 +142,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {renderFiles(files)}
         </div>
       </ScrollArea>
+
+      <div className="p-2 border-t border-slate-700">
+        <div className="text-xs text-slate-400 text-center">
+          {files.length} files • AI-managed project
+        </div>
+      </div>
     </div>
   );
 };

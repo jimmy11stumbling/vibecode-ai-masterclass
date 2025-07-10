@@ -92,61 +92,6 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     }
   };
 
-  const applyCodeChanges = (changes: Array<{path: string; operation: string; content?: string}>) => {
-    let updatedFiles = [...projectFiles];
-    
-    changes.forEach(change => {
-      const pathParts = change.path.split('/');
-      
-      if (change.operation === 'create') {
-        // Create new file
-        const newFile: ProjectFile = {
-          id: Date.now().toString() + Math.random(),
-          name: pathParts[pathParts.length - 1],
-          type: 'file',
-          content: change.content || ''
-        };
-        
-        if (pathParts.length === 1) {
-          updatedFiles.push(newFile);
-        } else {
-          // Add to appropriate folder - simplified for now
-          updatedFiles.push(newFile);
-        }
-      } else if (change.operation === 'update') {
-        // Update existing file
-        const updateFile = (files: ProjectFile[]): ProjectFile[] => {
-          return files.map(file => {
-            if (file.name === pathParts[pathParts.length - 1] && file.type === 'file') {
-              return { ...file, content: change.content || file.content };
-            }
-            if (file.children) {
-              return { ...file, children: updateFile(file.children) };
-            }
-            return file;
-          });
-        };
-        updatedFiles = updateFile(updatedFiles);
-      } else if (change.operation === 'delete') {
-        // Delete file
-        const deleteFile = (files: ProjectFile[]): ProjectFile[] => {
-          return files.filter(file => {
-            if (file.name === pathParts[pathParts.length - 1]) {
-              return false;
-            }
-            if (file.children) {
-              file.children = deleteFile(file.children);
-            }
-            return true;
-          });
-        };
-        updatedFiles = deleteFile(updatedFiles);
-      }
-    });
-    
-    onFilesChange(updatedFiles);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !aiGenerator) return;
@@ -170,11 +115,15 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         features: ['TypeScript', 'Tailwind CSS', 'React Router']
       };
 
+      console.log('Sending request to AI:', { prompt: inputValue, projectContext });
+
       const result = await aiGenerator.generateCode({
         prompt: inputValue,
         projectContext,
         operation: 'create' // Could be determined from prompt analysis
       });
+
+      console.log('AI response:', result);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -187,12 +136,23 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
       setMessages(prev => [...prev, assistantMessage]);
 
       if (result.success && result.files.length > 0) {
-        applyCodeChanges(result.files);
-        
-        toast({
-          title: "Code Generated Successfully",
-          description: `Created/updated ${result.files.length} file(s)`,
-        });
+        // Apply changes through the global function
+        if ((window as any).applyFileChanges) {
+          console.log('Applying file changes:', result.files);
+          (window as any).applyFileChanges(result.files);
+          
+          toast({
+            title: "Code Generated Successfully",
+            description: `Created/updated ${result.files.length} file(s)`,
+          });
+        } else {
+          console.error('applyFileChanges function not available');
+          toast({
+            title: "Error",
+            description: "Could not apply file changes. Please refresh and try again.",
+            variant: "destructive"
+          });
+        }
 
         // If there are dependencies, show them
         if (result.dependencies && result.dependencies.length > 0) {
@@ -201,15 +161,28 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
             description: `Install: ${result.dependencies.join(', ')}`,
           });
         }
+      } else {
+        toast({
+          title: "AI Generation Failed",
+          description: result.explanation || "Could not generate code",
+          variant: "destructive"
+        });
       }
 
     } catch (error) {
+      console.error('AI generation error:', error);
       setMessages(prev => [...prev, {
         id: (Date.now() + 2).toString(),
         role: 'assistant',
         content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       }]);
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -218,7 +191,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   const quickActions = [
     {
       label: 'Create Component',
-      prompt: 'Create a new React component with TypeScript',
+      prompt: 'Create a new React component with TypeScript and proper styling',
       icon: Code
     },
     {
