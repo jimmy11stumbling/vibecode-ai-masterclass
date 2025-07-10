@@ -40,7 +40,7 @@ export const useDeepSeekAPI = () => {
       throw new Error(error);
     }
 
-    logValidation('info', 'Starting DeepSeek API request');
+    logValidation('info', 'Starting DeepSeek API request with real-time streaming');
     
     const startTime = Date.now();
     setStreamingStats({
@@ -51,7 +51,7 @@ export const useDeepSeekAPI = () => {
     });
 
     try {
-      logValidation('info', 'Sending request to DeepSeek API', {
+      logValidation('info', 'Sending streaming request to DeepSeek API', {
         messageCount: messages.length,
         endpoint: 'https://api.deepseek.com/chat/completions'
       });
@@ -77,10 +77,10 @@ export const useDeepSeekAPI = () => {
         throw new Error(errorMsg);
       }
 
-      logValidation('success', 'Successfully connected to DeepSeek API');
+      logValidation('success', 'Successfully connected to DeepSeek streaming API');
 
       if (!response.body) {
-        const error = "No response stream";
+        const error = "No response stream available";
         logValidation('error', error);
         setStreamingStats(prev => ({ ...prev, status: 'error' }));
         throw new Error(error);
@@ -91,13 +91,14 @@ export const useDeepSeekAPI = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let tokensReceived = 0;
+      let buffer = "";
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
             const responseTime = Date.now() - startTime;
-            logValidation('success', `Stream completed. Total tokens: ${tokensReceived}, Time: ${responseTime}ms`);
+            logValidation('success', `Real-time stream completed. Total tokens: ${tokensReceived}, Time: ${responseTime}ms`);
             
             setStreamingStats({
               tokensReceived,
@@ -115,14 +116,18 @@ export const useDeepSeekAPI = () => {
             break;
           }
           
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete lines
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ""; // Keep the last incomplete line in buffer
           
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6).trim();
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('data: ')) {
+              const data = trimmedLine.slice(6).trim();
               if (data === '[DONE]') {
-                logValidation('info', 'Received [DONE] signal from stream');
+                logValidation('info', 'Received [DONE] signal from real-time stream');
                 return;
               }
               
@@ -148,10 +153,12 @@ export const useDeepSeekAPI = () => {
                     
                     setStreamingStats(currentStats);
                     onProgress?.(currentStats);
+                    
+                    logValidation('info', `Real-time token received: ${tokensReceived}`, { token });
                   }
                 }
               } catch (e) {
-                logValidation('warning', 'Failed to parse JSON chunk', { chunk: data, error: e });
+                logValidation('warning', 'Failed to parse JSON chunk in real-time stream', { chunk: data, error: e });
                 continue;
               }
             }
@@ -159,11 +166,11 @@ export const useDeepSeekAPI = () => {
         }
       } finally {
         reader.releaseLock();
-        logValidation('info', 'Released stream reader');
+        logValidation('info', 'Released real-time stream reader');
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
-      logValidation('error', `DeepSeek API error: ${errorMsg}`, error);
+      logValidation('error', `DeepSeek real-time streaming error: ${errorMsg}`, error);
       
       setStreamingStats(prev => ({
         ...prev,

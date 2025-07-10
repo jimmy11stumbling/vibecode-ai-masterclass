@@ -6,6 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Send, Code, Database, Trash2, RefreshCw, Download } from 'lucide-react';
 import { AICodeGenerator } from '@/services/aiCodeGenerator';
 import { useToast } from '@/components/ui/use-toast';
+import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
+import { RealTimeProgress } from './RealTimeProgress';
+import { TypingIndicator } from './TypingIndicator';
 
 interface ProjectFile {
   id: string;
@@ -44,7 +47,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m your AI full-stack development assistant. I can help you:\n\n• Create React components and pages\n• Set up database schemas and APIs\n• Generate CRUD operations\n• Add authentication and authorization\n• Create responsive UI designs\n• Handle state management\n• Set up real-time features\n\nWhat would you like to build today?',
+      content: 'Hello! I\'m your AI full-stack development assistant with real-time streaming. I can help you:\n\n• Create React components and pages with live updates\n• Set up database schemas and APIs\n• Generate CRUD operations in real-time\n• Add authentication and authorization\n• Create responsive UI designs\n• Handle state management\n• Set up real-time features\n\nWhat would you like to build today?',
       timestamp: new Date()
     }
   ]);
@@ -53,6 +56,8 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
+  // Use the enhanced streaming hook
+  const { streamChatResponse, streamingStats } = useDeepSeekAPI();
   const aiGenerator = apiKey ? new AICodeGenerator(apiKey) : null;
 
   const flattenFiles = (files: ProjectFile[]): Array<{name: string; content: string; type: string}> => {
@@ -94,7 +99,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !aiGenerator) return;
+    if (!inputValue.trim() || !apiKey) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -107,6 +112,17 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     setInputValue('');
     setIsProcessing(true);
 
+    // Create assistant message for real-time streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
       const projectContext = {
         files: flattenFiles(projectFiles),
@@ -115,72 +131,66 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         features: ['TypeScript', 'Tailwind CSS', 'React Router']
       };
 
-      console.log('Sending request to AI:', { prompt: inputValue, projectContext });
+      console.log('Starting real-time AI streaming:', { prompt: inputValue, projectContext });
 
-      const result = await aiGenerator.generateCode({
-        prompt: inputValue,
-        projectContext,
-        operation: 'create' // Could be determined from prompt analysis
-      });
-
-      console.log('AI response:', result);
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: result.explanation,
-        timestamp: new Date(),
-        codeChanges: result.files
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      if (result.success && result.files.length > 0) {
-        // Apply changes through the global function
-        if ((window as any).applyFileChanges) {
-          console.log('Applying file changes:', result.files);
-          (window as any).applyFileChanges(result.files);
-          
-          toast({
-            title: "Code Generated Successfully",
-            description: `Created/updated ${result.files.length} file(s)`,
-          });
-        } else {
-          console.error('applyFileChanges function not available');
-          toast({
-            title: "Error",
-            description: "Could not apply file changes. Please refresh and try again.",
-            variant: "destructive"
-          });
+      // Use real-time streaming
+      await streamChatResponse(
+        [...messages, userMessage],
+        (token: string) => {
+          // Real-time token update
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + token }
+                : msg
+            )
+          );
+        },
+        (stats) => {
+          console.log('Real-time streaming progress:', stats);
         }
+      );
 
-        // If there are dependencies, show them
-        if (result.dependencies && result.dependencies.length > 0) {
-          toast({
-            title: "Dependencies Required",
-            description: `Install: ${result.dependencies.join(', ')}`,
+      // After streaming is complete, try to process for code generation
+      const finalMessage = messages.find(m => m.id === assistantMessageId);
+      if (finalMessage?.content && aiGenerator) {
+        try {
+          const result = await aiGenerator.generateCode({
+            prompt: inputValue,
+            projectContext,
+            operation: 'create'
           });
+
+          if (result.success && result.files.length > 0) {
+            // Apply changes through the global function
+            if ((window as any).applyFileChanges) {
+              console.log('Applying real-time file changes:', result.files);
+              (window as any).applyFileChanges(result.files);
+              
+              toast({
+                title: "Real-time Code Generated",
+                description: `Created/updated ${result.files.length} file(s) in real-time`,
+              });
+            }
+          }
+        } catch (codeGenError) {
+          console.log('Code generation failed, but streaming succeeded:', codeGenError);
         }
-      } else {
-        toast({
-          title: "AI Generation Failed",
-          description: result.explanation || "Could not generate code",
-          variant: "destructive"
-        });
       }
 
     } catch (error) {
-      console.error('AI generation error:', error);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 2).toString(),
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date()
-      }]);
+      console.error('Real-time streaming error:', error);
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: `Sorry, I encountered an error with real-time streaming: ${error instanceof Error ? error.message : 'Unknown error'}` }
+            : msg
+        )
+      );
       
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: "Streaming Error",
+        description: error instanceof Error ? error.message : 'Real-time streaming failed',
         variant: "destructive"
       });
     } finally {
@@ -211,8 +221,16 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
       {/* Header */}
       <div className="p-4 border-b border-slate-700">
         <h3 className="font-semibold text-white">AI Full-Stack Assistant</h3>
-        <p className="text-sm text-slate-400">Powered by DeepSeek - Ready to build your app</p>
+        <p className="text-sm text-slate-400">Powered by DeepSeek - Real-time streaming enabled</p>
       </div>
+
+      {/* Real-time Progress */}
+      <RealTimeProgress
+        isStreaming={streamingStats.status === 'streaming'}
+        tokensReceived={streamingStats.tokensReceived}
+        responseTime={streamingStats.responseTime}
+        status={streamingStats.status}
+      />
 
       {/* Quick Actions */}
       <div className="p-4 border-b border-slate-700">
@@ -251,7 +269,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
                 
                 {message.codeChanges && message.codeChanges.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-600">
-                    <p className="text-xs text-slate-400 mb-2">Code Changes Applied:</p>
+                    <p className="text-xs text-slate-400 mb-2">Real-time Code Changes Applied:</p>
                     {message.codeChanges.map((change, index) => (
                       <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1">
                         <span className={`font-semibold ${
@@ -273,12 +291,10 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           {isProcessing && (
             <div className="flex justify-start">
               <div className="bg-slate-800 text-slate-100 p-3 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-100"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-200"></div>
-                  <span className="text-sm ml-2">Generating code...</span>
-                </div>
+                <TypingIndicator 
+                  isVisible={isProcessing}
+                  typingText={`Real-time streaming... (${streamingStats.tokensReceived} tokens)`}
+                />
               </div>
             </div>
           )}
@@ -291,7 +307,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           <Textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Describe what you want to build... (e.g., 'Create a user dashboard with login form' or 'Add a blog post management system')"
+            placeholder="Describe what you want to build with real-time streaming... (e.g., 'Create a user dashboard with login form' or 'Add a blog post management system')"
             className="flex-1 bg-slate-800 border-slate-600 text-white min-h-[60px] resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -311,15 +327,23 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         
         {!apiKey && (
           <p className="text-xs text-slate-400 mt-2">
-            Add your DeepSeek API key to enable AI code generation
+            Add your DeepSeek API key to enable real-time AI code generation
           </p>
         )}
         
         <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
           <span>Press Shift + Enter for new line</span>
           <span className="flex items-center">
-            <div className={`w-2 h-2 rounded-full mr-2 ${apiKey ? 'bg-green-500' : 'bg-red-500'}`} />
-            AI {apiKey ? 'Ready' : 'Disconnected'}
+            <div className={`w-2 h-2 rounded-full mr-2 ${
+              streamingStats.status === 'streaming' ? 'bg-blue-500 animate-pulse' :
+              streamingStats.status === 'complete' ? 'bg-green-500' :
+              streamingStats.status === 'error' ? 'bg-red-500' :
+              apiKey ? 'bg-green-500' : 'bg-red-500'
+            }`} />
+            {streamingStats.status === 'streaming' ? 'Streaming Live' :
+             streamingStats.status === 'complete' ? 'Stream Complete' :
+             streamingStats.status === 'error' ? 'Stream Error' :
+             apiKey ? 'Ready for Real-time' : 'Disconnected'}
           </span>
         </div>
       </form>
