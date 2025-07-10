@@ -8,6 +8,7 @@ import { AIChatBot } from '@/components/AIChatBot';
 import { Terminal } from '@/components/Terminal';
 import { IDEToolbar } from '@/components/IDEToolbar';
 import { IDEStatusBar } from '@/components/IDEStatusBar';
+import { ToastProvider } from '@/components/ToastProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { 
@@ -35,6 +36,7 @@ const FullIDE = () => {
   const [layout, setLayout] = useState('horizontal');
 
   const handleFileSelect = (file: ProjectFile) => {
+    console.log('File selected:', file);
     setSelectedFile(file);
     if (file.content) {
       setPreviewCode(file.content);
@@ -42,14 +44,17 @@ const FullIDE = () => {
   };
 
   const handleProjectChange = (files: ProjectFile[]) => {
+    console.log('Project files changed:', files);
     setProjectFiles(files);
   };
 
   const handleCodeGenerated = (code: string) => {
+    console.log('Code generated:', code);
     setPreviewCode(code);
   };
 
   const handleRunCode = (code: string) => {
+    console.log('Running code:', code);
     setPreviewCode(code);
   };
 
@@ -72,126 +77,130 @@ const FullIDE = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-      <Header />
-      
-      <IDEToolbar 
-        onToggleTerminal={toggleTerminal}
-        onToggleLayout={toggleLayout}
-        layout={layout}
-      />
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+        <Header />
+        
+        <IDEToolbar 
+          onToggleTerminal={toggleTerminal}
+          onToggleLayout={toggleLayout}
+          layout={layout}
+        />
 
-      {/* Main IDE Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Sidebar */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-            <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
-              <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
-                <div className="border-b border-slate-700 p-2">
-                  <TabsList className="bg-slate-800 w-full">
-                    <TabsTrigger value="files" className="flex-1 data-[state=active]:bg-slate-700">
-                      <FolderTree className="w-4 h-4 mr-2" />
-                      Files
-                    </TabsTrigger>
-                    <TabsTrigger value="ai" className="flex-1 data-[state=active]:bg-slate-700">
-                      <Bot className="w-4 h-4 mr-2" />
-                      AI
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+        {/* Main IDE Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Left Sidebar */}
+            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+              <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
+                <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
+                  <div className="border-b border-slate-700 p-2">
+                    <TabsList className="bg-slate-800 w-full">
+                      <TabsTrigger value="files" className="flex-1 data-[state=active]:bg-slate-700">
+                        <FolderTree className="w-4 h-4 mr-2" />
+                        Files
+                      </TabsTrigger>
+                      <TabsTrigger value="ai" className="flex-1 data-[state=active]:bg-slate-700">
+                        <Bot className="w-4 h-4 mr-2" />
+                        AI
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
 
-                <div className="flex-1 overflow-hidden">
-                  <TabsContent value="files" className="h-full m-0">
-                    <ProjectManager 
-                      onFileSelect={handleFileSelect}
-                      onProjectChange={handleProjectChange}
-                    />
-                  </TabsContent>
+                  <div className="flex-1 overflow-hidden">
+                    <TabsContent value="files" className="h-full m-0">
+                      <ProjectManager 
+                        onFileSelect={handleFileSelect}
+                        onProjectChange={handleProjectChange}
+                      />
+                    </TabsContent>
 
-                  <TabsContent value="ai" className="h-full m-0">
-                    <AIChatBot 
-                      context={selectedFile ? `Working on: ${selectedFile.name}` : undefined}
-                      onCodeGenerated={handleCodeGenerated}
-                    />
-                  </TabsContent>
-                </div>
-              </Tabs>
-            </div>
-          </ResizablePanel>
+                    <TabsContent value="ai" className="h-full m-0">
+                      <AIChatBot 
+                        context={selectedFile ? `Working on: ${selectedFile.name}` : undefined}
+                        onCodeGenerated={handleCodeGenerated}
+                      />
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
+            </ResizablePanel>
 
-          <ResizableHandle withHandle />
+            <ResizableHandle withHandle />
 
-          {/* Main Content Area */}
-          <ResizablePanel defaultSize={75}>
-            <ResizablePanelGroup direction={layout === 'horizontal' ? 'horizontal' : 'vertical'}>
-              {/* Editor Panel */}
-              <ResizablePanel defaultSize={50}>
-                <div className="h-full">
-                  <Tabs defaultValue="editor" className="h-full flex flex-col">
-                    <div className="border-b border-slate-700 px-4 py-2">
-                      <TabsList className="bg-slate-800">
-                        <TabsTrigger value="editor" className="data-[state=active]:bg-slate-700">
-                          <Code className="w-4 h-4 mr-2" />
-                          Editor
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
+            {/* Main Content Area */}
+            <ResizablePanel defaultSize={75}>
+              <ResizablePanelGroup direction={layout === 'horizontal' ? 'horizontal' : 'vertical'}>
+                {/* Editor Panel */}
+                <ResizablePanel defaultSize={50}>
+                  <div className="h-full">
+                    <Tabs defaultValue="editor" className="h-full flex flex-col">
+                      <div className="border-b border-slate-700 px-4 py-2">
+                        <TabsList className="bg-slate-800">
+                          <TabsTrigger value="editor" className="data-[state=active]:bg-slate-700">
+                            <Code className="w-4 h-4 mr-2" />
+                            Editor
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
 
-                    <div className="flex-1 overflow-hidden">
-                      <TabsContent value="editor" className="h-full m-0">
-                        <CodeEditor 
-                          onCodeChange={() => {}}
-                          onRun={handleRunCode}
-                          selectedFile={selectedFile}
-                        />
-                      </TabsContent>
-                    </div>
-                  </Tabs>
-                </div>
-              </ResizablePanel>
+                      <div className="flex-1 overflow-hidden">
+                        <TabsContent value="editor" className="h-full m-0">
+                          <CodeEditor 
+                            onCodeChange={() => {}}
+                            onRun={handleRunCode}
+                            selectedFile={selectedFile}
+                          />
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  </div>
+                </ResizablePanel>
 
-              <ResizableHandle withHandle />
+                <ResizableHandle withHandle />
 
-              {/* Preview Panel */}
-              <ResizablePanel defaultSize={50}>
-                <div className="h-full">
-                  <Tabs defaultValue="preview" className="h-full flex flex-col">
-                    <div className="border-b border-slate-700 px-4 py-2">
-                      <TabsList className="bg-slate-800">
-                        <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Preview
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
+                {/* Preview Panel */}
+                <ResizablePanel defaultSize={50}>
+                  <div className="h-full">
+                    <Tabs defaultValue="preview" className="h-full flex flex-col">
+                      <div className="border-b border-slate-700 px-4 py-2">
+                        <TabsList className="bg-slate-800">
+                          <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
+                            <Eye className="w-4 h-4 mr-2" />
+                            Preview
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
 
-                    <div className="flex-1 overflow-hidden">
-                      <TabsContent value="preview" className="h-full m-0">
-                        <LivePreview code={previewCode} />
-                      </TabsContent>
-                    </div>
-                  </Tabs>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
-
-      {/* Terminal Overlay */}
-      {showTerminal && (
-        <div className={`absolute ${terminalMinimized ? 'bottom-4 right-4' : 'bottom-4 left-4 right-4'} z-50`}>
-          <Terminal
-            onClose={closeTerminal}
-            isMinimized={terminalMinimized}
-            onToggleMinimize={toggleTerminalMinimize}
-          />
+                      <div className="flex-1 overflow-hidden">
+                        <TabsContent value="preview" className="h-full m-0">
+                          <LivePreview code={previewCode} />
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
-      )}
 
-      <IDEStatusBar selectedFile={selectedFile} layout={layout} />
-    </div>
+        {/* Terminal Overlay */}
+        {showTerminal && (
+          <div className={`absolute ${terminalMinimized ? 'bottom-4 right-4' : 'bottom-4 left-4 right-4'} z-50`}>
+            <Terminal
+              onClose={closeTerminal}
+              isMinimized={terminalMinimized}
+              onToggleMinimize={toggleTerminalMinimize}
+            />
+          </div>
+        )}
+
+        <IDEStatusBar selectedFile={selectedFile} layout={layout} />
+      </div>
+      
+      <ToastProvider />
+    </>
   );
 };
 
