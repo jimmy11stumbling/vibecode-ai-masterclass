@@ -1,10 +1,8 @@
 
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { TabsList } from '@/components/ui/tabs';
-import { FileTab } from './FileTab';
+import { X, Plus, File, Folder } from 'lucide-react';
 
 interface CodeFile {
   id: string;
@@ -20,48 +18,60 @@ interface FileTabsProps {
 }
 
 export const FileTabs: React.FC<FileTabsProps> = ({ files, onDeleteFile, onCreateFile }) => {
-  const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const createNewFile = () => {
-    if (!newFileName.trim()) return;
-    
-    onCreateFile(newFileName.trim());
-    setIsCreatingFile(false);
-    setNewFileName('');
+  const handleCreateFile = () => {
+    if (newFileName.trim()) {
+      onCreateFile(newFileName.trim());
+      setNewFileName('');
+      setIsCreating(false);
+    }
   };
 
   return (
-    <div className="flex items-center border-b border-slate-700">
-      <TabsList className="bg-slate-800 border-b border-slate-700 rounded-none justify-start h-auto p-0 flex-1">
-        {files.map((file) => (
-          <FileTab
-            key={file.id}
-            file={file}
-            canDelete={files.length > 1}
-            onDelete={onDeleteFile}
-          />
-        ))}
-      </TabsList>
-      
-      <div className="p-2">
-        {isCreatingFile ? (
-          <div className="flex items-center space-x-2">
-            <Input
+    <div className="border-b border-slate-700 bg-slate-800">
+      <div className="flex items-center">
+        <TabsList className="bg-transparent h-auto p-0 space-x-0">
+          {files.map((file) => (
+            <div key={file.id} className="relative group">
+              <TabsTrigger
+                value={file.id}
+                className="data-[state=active]:bg-slate-700 data-[state=inactive]:bg-slate-800 border-r border-slate-700 rounded-none px-4 py-2 flex items-center space-x-2"
+              >
+                <File className="w-4 h-4" />
+                <span className="text-sm">{file.name}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteFile(file.id);
+                  }}
+                  className="ml-2 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-slate-600"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </TabsTrigger>
+            </div>
+          ))}
+        </TabsList>
+        
+        {isCreating ? (
+          <div className="flex items-center space-x-2 px-4 py-2">
+            <input
+              type="text"
               value={newFileName}
               onChange={(e) => setNewFileName(e.target.value)}
               placeholder="filename.tsx"
-              className="w-32 h-6 text-xs bg-slate-800 border-slate-600"
+              className="bg-slate-700 text-white text-sm px-2 py-1 rounded border border-slate-600 focus:outline-none focus:border-blue-500"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') createNewFile();
-                if (e.key === 'Escape') {
-                  setIsCreatingFile(false);
-                  setNewFileName('');
-                }
+                if (e.key === 'Enter') handleCreateFile();
+                if (e.key === 'Escape') setIsCreating(false);
               }}
               autoFocus
             />
-            <Button size="sm" onClick={createNewFile} className="h-6 px-2 text-xs">
+            <Button size="sm" onClick={handleCreateFile} className="h-6 px-2 text-xs">
               Add
             </Button>
           </div>
@@ -69,10 +79,10 @@ export const FileTabs: React.FC<FileTabsProps> = ({ files, onDeleteFile, onCreat
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setIsCreatingFile(true)}
-            className="text-slate-400 hover:text-white h-6 w-6 p-0"
+            onClick={() => setIsCreating(true)}
+            className="ml-2 h-8 w-8 p-0 text-slate-400 hover:text-white"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
           </Button>
         )}
       </div>

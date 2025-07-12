@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
 import { LivePreview } from '@/components/LivePreview';
@@ -19,10 +19,14 @@ import {
   Bot,
   Database,
   Settings,
-  Zap
+  Zap,
+  Play,
+  Square,
+  RotateCw
 } from 'lucide-react';
 import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
 import { DatabaseManager } from '@/components/DatabaseManager';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectFile {
   id: string;
@@ -41,14 +45,78 @@ const FullIDE = () => {
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [layout, setLayout] = useState('horizontal');
   const [aiApiKey, setAiApiKey] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
+  const { toast } = useToast();
 
-  // Load API key from localStorage
-  React.useEffect(() => {
+  // Load API key and project state from localStorage
+  useEffect(() => {
     const savedApiKey = localStorage.getItem('deepseek_api_key');
     if (savedApiKey) {
       setAiApiKey(savedApiKey);
     }
-  }, []);
+
+    // Initialize with default project structure if empty
+    if (projectFiles.length === 0) {
+      const defaultProject: ProjectFile[] = [
+        {
+          id: 'src',
+          name: 'src',
+          type: 'folder',
+          children: [
+            {
+              id: 'app',
+              name: 'App.tsx',
+              type: 'file',
+              content: `import React, { useState } from 'react';
+
+function App() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
+      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+          React Counter
+        </h1>
+        <div className="text-center">
+          <div className="text-6xl font-bold text-indigo-600 mb-6">
+            {count}
+          </div>
+          <div className="space-x-4">
+            <button
+              onClick={() => setCount(count - 1)}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Decrease
+            </button>
+            <button
+              onClick={() => setCount(count + 1)}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Increase
+            </button>
+          </div>
+          <button
+            onClick={() => setCount(0)}
+            className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;`
+            }
+          ]
+        }
+      ];
+      setProjectFiles(defaultProject);
+      setPreviewCode(defaultProject[0].children?.[0]?.content || '');
+    }
+  }, [projectFiles.length]);
 
   const handleFileSelect = (file: ProjectFile) => {
     console.log('File selected:', file);
@@ -61,16 +129,103 @@ const FullIDE = () => {
   const handleProjectChange = (files: ProjectFile[]) => {
     console.log('Project files changed:', files);
     setProjectFiles(files);
+    
+    // Auto-save to localStorage
+    localStorage.setItem('ide_project_files', JSON.stringify(files));
   };
 
   const handleCodeGenerated = (code: string) => {
     console.log('Code generated:', code);
     setPreviewCode(code);
+    
+    // Update the selected file with the new code
+    if (selectedFile) {
+      const updatedFiles = updateFileContent(projectFiles, selectedFile.id, code);
+      setProjectFiles(updatedFiles);
+    }
   };
 
-  const handleRunCode = (code: string) => {
+  const updateFileContent = (files: ProjectFile[], fileId: string, content: string): ProjectFile[] => {
+    return files.map(file => {
+      if (file.id === fileId) {
+        return { ...file, content };
+      }
+      if (file.children) {
+        return { ...file, children: updateFileContent(file.children, fileId, content) };
+      }
+      return file;
+    });
+  };
+
+  const handleRunCode = async (code: string) => {
     console.log('Running code:', code);
+    setIsRunning(true);
     setPreviewCode(code);
+    
+    // Simulate build/run process
+    setTimeout(() => {
+      setIsRunning(false);
+      toast({
+        title: "Code executed successfully",
+        description: "Your application is now running in the preview panel",
+      });
+    }, 1000);
+  };
+
+  const handleSaveProject = () => {
+    localStorage.setItem('ide_project_files', JSON.stringify(projectFiles));
+    localStorage.setItem('ide_selected_file', selectedFile?.id || '');
+    
+    toast({
+      title: "Project saved",
+      description: "All changes have been saved locally",
+    });
+  };
+
+  const handleLoadProject = () => {
+    const savedFiles = localStorage.getItem('ide_project_files');
+    const savedFileId = localStorage.getItem('ide_selected_file');
+    
+    if (savedFiles) {
+      try {
+        const parsedFiles = JSON.parse(savedFiles);
+        setProjectFiles(parsedFiles);
+        
+        if (savedFileId) {
+          const file = findFileById(parsedFiles, savedFileId);
+          if (file) {
+            setSelectedFile(file);
+            if (file.content) {
+              setPreviewCode(file.content);
+            }
+          }
+        }
+        
+        toast({
+          title: "Project loaded",
+          description: "Your previous project has been restored",
+        });
+      } catch (error) {
+        toast({
+          title: "Load failed",
+          description: "Could not load the previous project",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const findFileById = (files: ProjectFile[], id: string): ProjectFile | null => {
+    for (const file of files) {
+      if (file.id === id) {
+        return file;
+      }
+      if (file.children) {
+        const found = findFileById(file.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   const toggleTerminal = () => {
@@ -153,13 +308,34 @@ const FullIDE = () => {
 
                     <TabsContent value="deploy" className="h-full m-0">
                       <div className="p-4">
-                        <h3 className="font-semibold text-white mb-4">Deployment</h3>
+                        <h3 className="font-semibold text-white mb-4">Deployment & Actions</h3>
                         <div className="space-y-4">
+                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <h4 className="font-medium text-slate-200 mb-2">Project Actions</h4>
+                            <div className="space-y-2">
+                              <Button 
+                                onClick={handleSaveProject}
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                              >
+                                Save Project
+                              </Button>
+                              <Button 
+                                onClick={handleLoadProject}
+                                variant="outline" 
+                                className="w-full border-slate-600 text-slate-200 hover:bg-slate-700"
+                              >
+                                Load Project
+                              </Button>
+                            </div>
+                          </div>
+                          
                           <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                             <h4 className="font-medium text-slate-200 mb-2">Build Status</h4>
                             <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-sm text-slate-400">Ready to deploy</span>
+                              <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
+                              <span className="text-sm text-slate-400">
+                                {isRunning ? 'Building...' : 'Ready to deploy'}
+                              </span>
                             </div>
                           </div>
                           
@@ -174,12 +350,28 @@ const FullIDE = () => {
                                 <span className="text-slate-400">Database:</span>
                                 <span className="text-white">Supabase</span>
                               </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-400">AI:</span>
+                                <span className="text-white">DeepSeek</span>
+                              </div>
                             </div>
                           </div>
 
-                          <Button className="w-full bg-green-600 hover:bg-green-700">
-                            <Zap className="w-4 h-4 mr-2" />
-                            Deploy to Production
+                          <Button 
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            disabled={isRunning}
+                          >
+                            {isRunning ? (
+                              <>
+                                <RotateCw className="w-4 h-4 mr-2 animate-spin" />
+                                Building...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="w-4 h-4 mr-2" />
+                                Deploy to Production
+                              </>
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -198,19 +390,39 @@ const FullIDE = () => {
                 <ResizablePanel defaultSize={50}>
                   <div className="h-full">
                     <Tabs defaultValue="editor" className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-4 py-2">
+                      <div className="border-b border-slate-700 px-4 py-2 flex items-center justify-between">
                         <TabsList className="bg-slate-800">
                           <TabsTrigger value="editor" className="data-[state=active]:bg-slate-700">
                             <Code className="w-4 h-4 mr-2" />
                             Editor
                           </TabsTrigger>
                         </TabsList>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => selectedFile?.content && handleRunCode(selectedFile.content)}
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={!selectedFile?.content || isRunning}
+                          >
+                            {isRunning ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="flex-1 overflow-hidden">
                         <TabsContent value="editor" className="h-full m-0">
                           <CodeEditor 
-                            onCodeChange={() => {}}
+                            onCodeChange={(files) => {
+                              // Update project files when code changes
+                              const updatedFiles = files.map(file => ({
+                                id: file.id,
+                                name: file.name,
+                                type: 'file' as const,
+                                content: file.content
+                              }));
+                              console.log('Code editor files changed:', updatedFiles);
+                            }}
                             onRun={handleRunCode}
                             selectedFile={selectedFile}
                           />
@@ -230,7 +442,7 @@ const FullIDE = () => {
                         <TabsList className="bg-slate-800">
                           <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
                             <Eye className="w-4 h-4 mr-2" />
-                            Preview
+                            Live Preview
                           </TabsTrigger>
                         </TabsList>
                       </div>

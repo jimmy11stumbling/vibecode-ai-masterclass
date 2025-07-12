@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface CodeFile {
   id: string;
@@ -15,6 +15,52 @@ interface CodeEditorAreaProps {
 
 export const CodeEditorArea: React.FC<CodeEditorAreaProps> = ({ file, onContentChange }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    onContentChange(file.id, newContent);
+    updateCursorPosition(e.target);
+  };
+
+  const updateCursorPosition = (textarea: HTMLTextAreaElement) => {
+    const value = textarea.value;
+    const selectionStart = textarea.selectionStart;
+    const lines = value.substring(0, selectionStart).split('\n');
+    const line = lines.length;
+    const column = lines[lines.length - 1].length + 1;
+    setCursorPosition({ line, column });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle tab insertion
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      
+      onContentChange(file.id, newValue);
+      
+      // Set cursor position after the inserted tab
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+        updateCursorPosition(textarea);
+      }, 0);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    updateCursorPosition(e.currentTarget);
+  };
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      updateCursorPosition(textareaRef.current);
+    }
+  }, [file.content]);
 
   return (
     <div className="h-full flex flex-col">
@@ -22,7 +68,10 @@ export const CodeEditorArea: React.FC<CodeEditorAreaProps> = ({ file, onContentC
         <textarea
           ref={textareaRef}
           value={file.content}
-          onChange={(e) => onContentChange(file.id, e.target.value)}
+          onChange={handleContentChange}
+          onKeyDown={handleKeyDown}
+          onClick={handleClick}
+          onKeyUp={(e) => updateCursorPosition(e.currentTarget)}
           className="w-full h-full bg-slate-800 text-slate-100 font-mono text-sm p-4 pl-16 border-0 resize-none focus:outline-none"
           placeholder={`Write your ${file.language} code here...`}
           spellCheck={false}
@@ -36,6 +85,12 @@ export const CodeEditorArea: React.FC<CodeEditorAreaProps> = ({ file, onContentC
             </div>
           ))}
         </div>
+      </div>
+      
+      {/* Status Line */}
+      <div className="bg-slate-900 border-t border-slate-700 px-4 py-1 text-xs text-slate-400 flex items-center justify-between">
+        <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>
+        <span className="capitalize">{file.language}</span>
       </div>
     </div>
   );
