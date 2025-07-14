@@ -1,23 +1,8 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, Trash2, Edit2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { 
-  File, 
-  Folder, 
-  FolderOpen, 
-  ChevronRight, 
-  ChevronDown, 
-  MoreHorizontal,
-  Edit,
-  Trash2
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 interface ProjectFile {
   id: string;
@@ -25,6 +10,7 @@ interface ProjectFile {
   type: 'file' | 'folder';
   content?: string;
   children?: ProjectFile[];
+  parentId?: string;
 }
 
 interface FileTreeItemProps {
@@ -34,10 +20,10 @@ interface FileTreeItemProps {
   isEditing: boolean;
   editingName: string;
   onEditingNameChange: (name: string) => void;
-  onToggleFolder: (folderId: string) => void;
+  onToggleFolder: (id: string) => void;
   onStartEditing: (file: ProjectFile) => void;
   onSaveEdit: () => void;
-  onDeleteFile: (fileId: string) => void;
+  onDeleteFile: (id: string) => void;
   onFileSelect?: (file: ProjectFile) => void;
 }
 
@@ -57,8 +43,8 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({
   const handleClick = () => {
     if (file.type === 'folder') {
       onToggleFolder(file.id);
-    } else {
-      onFileSelect?.(file);
+    } else if (onFileSelect) {
+      onFileSelect(file);
     }
   };
 
@@ -66,80 +52,101 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({
     if (e.key === 'Enter') {
       onSaveEdit();
     } else if (e.key === 'Escape') {
-      onSaveEdit();
+      onStartEditing({ ...file, name: file.name });
+    }
+  };
+
+  const getFileIcon = () => {
+    if (file.type === 'folder') {
+      return isExpanded ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />;
+    }
+    return <File className="w-4 h-4" />;
+  };
+
+  const getFileColor = () => {
+    if (file.type === 'folder') return 'text-blue-400';
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'tsx':
+      case 'jsx':
+        return 'text-cyan-400';
+      case 'ts':
+      case 'js':
+        return 'text-yellow-400';
+      case 'css':
+        return 'text-pink-400';
+      case 'json':
+        return 'text-green-400';
+      case 'md':
+        return 'text-gray-400';
+      default:
+        return 'text-slate-300';
     }
   };
 
   return (
-    <div className="select-none">
+    <div>
       <div
-        className="flex items-center hover:bg-slate-800 group relative py-1 px-2 rounded-md cursor-pointer"
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        className={`flex items-center group hover:bg-slate-800 rounded-sm px-2 py-1 cursor-pointer ${getFileColor()}`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        <div className="flex items-center flex-1 min-w-0" onClick={handleClick}>
-          {file.type === 'folder' && (
-            <div className="flex-shrink-0 mr-1">
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              )}
-            </div>
-          )}
-          
-          <div className="flex-shrink-0 mr-2">
-            {file.type === 'folder' ? (
-              isExpanded ? (
-                <FolderOpen className="w-4 h-4 text-blue-400" />
-              ) : (
-                <Folder className="w-4 h-4 text-blue-400" />
-              )
+        {file.type === 'folder' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFolder(file.id);
+            }}
+            className="mr-1 hover:bg-slate-700 rounded-sm p-0.5"
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-3 h-3" />
             ) : (
-              <File className="w-4 h-4 text-slate-400" />
+              <ChevronRight className="w-3 h-3" />
             )}
-          </div>
-
+          </button>
+        )}
+        
+        <div className="flex items-center flex-1 min-w-0" onClick={handleClick}>
+          {getFileIcon()}
+          
           {isEditing ? (
             <Input
               value={editingName}
               onChange={(e) => onEditingNameChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={onSaveEdit}
-              className="h-6 text-xs bg-slate-700 border-slate-600 text-white"
+              className="ml-2 h-6 text-xs bg-slate-700 border-slate-600 text-white"
               autoFocus
             />
           ) : (
-            <span className="text-sm text-slate-200 truncate">{file.name}</span>
+            <span className="ml-2 text-sm truncate">{file.name}</span>
           )}
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-slate-400 hover:text-white"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-            <DropdownMenuItem
-              onClick={() => onStartEditing(file)}
-              className="text-slate-200 hover:bg-slate-700"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDeleteFile(file.id)}
-              className="text-red-400 hover:bg-slate-700"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEditing(file);
+            }}
+            className="h-6 w-6 p-0 hover:bg-slate-700"
+          >
+            <Edit2 className="w-3 h-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteFile(file.id);
+            }}
+            className="h-6 w-6 p-0 hover:bg-slate-700 text-red-400"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
       </div>
     </div>
   );

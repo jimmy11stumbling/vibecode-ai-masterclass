@@ -4,10 +4,13 @@ import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
 import { LivePreview } from '@/components/LivePreview';
 import { ProjectManager } from '@/components/ProjectManager';
-import { AIChatBot } from '@/components/AIChatBot';
+import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
 import { Terminal } from '@/components/Terminal';
 import { IDEToolbar } from '@/components/IDEToolbar';
 import { IDEStatusBar } from '@/components/IDEStatusBar';
+import { MCPHub } from '@/components/MCPHub';
+import { RAGDatabase } from '@/components/RAGDatabase';
+import { DatabaseManager } from '@/components/DatabaseManager';
 import { ToastProvider } from '@/components/ToastProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -22,10 +25,10 @@ import {
   Zap,
   Play,
   Square,
-  RotateCw
+  RotateCw,
+  Server,
+  Brain
 } from 'lucide-react';
-import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
-import { DatabaseManager } from '@/components/DatabaseManager';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectFile {
@@ -55,7 +58,7 @@ const FullIDE = () => {
       setAiApiKey(savedApiKey);
     }
 
-    // Initialize with default project structure if empty
+    // Initialize with default project structure
     if (projectFiles.length === 0) {
       const defaultProject: ProjectFile[] = [
         {
@@ -76,7 +79,7 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
       <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          React Counter
+          Sovereign AI IDE
         </h1>
         <div className="text-center">
           <div className="text-6xl font-bold text-indigo-600 mb-6">
@@ -129,8 +132,6 @@ export default App;`
   const handleProjectChange = (files: ProjectFile[]) => {
     console.log('Project files changed:', files);
     setProjectFiles(files);
-    
-    // Auto-save to localStorage
     localStorage.setItem('ide_project_files', JSON.stringify(files));
   };
 
@@ -138,7 +139,6 @@ export default App;`
     console.log('Code generated:', code);
     setPreviewCode(code);
     
-    // Update the selected file with the new code
     if (selectedFile) {
       const updatedFiles = updateFileContent(projectFiles, selectedFile.id, code);
       setProjectFiles(updatedFiles);
@@ -162,7 +162,6 @@ export default App;`
     setIsRunning(true);
     setPreviewCode(code);
     
-    // Simulate build/run process
     setTimeout(() => {
       setIsRunning(false);
       toast({
@@ -182,64 +181,9 @@ export default App;`
     });
   };
 
-  const handleLoadProject = () => {
-    const savedFiles = localStorage.getItem('ide_project_files');
-    const savedFileId = localStorage.getItem('ide_selected_file');
-    
-    if (savedFiles) {
-      try {
-        const parsedFiles = JSON.parse(savedFiles);
-        setProjectFiles(parsedFiles);
-        
-        if (savedFileId) {
-          const file = findFileById(parsedFiles, savedFileId);
-          if (file) {
-            setSelectedFile(file);
-            if (file.content) {
-              setPreviewCode(file.content);
-            }
-          }
-        }
-        
-        toast({
-          title: "Project loaded",
-          description: "Your previous project has been restored",
-        });
-      } catch (error) {
-        toast({
-          title: "Load failed",
-          description: "Could not load the previous project",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
-  const findFileById = (files: ProjectFile[], id: string): ProjectFile | null => {
-    for (const file of files) {
-      if (file.id === id) {
-        return file;
-      }
-      if (file.children) {
-        const found = findFileById(file.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
   const toggleTerminal = () => {
     setShowTerminal(!showTerminal);
     setTerminalMinimized(false);
-  };
-
-  const closeTerminal = () => {
-    setShowTerminal(false);
-    setTerminalMinimized(false);
-  };
-
-  const toggleTerminalMinimize = () => {
-    setTerminalMinimized(!terminalMinimized);
   };
 
   const toggleLayout = () => {
@@ -265,18 +209,21 @@ export default App;`
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-4">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-5">
                       <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
                         <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
                         <Bot className="w-4 h-4" />
                       </TabsTrigger>
+                      <TabsTrigger value="mcp" className="data-[state=active]:bg-slate-700">
+                        <Server className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
+                        <Brain className="w-4 h-4" />
+                      </TabsTrigger>
                       <TabsTrigger value="database" className="data-[state=active]:bg-slate-700">
                         <Database className="w-4 h-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="deploy" className="data-[state=active]:bg-slate-700">
-                        <Zap className="w-4 h-4" />
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -298,83 +245,36 @@ export default App;`
                       />
                     </TabsContent>
 
+                    <TabsContent value="mcp" className="h-full m-0">
+                      <MCPHub 
+                        onServerSelect={(server) => {
+                          console.log('MCP Server selected:', server);
+                        }}
+                        onToolInvoke={(tool, params) => {
+                          console.log('MCP Tool invoked:', tool, params);
+                        }}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="rag" className="h-full m-0">
+                      <RAGDatabase 
+                        onChunkSelect={(chunk) => {
+                          console.log('Knowledge chunk selected:', chunk);
+                        }}
+                        onSearch={async (query) => {
+                          console.log('RAG search:', query);
+                          // Implement search logic
+                          return [];
+                        }}
+                      />
+                    </TabsContent>
+
                     <TabsContent value="database" className="h-full m-0">
                       <DatabaseManager 
                         onSchemaChange={(tables) => {
                           console.log('Database schema updated:', tables);
                         }}
                       />
-                    </TabsContent>
-
-                    <TabsContent value="deploy" className="h-full m-0">
-                      <div className="p-4">
-                        <h3 className="font-semibold text-white mb-4">Deployment & Actions</h3>
-                        <div className="space-y-4">
-                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                            <h4 className="font-medium text-slate-200 mb-2">Project Actions</h4>
-                            <div className="space-y-2">
-                              <Button 
-                                onClick={handleSaveProject}
-                                className="w-full bg-blue-600 hover:bg-blue-700"
-                              >
-                                Save Project
-                              </Button>
-                              <Button 
-                                onClick={handleLoadProject}
-                                variant="outline" 
-                                className="w-full border-slate-600 text-slate-200 hover:bg-slate-700"
-                              >
-                                Load Project
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                            <h4 className="font-medium text-slate-200 mb-2">Build Status</h4>
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
-                              <span className="text-sm text-slate-400">
-                                {isRunning ? 'Building...' : 'Ready to deploy'}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                            <h4 className="font-medium text-slate-200 mb-2">Environment</h4>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-400">Framework:</span>
-                                <span className="text-white">React + TypeScript</span>
-                              </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-400">Database:</span>
-                                <span className="text-white">Supabase</span>
-                              </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-400">AI:</span>
-                                <span className="text-white">DeepSeek</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Button 
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            disabled={isRunning}
-                          >
-                            {isRunning ? (
-                              <>
-                                <RotateCw className="w-4 h-4 mr-2 animate-spin" />
-                                Building...
-                              </>
-                            ) : (
-                              <>
-                                <Zap className="w-4 h-4 mr-2" />
-                                Deploy to Production
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
                     </TabsContent>
                   </div>
                 </Tabs>
@@ -407,6 +307,13 @@ export default App;`
                           >
                             {isRunning ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                           </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveProject}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Save
+                          </Button>
                         </div>
                       </div>
 
@@ -414,7 +321,6 @@ export default App;`
                         <TabsContent value="editor" className="h-full m-0">
                           <CodeEditor 
                             onCodeChange={(files) => {
-                              // Update project files when code changes
                               const updatedFiles = files.map(file => ({
                                 id: file.id,
                                 name: file.name,
@@ -464,9 +370,9 @@ export default App;`
         {showTerminal && (
           <div className={`absolute ${terminalMinimized ? 'bottom-4 right-4' : 'bottom-4 left-4 right-4'} z-50`}>
             <Terminal
-              onClose={closeTerminal}
+              onClose={() => setShowTerminal(false)}
               isMinimized={terminalMinimized}
-              onToggleMinimize={toggleTerminalMinimize}
+              onToggleMinimize={() => setTerminalMinimized(!terminalMinimized)}
             />
           </div>
         )}

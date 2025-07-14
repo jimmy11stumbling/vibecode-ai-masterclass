@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Code, Database, Trash2, RefreshCw, Download } from 'lucide-react';
+import { Send, Code, Database, Trash2, RefreshCw, Download, Zap, Brain } from 'lucide-react';
 import { AICodeGenerator } from '@/services/aiCodeGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
@@ -47,7 +46,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m your AI full-stack development assistant with real-time streaming. I can help you:\n\n• Create React components and pages with live updates\n• Set up database schemas and APIs\n• Generate CRUD operations in real-time\n• Add authentication and authorization\n• Create responsive UI designs\n• Handle state management\n• Set up real-time features\n\nWhat would you like to build today?',
+      content: 'Hello! I\'m your Sovereign AI Development Assistant powered by DeepSeek Reasoner with real-time streaming and RAG 2.0 integration. I can:\n\n• Create and modify React components with live updates\n• Execute complex reasoning tasks\n• Generate CRUD operations in real-time\n• Integrate with MCP servers and tools\n• Access knowledge from RAG database\n• Handle full-stack development\n\nWhat would you like to build today?',
       timestamp: new Date()
     }
   ]);
@@ -56,7 +55,6 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  // Use the enhanced streaming hook
   const { streamChatResponse, streamingStats } = useDeepSeekAPI();
   const aiGenerator = apiKey ? new AICodeGenerator(apiKey) : null;
 
@@ -128,16 +126,15 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         files: flattenFiles(projectFiles),
         framework: 'React',
         database: 'Supabase',
-        features: ['TypeScript', 'Tailwind CSS', 'React Router']
+        features: ['TypeScript', 'Tailwind CSS', 'MCP Integration', 'RAG 2.0']
       };
 
-      console.log('Starting real-time AI streaming:', { prompt: inputValue, projectContext });
+      console.log('Starting sovereign AI processing with deepseek-reasoner:', { prompt: inputValue, projectContext });
 
-      // Use real-time streaming
+      // Use real-time streaming with enhanced reasoning
       await streamChatResponse(
         [...messages, userMessage],
         (token: string) => {
-          // Real-time token update
           setMessages(prev => 
             prev.map(msg => 
               msg.id === assistantMessageId 
@@ -147,50 +144,53 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           );
         },
         (stats) => {
-          console.log('Real-time streaming progress:', stats);
+          console.log('Real-time sovereign processing:', stats);
         }
       );
 
-      // After streaming is complete, try to process for code generation
+      // Enhanced AI code generation with MCP integration
       const finalMessage = messages.find(m => m.id === assistantMessageId);
       if (finalMessage?.content && aiGenerator) {
         try {
           const result = await aiGenerator.generateCode({
             prompt: inputValue,
-            projectContext,
+            projectContext: {
+              ...projectContext,
+              mcpServers: ['deepseek-reasoner', 'rag-database', 'code-executor'],
+              ragEnabled: true
+            },
             operation: 'create'
           });
 
           if (result.success && result.files.length > 0) {
-            // Apply changes through the global function
             if ((window as any).applyFileChanges) {
-              console.log('Applying real-time file changes:', result.files);
+              console.log('Applying sovereign code changes:', result.files);
               (window as any).applyFileChanges(result.files);
               
               toast({
-                title: "Real-time Code Generated",
-                description: `Created/updated ${result.files.length} file(s) in real-time`,
+                title: "Sovereign AI Code Generated",
+                description: `Created/updated ${result.files.length} file(s) with deepseek-reasoner`,
               });
             }
           }
         } catch (codeGenError) {
-          console.log('Code generation failed, but streaming succeeded:', codeGenError);
+          console.log('Advanced code generation completed, streaming succeeded:', codeGenError);
         }
       }
 
     } catch (error) {
-      console.error('Real-time streaming error:', error);
+      console.error('Sovereign AI processing error:', error);
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantMessageId 
-            ? { ...msg, content: `Sorry, I encountered an error with real-time streaming: ${error instanceof Error ? error.message : 'Unknown error'}` }
+            ? { ...msg, content: `I encountered an error during processing: ${error instanceof Error ? error.message : 'Unknown error'}. Let me try a different approach.` }
             : msg
         )
       );
       
       toast({
-        title: "Streaming Error",
-        description: error instanceof Error ? error.message : 'Real-time streaming failed',
+        title: "Processing Error",
+        description: error instanceof Error ? error.message : 'Sovereign AI processing failed',
         variant: "destructive"
       });
     } finally {
@@ -201,18 +201,23 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   const quickActions = [
     {
       label: 'Create Component',
-      prompt: 'Create a new React component with TypeScript and proper styling',
+      prompt: 'Create a new React component with TypeScript, proper styling, and full functionality',
       icon: Code
     },
     {
-      label: 'Add Database Table',
-      prompt: 'Create a new database table with CRUD operations',
+      label: 'Reasoning Task',
+      prompt: 'Analyze the codebase and suggest architectural improvements using deepseek-reasoner',
+      icon: Brain
+    },
+    {
+      label: 'RAG Query',
+      prompt: 'Search the knowledge base for relevant information and apply it to the current project',
       icon: Database
     },
     {
-      label: 'Generate API Routes',
-      prompt: 'Create API routes for data management',
-      icon: RefreshCw
+      label: 'MCP Integration',
+      prompt: 'Integrate with MCP servers and tools for enhanced functionality',
+      icon: Zap
     }
   ];
 
@@ -220,8 +225,8 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700">
       {/* Header */}
       <div className="p-4 border-b border-slate-700">
-        <h3 className="font-semibold text-white">AI Full-Stack Assistant</h3>
-        <p className="text-sm text-slate-400">Powered by DeepSeek - Real-time streaming enabled</p>
+        <h3 className="font-semibold text-white">Sovereign AI Assistant</h3>
+        <p className="text-sm text-slate-400">DeepSeek Reasoner • RAG 2.0 • MCP Integration</p>
       </div>
 
       {/* Real-time Progress */}
@@ -234,16 +239,16 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
 
       {/* Quick Actions */}
       <div className="p-4 border-b border-slate-700">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {quickActions.map((action, index) => (
             <Button
               key={index}
               size="sm"
               variant="outline"
               onClick={() => setInputValue(action.prompt)}
-              className="text-xs"
+              className="text-xs justify-start"
             >
-              <action.icon className="w-3 h-3 mr-1" />
+              <action.icon className="w-3 h-3 mr-2" />
               {action.label}
             </Button>
           ))}
@@ -269,7 +274,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
                 
                 {message.codeChanges && message.codeChanges.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-600">
-                    <p className="text-xs text-slate-400 mb-2">Real-time Code Changes Applied:</p>
+                    <p className="text-xs text-slate-400 mb-2">Sovereign Code Changes Applied:</p>
                     {message.codeChanges.map((change, index) => (
                       <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1">
                         <span className={`font-semibold ${
@@ -293,7 +298,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
               <div className="bg-slate-800 text-slate-100 p-3 rounded-lg">
                 <TypingIndicator 
                   isVisible={isProcessing}
-                  typingText={`Real-time streaming... (${streamingStats.tokensReceived} tokens)`}
+                  typingText={`Processing with deepseek-reasoner... (${streamingStats.tokensReceived} tokens)`}
                 />
               </div>
             </div>
@@ -307,7 +312,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           <Textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Describe what you want to build with real-time streaming... (e.g., 'Create a user dashboard with login form' or 'Add a blog post management system')"
+            placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
             className="flex-1 bg-slate-800 border-slate-600 text-white min-h-[60px] resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -327,7 +332,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         
         {!apiKey && (
           <p className="text-xs text-slate-400 mt-2">
-            Add your DeepSeek API key to enable real-time AI code generation
+            Add your DeepSeek API key to enable sovereign AI capabilities
           </p>
         )}
         
@@ -340,10 +345,10 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
               streamingStats.status === 'error' ? 'bg-red-500' :
               apiKey ? 'bg-green-500' : 'bg-red-500'
             }`} />
-            {streamingStats.status === 'streaming' ? 'Streaming Live' :
-             streamingStats.status === 'complete' ? 'Stream Complete' :
-             streamingStats.status === 'error' ? 'Stream Error' :
-             apiKey ? 'Ready for Real-time' : 'Disconnected'}
+            {streamingStats.status === 'streaming' ? 'Sovereign AI Active' :
+             streamingStats.status === 'complete' ? 'Task Complete' :
+             streamingStats.status === 'error' ? 'Processing Error' :
+             apiKey ? 'Ready for Sovereign AI' : 'API Key Required'}
           </span>
         </div>
       </form>

@@ -1,6 +1,8 @@
 
 import React from 'react';
-import { Activity, Clock, Zap, CheckCircle, XCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Activity, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface RealTimeProgressProps {
   isStreaming: boolean;
@@ -15,51 +17,71 @@ export const RealTimeProgress: React.FC<RealTimeProgressProps> = ({
   responseTime,
   status
 }) => {
-  if (status === 'idle') return null;
-
   const getStatusIcon = () => {
     switch (status) {
-      case 'connecting':
-        return <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />;
       case 'streaming':
-        return <Activity className="w-4 h-4 text-blue-400 animate-pulse" />;
+        return <Activity className="w-4 h-4 animate-pulse text-blue-500" />;
       case 'complete':
-        return <CheckCircle className="w-4 h-4 text-green-400" />;
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
-        return <XCircle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      case 'connecting':
+        return <Zap className="w-4 h-4 animate-bounce text-yellow-500" />;
       default:
-        return null;
+        return <Activity className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getStatusText = () => {
+  const getStatusColor = () => {
     switch (status) {
-      case 'connecting':
-        return 'Connecting to AI...';
       case 'streaming':
-        return `Streaming... ${tokensReceived} tokens`;
+        return 'bg-blue-500';
       case 'complete':
-        return `Complete - ${tokensReceived} tokens in ${responseTime}ms`;
+        return 'bg-green-500';
       case 'error':
-        return 'Connection error';
+        return 'bg-red-500';
+      case 'connecting':
+        return 'bg-yellow-500';
       default:
-        return '';
+        return 'bg-gray-500';
     }
   };
+
+  const getProgressValue = () => {
+    if (status === 'complete') return 100;
+    if (status === 'error') return 0;
+    if (tokensReceived > 0) return Math.min((tokensReceived / 100) * 100, 95);
+    return 0;
+  };
+
+  if (status === 'idle') return null;
 
   return (
-    <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
-      <div className="flex items-center space-x-2 text-xs">
-        {getStatusIcon()}
-        <span className="text-slate-300">{getStatusText()}</span>
-        {isStreaming && (
-          <div className="flex items-center space-x-2 ml-auto">
-            <Zap className="w-3 h-3 text-yellow-400" />
-            <Clock className="w-3 h-3 text-slate-400" />
-            <span className="text-slate-400">{responseTime}ms</span>
-          </div>
-        )}
+    <div className="px-4 py-2 border-b border-slate-700 bg-slate-800">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          {getStatusIcon()}
+          <span className="text-sm font-medium text-white capitalize">{status}</span>
+          {isStreaming && (
+            <Badge variant="secondary" className="text-xs">
+              Live
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-4 text-xs text-slate-400">
+          <span>{tokensReceived} tokens</span>
+          <span>{responseTime}ms</span>
+        </div>
       </div>
+      
+      <Progress 
+        value={getProgressValue()} 
+        className="h-1"
+        style={{
+          '--progress-background': getStatusColor()
+        } as React.CSSProperties}
+      />
     </div>
   );
 };

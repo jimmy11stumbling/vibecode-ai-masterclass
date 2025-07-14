@@ -9,121 +9,126 @@ interface TerminalLine {
 }
 
 export const useTerminalCommands = () => {
-  const [currentPath, setCurrentPath] = useState('~/vibecode');
-
-  const addLine = (
-    lines: TerminalLine[], 
-    setLines: React.Dispatch<React.SetStateAction<TerminalLine[]>>, 
-    type: TerminalLine['type'], 
-    content: string
-  ) => {
-    const newLine: TerminalLine = {
-      id: Date.now().toString(),
-      type,
-      content,
-      timestamp: new Date()
-    };
-    setLines(prev => [...prev, newLine]);
-  };
+  const [currentPath, setCurrentPath] = useState('~/project');
 
   const executeCommand = (
-    command: string, 
-    lines: TerminalLine[], 
-    setLines: React.Dispatch<React.SetStateAction<TerminalLine[]>>
+    command: string,
+    lines: TerminalLine[],
+    setLines: (lines: TerminalLine[]) => void
   ) => {
-    // Add command line
-    addLine(lines, setLines, 'command', `${currentPath} $ ${command}`);
+    const commandLine: TerminalLine = {
+      id: Date.now().toString(),
+      type: 'command',
+      content: `${currentPath} $ ${command}`,
+      timestamp: new Date()
+    };
+
+    const addOutput = (content: string, type: 'output' | 'error' = 'output') => {
+      const outputLine: TerminalLine = {
+        id: (Date.now() + Math.random()).toString(),
+        type,
+        content,
+        timestamp: new Date()
+      };
+      setLines([...lines, commandLine, outputLine]);
+    };
+
+    const cmd = command.trim().toLowerCase();
     
-    // Process command
-    const [cmd, ...args] = command.trim().split(' ');
-    
-    switch (cmd.toLowerCase()) {
-      case 'help':
-        addLine(lines, setLines, 'output', 'Available commands:');
-        addLine(lines, setLines, 'output', '  help      - Show this help message');
-        addLine(lines, setLines, 'output', '  clear     - Clear terminal');
-        addLine(lines, setLines, 'output', '  ls        - List files');
-        addLine(lines, setLines, 'output', '  pwd       - Print working directory');
-        addLine(lines, setLines, 'output', '  echo      - Echo text');
-        addLine(lines, setLines, 'output', '  npm       - Node package manager');
-        addLine(lines, setLines, 'output', '  git       - Git commands (simulated)');
-        addLine(lines, setLines, 'output', '  build     - Build project');
-        addLine(lines, setLines, 'output', '  dev       - Start development server');
-        break;
-        
-      case 'clear':
-        setLines([]);
-        break;
-        
-      case 'ls':
-        addLine(lines, setLines, 'output', 'src/');
-        addLine(lines, setLines, 'output', 'public/');
-        addLine(lines, setLines, 'output', 'package.json');
-        addLine(lines, setLines, 'output', 'tailwind.config.ts');
-        addLine(lines, setLines, 'output', 'vite.config.ts');
-        addLine(lines, setLines, 'output', 'README.md');
-        break;
-        
-      case 'pwd':
-        addLine(lines, setLines, 'output', currentPath);
-        break;
-        
-      case 'echo':
-        addLine(lines, setLines, 'output', args.join(' '));
-        break;
-        
-      case 'npm':
-        if (args[0] === 'install') {
-          addLine(lines, setLines, 'output', 'Installing dependencies...');
-          setTimeout(() => {
-            addLine(lines, setLines, 'output', '✓ Dependencies installed successfully');
-          }, 1000);
-        } else if (args[0] === 'run' && args[1] === 'dev') {
-          addLine(lines, setLines, 'output', 'Starting development server...');
-          addLine(lines, setLines, 'output', '  Local:   http://localhost:5173/');
-          addLine(lines, setLines, 'output', '  ready in 1.2s');
-        } else {
-          addLine(lines, setLines, 'output', `npm ${args.join(' ')}`);
-        }
-        break;
-        
-      case 'git':
-        if (args[0] === 'status') {
-          addLine(lines, setLines, 'output', 'On branch main');
-          addLine(lines, setLines, 'output', 'Your branch is up to date with \'origin/main\'.');
-          addLine(lines, setLines, 'output', 'nothing to commit, working tree clean');
-        } else if (args[0] === 'add') {
-          addLine(lines, setLines, 'output', `Added ${args.slice(1).join(' ') || '.'} to staging`);
-        } else if (args[0] === 'commit') {
-          addLine(lines, setLines, 'output', '[main abc123] Your commit message');
-          addLine(lines, setLines, 'output', '1 file changed, 5 insertions(+)');
-        } else {
-          addLine(lines, setLines, 'output', `git ${args.join(' ')}`);
-        }
-        break;
-        
-      case 'build':
-        addLine(lines, setLines, 'output', 'Building for production...');
-        setTimeout(() => {
-          addLine(lines, setLines, 'output', '✓ Build complete in 3.2s');
-          addLine(lines, setLines, 'output', 'dist/ folder created');
-        }, 1500);
-        break;
-        
-      case 'dev':
-        addLine(lines, setLines, 'output', 'Starting Vite dev server...');
-        addLine(lines, setLines, 'output', '  Local:   http://localhost:5173/');
-        addLine(lines, setLines, 'output', '  Network: use --host to expose');
-        break;
-        
-      case '':
-        // Empty command, just add prompt
-        break;
-        
-      default:
-        addLine(lines, setLines, 'error', `Command not found: ${cmd}`);
-        addLine(lines, setLines, 'output', 'Type "help" for available commands.');
-        break;
+    if (cmd === 'help') {
+      addOutput(`Available commands:
+• help - Show this help message
+• clear - Clear the terminal
+• ls - List files in current directory
+• pwd - Show current directory
+• cd <path> - Change directory
+• npm install - Install dependencies
+• npm run dev - Start development server
+• npm run build - Build for production
+• git status - Show git status
+• git add . - Stage all changes
+• git commit -m "message" - Commit changes
+• ps - Show running processes
+• kill <pid> - Kill a process
+• whoami - Show current user
+• date - Show current date and time
+• echo <text> - Print text to terminal`);
+    } else if (cmd === 'clear') {
+      setLines([]);
+    } else if (cmd === 'ls') {
+      addOutput(`src/
+├── components/
+├── hooks/
+├── pages/
+├── services/
+├── integrations/
+└── App.tsx
+package.json
+README.md
+tsconfig.json`);
+    } else if (cmd === 'pwd') {
+      addOutput(currentPath);
+    } else if (cmd.startsWith('cd ')) {
+      const path = cmd.substring(3).trim();
+      if (path === '..') {
+        setCurrentPath('~/');
+      } else if (path === '~' || path === '/') {
+        setCurrentPath('~/');
+      } else {
+        setCurrentPath(`~/project/${path}`);
+      }
+      addOutput(`Changed directory to ${path}`);
+    } else if (cmd === 'npm install') {
+      addOutput('Installing dependencies...');
+      setTimeout(() => {
+        addOutput('✓ Dependencies installed successfully');
+      }, 1000);
+    } else if (cmd === 'npm run dev') {
+      addOutput('Starting development server...');
+      setTimeout(() => {
+        addOutput('✓ Development server running at http://localhost:3000');
+      }, 1000);
+    } else if (cmd === 'npm run build') {
+      addOutput('Building for production...');
+      setTimeout(() => {
+        addOutput('✓ Build completed successfully');
+      }, 1500);
+    } else if (cmd === 'git status') {
+      addOutput(`On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  modified:   src/components/CodeEditor.tsx
+  modified:   src/pages/FullIDE.tsx
+  
+Untracked files:
+  src/components/MCPHub.tsx
+  src/components/RAGDatabase.tsx`);
+    } else if (cmd === 'git add .') {
+      addOutput('Changes staged for commit');
+    } else if (cmd.startsWith('git commit -m ')) {
+      const message = cmd.substring(14).replace(/"/g, '');
+      addOutput(`[main ${Math.random().toString(36).substr(2, 7)}] ${message}
+ 5 files changed, 247 insertions(+), 23 deletions(-)`);
+    } else if (cmd === 'ps') {
+      addOutput(`PID    COMMAND
+1234   node (development server)
+5678   vite (build tool)
+9012   typescript (type checking)`);
+    } else if (cmd.startsWith('kill ')) {
+      const pid = cmd.substring(5).trim();
+      addOutput(`Process ${pid} killed`);
+    } else if (cmd === 'whoami') {
+      addOutput('developer');
+    } else if (cmd === 'date') {
+      addOutput(new Date().toString());
+    } else if (cmd.startsWith('echo ')) {
+      const text = cmd.substring(5);
+      addOutput(text);
+    } else if (cmd === '') {
+      setLines([...lines, commandLine]);
+    } else {
+      addOutput(`Command not found: ${command}. Type 'help' for available commands.`, 'error');
     }
   };
 

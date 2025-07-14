@@ -1,83 +1,98 @@
 
-import { useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 
-interface ValidationMessage {
-  timestamp: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+interface ValidationLog {
+  id: string;
+  timestamp: Date;
+  level: 'info' | 'warning' | 'error' | 'success';
   message: string;
   data?: any;
 }
 
-export const useRealTimeValidator = () => {
-  const validationLog = useRef<ValidationMessage[]>([]);
+interface RealTimeValidatorHook {
+  logs: ValidationLog[];
+  logValidation: (level: ValidationLog['level'], message: string, data?: any) => void;
+  clearLogs: () => void;
+  validateStreamToken: (token: string) => boolean;
+  validateApiResponse: (response: any, expectedSchema: any) => boolean;
+}
 
-  const logValidation = (type: ValidationMessage['type'], message: string, data?: any) => {
-    const validationEntry: ValidationMessage = {
-      timestamp: new Date().toISOString(),
-      type,
+export const useRealTimeValidator = (): RealTimeValidatorHook => {
+  const [logs, setLogs] = useState<ValidationLog[]>([]);
+
+  const logValidation = useCallback((level: ValidationLog['level'], message: string, data?: any) => {
+    const log: ValidationLog = {
+      id: Date.now().toString() + Math.random(),
+      timestamp: new Date(),
+      level,
       message,
       data
     };
-
-    validationLog.current.push(validationEntry);
     
-    // Log to console with appropriate styling
-    const styles = {
-      info: 'color: #3b82f6; font-weight: bold;',
-      success: 'color: #10b981; font-weight: bold;',
-      warning: 'color: #f59e0b; font-weight: bold;',
-      error: 'color: #ef4444; font-weight: bold;'
-    };
-
-    console.log(
-      `%c[REAL-TIME VALIDATOR] ${type.toUpperCase()}: ${message}`,
-      styles[type],
-      data ? data : ''
-    );
-  };
-
-  const validateApiResponse = (response: any, expectedStructure: any) => {
-    logValidation('info', 'Validating API response structure');
+    setLogs(prev => [...prev.slice(-49), log]); // Keep last 50 logs
     
+    // Also log to console for debugging
+    const consoleMethod = level === 'error' ? 'error' : level === 'warning' ? 'warn' : 'log';
+    console[consoleMethod](`[Real-time Validator] ${message}`, data);
+  }, []);
+
+  const clearLogs = useCallback(() => {
+    setLogs([]);
+  }, []);
+
+  const validateStreamToken = useCallback((token: string): boolean => {
     try {
-      if (!response) {
-        logValidation('error', 'Response is null or undefined', response);
+      // Basic token validation
+      if (typeof token !== 'string') {
+        logValidation('warning', 'Invalid token type received', { token, type: typeof token });
         return false;
       }
-
-      if (expectedStructure.choices && !response.choices) {
-        logValidation('error', 'Missing choices in response', response);
+      
+      if (token.length === 0) {
+        logValidation('warning', 'Empty token received');
         return false;
       }
-
-      logValidation('success', 'API response validation passed', response);
+      
+      // Check for common streaming artifacts
+      if (token.includes('\n\n') || token.includes('data:')) {
+        logValidation('warning', 'Token contains streaming artifacts', { token });
+        return false;
+      }
+      
       return true;
     } catch (error) {
-      logValidation('error', 'Validation error occurred', error);
+      logValidation('error', 'Token validation error', { error, token });
       return false;
     }
-  };
+  }, [logValidation]);
 
-  const validateStreamToken = (token: string) => {
-    logValidation('info', `Received stream token: "${token}"`);
-    
-    if (!token || typeof token !== 'string') {
-      logValidation('warning', 'Invalid token received', token);
-      return false;
-    }
-
-    if (token.length > 0) {
-      logValidation('success', 'Valid token processed');
+  const validateApiResponse = useCallback((response: any, expectedSchema: any): boolean => {
+    try {
+      if (!response) {
+        logValidation('error', 'Empty API response received');
+        return false;
+      }
+      
+      // Check required fields
+      for (const field of Object.keys(expectedSchema)) {
+        if (expectedSchema[field] && !response.hasOwnProperty(field)) {
+          logValidation('error', `Missing required field: ${field}`, { response, expectedSchema });
+          return false;
+        }
+      }
+      
       return true;
+    } catch (error) {
+      logValidation('error', 'API response validation error', { error, response });
+      return false;
     }
-
-    return false;
-  };
+  }, [logValidation]);
 
   return {
+    logs,
     logValidation,
-    validateApiResponse,
+    clearLogs,
     validateStreamToken,
-    getValidationLog: () => validationLog.current
+    validateApiResponse
   };
 };
