@@ -6,6 +6,8 @@ interface CodeGenerationRequest {
     framework: string;
     database?: string;
     features: string[];
+    mcpServers?: string[];
+    ragEnabled?: boolean;
   };
   operation: 'create' | 'modify' | 'delete' | 'refactor';
   targetFiles?: string[];

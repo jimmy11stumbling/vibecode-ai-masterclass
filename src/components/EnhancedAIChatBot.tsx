@@ -126,7 +126,9 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         files: flattenFiles(projectFiles),
         framework: 'React',
         database: 'Supabase',
-        features: ['TypeScript', 'Tailwind CSS', 'MCP Integration', 'RAG 2.0']
+        features: ['TypeScript', 'Tailwind CSS', 'MCP Integration', 'RAG 2.0'],
+        mcpServers: ['deepseek-reasoner', 'rag-database', 'code-executor'],
+        ragEnabled: true
       };
 
       console.log('Starting sovereign AI processing with deepseek-reasoner:', { prompt: inputValue, projectContext });
@@ -154,11 +156,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         try {
           const result = await aiGenerator.generateCode({
             prompt: inputValue,
-            projectContext: {
-              ...projectContext,
-              mcpServers: ['deepseek-reasoner', 'rag-database', 'code-executor'],
-              ragEnabled: true
-            },
+            projectContext,
             operation: 'create'
           });
 
