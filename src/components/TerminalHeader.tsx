@@ -1,59 +1,97 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Minus, Square, X } from 'lucide-react';
+import { 
+  Terminal as TerminalIcon, 
+  Minus, 
+  Square, 
+  X, 
+  Settings,
+  Copy,
+  Download
+} from 'lucide-react';
 
 interface TerminalHeaderProps {
   currentPath: string;
   onClose?: () => void;
   onToggleMinimize?: () => void;
   isMinimized?: boolean;
+  onSettings?: () => void;
+  onClear?: () => void;
+  onExport?: () => void;
 }
 
 export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   currentPath,
   onClose,
   onToggleMinimize,
-  isMinimized
+  isMinimized = false,
+  onSettings,
+  onClear,
+  onExport
 }) => {
   return (
-    <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700 bg-slate-800">
+    <div className="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center justify-between">
       <div className="flex items-center space-x-2">
-        <div className="text-sm font-medium text-white">Terminal</div>
-        <div className="text-xs text-slate-400">{currentPath}</div>
+        <TerminalIcon className="w-4 h-4 text-green-400" />
+        {!isMinimized && (
+          <>
+            <span className="text-sm font-medium text-white">Terminal</span>
+            <span className="text-xs text-slate-400">•</span>
+            <span className="text-xs text-slate-400">{currentPath}</span>
+          </>
+        )}
       </div>
-      
+
       <div className="flex items-center space-x-1">
-        {onToggleMinimize && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onToggleMinimize}
-            className="h-6 w-6 p-0 hover:bg-slate-700"
-          >
-            <Minus className="w-3 h-3" />
-          </Button>
+        {!isMinimized && (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onExport}
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+            >
+              <Download className="w-3 h-3" />
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClear}
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+            >
+              <Copy className="w-3 h-3" />
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onSettings}
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+            >
+              <Settings className="w-3 h-3" />
+            </Button>
+          </>
         )}
         
         <Button
           size="sm"
           variant="ghost"
           onClick={onToggleMinimize}
-          className="h-6 w-6 p-0 hover:bg-slate-700"
+          className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
         >
-          <Square className="w-3 h-3" />
+          <Minus className="w-3 h-3" />
         </Button>
         
-        {onClose && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onClose}
-            className="h-6 w-6 p-0 hover:bg-slate-700 text-red-400"
-          >
-            <X className="w-3 h-3" />
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onClose}
+          className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-700"
+        >
+          <X className="w-3 h-3" />
+        </Button>
       </div>
     </div>
   );

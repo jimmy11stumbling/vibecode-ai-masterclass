@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
 import { LivePreview } from '@/components/LivePreview';
-import { ProjectManager } from '@/components/ProjectManager';
+import { FileExplorer } from '@/components/FileExplorer';
 import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
 import { Terminal } from '@/components/Terminal';
 import { IDEToolbar } from '@/components/IDEToolbar';
@@ -27,7 +27,10 @@ import {
   Square,
   RotateCw,
   Server,
-  Brain
+  Brain,
+  Save,
+  Upload,
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -49,6 +52,8 @@ const FullIDE = () => {
   const [layout, setLayout] = useState('horizontal');
   const [aiApiKey, setAiApiKey] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
 
   // Load API key and project state from localStorage
@@ -58,19 +63,51 @@ const FullIDE = () => {
       setAiApiKey(savedApiKey);
     }
 
-    // Initialize with default project structure
-    if (projectFiles.length === 0) {
-      const defaultProject: ProjectFile[] = [
-        {
-          id: 'src',
-          name: 'src',
-          type: 'folder',
-          children: [
-            {
-              id: 'app',
-              name: 'App.tsx',
-              type: 'file',
-              content: `import React, { useState } from 'react';
+    // Load saved project
+    const savedProject = localStorage.getItem('ide_project_files');
+    if (savedProject) {
+      try {
+        const parsed = JSON.parse(savedProject);
+        setProjectFiles(parsed);
+        
+        // Auto-select first file
+        const firstFile = findFirstFile(parsed);
+        if (firstFile) {
+          setSelectedFile(firstFile);
+          setPreviewCode(firstFile.content || '');
+        }
+      } catch (error) {
+        console.error('Failed to load saved project:', error);
+        initializeDefaultProject();
+      }
+    } else {
+      initializeDefaultProject();
+    }
+  }, []);
+
+  const findFirstFile = (files: ProjectFile[]): ProjectFile | null => {
+    for (const file of files) {
+      if (file.type === 'file') return file;
+      if (file.children) {
+        const found = findFirstFile(file.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const initializeDefaultProject = () => {
+    const defaultProject: ProjectFile[] = [
+      {
+        id: 'src',
+        name: 'src',
+        type: 'folder',
+        children: [
+          {
+            id: 'app',
+            name: 'App.tsx',
+            type: 'file',
+            content: `import React, { useState } from 'react';
 
 function App() {
   const [count, setCount] = useState(0);
@@ -112,14 +149,18 @@ function App() {
 }
 
 export default App;`
-            }
-          ]
-        }
-      ];
-      setProjectFiles(defaultProject);
-      setPreviewCode(defaultProject[0].children?.[0]?.content || '');
+          }
+        ]
+      }
+    ];
+    setProjectFiles(defaultProject);
+    
+    const firstFile = defaultProject[0].children?.[0];
+    if (firstFile) {
+      setSelectedFile(firstFile);
+      setPreviewCode(firstFile.content || '');
     }
-  }, [projectFiles.length]);
+  };
 
   const handleFileSelect = (file: ProjectFile) => {
     console.log('File selected:', file);
@@ -132,12 +173,14 @@ export default App;`
   const handleProjectChange = (files: ProjectFile[]) => {
     console.log('Project files changed:', files);
     setProjectFiles(files);
+    setHasUnsavedChanges(true);
     localStorage.setItem('ide_project_files', JSON.stringify(files));
   };
 
   const handleCodeGenerated = (code: string) => {
     console.log('Code generated:', code);
     setPreviewCode(code);
+    setHasUnsavedChanges(true);
     
     if (selectedFile) {
       const updatedFiles = updateFileContent(projectFiles, selectedFile.id, code);
@@ -160,25 +203,109 @@ export default App;`
   const handleRunCode = async (code: string) => {
     console.log('Running code:', code);
     setIsRunning(true);
+    setIsBuilding(true);
     setPreviewCode(code);
     
+    // Simulate build process
     setTimeout(() => {
+      setIsBuilding(false);
       setIsRunning(false);
       toast({
         title: "Code executed successfully",
         description: "Your application is now running in the preview panel",
       });
-    }, 1000);
+    }, 2000);
   };
 
   const handleSaveProject = () => {
     localStorage.setItem('ide_project_files', JSON.stringify(projectFiles));
     localStorage.setItem('ide_selected_file', selectedFile?.id || '');
+    localStorage.setItem('deepseek_api_key', aiApiKey);
+    setHasUnsavedChanges(false);
     
     toast({
       title: "Project saved",
       description: "All changes have been saved locally",
     });
+  };
+
+  const handleExportProject = () => {
+    const projectData = {
+      files: projectFiles,
+      selectedFile: selectedFile?.id,
+      metadata: {
+        name: 'Sovereign AI Project',
+        version: '1.0.0',
+        created: new Date().toISOString(),
+        framework: 'React',
+        dependencies: ['react', 'typescript', 'tailwindcss']
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sovereign-ai-project.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Project exported",
+      description: "Project has been downloaded as JSON file",
+    });
+  };
+
+  const handleImportProject = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const projectData = JSON.parse(e.target?.result as string);
+        if (projectData.files) {
+          setProjectFiles(projectData.files);
+          
+          if (projectData.selectedFile) {
+            const selectedId = projectData.selectedFile;
+            const findFileById = (files: ProjectFile[]): ProjectFile | null => {
+              for (const file of files) {
+                if (file.id === selectedId) return file;
+                if (file.children) {
+                  const found = findFileById(file.children);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            
+            const foundFile = findFileById(projectData.files);
+            if (foundFile) {
+              setSelectedFile(foundFile);
+              setPreviewCode(foundFile.content || '');
+            }
+          }
+          
+          toast({
+            title: "Project imported",
+            description: "Project has been loaded successfully",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Import failed",
+          description: "Failed to parse project file",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input
+    event.target.value = '';
   };
 
   const toggleTerminal = () => {
@@ -195,11 +322,93 @@ export default App;`
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
         <Header />
         
-        <IDEToolbar 
-          onToggleTerminal={toggleTerminal}
-          onToggleLayout={toggleLayout}
-          layout={layout}
-        />
+        {/* Enhanced IDE Toolbar */}
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Button
+                size="sm"
+                onClick={() => selectedFile?.content && handleRunCode(selectedFile.content)}
+                disabled={!selectedFile?.content || isRunning}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isRunning ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                {isRunning ? 'Stop' : 'Run'}
+              </Button>
+              
+              <Button
+                size="sm"
+                onClick={handleSaveProject}
+                disabled={!hasUnsavedChanges}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-1" />
+                Save
+              </Button>
+              
+              <Button
+                size="sm"
+                onClick={handleExportProject}
+                variant="outline"
+                className="border-slate-600"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Export
+              </Button>
+              
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportProject}
+                  className="hidden"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-600"
+                  asChild
+                >
+                  <span>
+                    <Upload className="w-4 h-4 mr-1" />
+                    Import
+                  </span>
+                </Button>
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {hasUnsavedChanges && (
+                <span className="text-xs text-amber-400">● Unsaved changes</span>
+              )}
+              
+              {isBuilding && (
+                <span className="text-xs text-blue-400 flex items-center">
+                  <RotateCw className="w-3 h-3 mr-1 animate-spin" />
+                  Building...
+                </span>
+              )}
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleTerminal}
+                className="border-slate-600"
+              >
+                Terminal
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleLayout}
+                className="border-slate-600"
+              >
+                {layout === 'horizontal' ? 'Vertical' : 'Horizontal'}
+              </Button>
+            </div>
+          </div>
+        </div>
 
         {/* Main IDE Layout */}
         <div className="flex-1 flex overflow-hidden">
@@ -230,7 +439,7 @@ export default App;`
 
                   <div className="flex-1 overflow-hidden">
                     <TabsContent value="files" className="h-full m-0">
-                      <ProjectManager 
+                      <FileExplorer 
                         onFileSelect={handleFileSelect}
                         onProjectChange={handleProjectChange}
                       />
@@ -263,7 +472,6 @@ export default App;`
                         }}
                         onSearch={async (query) => {
                           console.log('RAG search:', query);
-                          // Implement search logic
                           return [];
                         }}
                       />
@@ -289,52 +497,13 @@ export default App;`
                 {/* Editor Panel */}
                 <ResizablePanel defaultSize={50}>
                   <div className="h-full">
-                    <Tabs defaultValue="editor" className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-4 py-2 flex items-center justify-between">
-                        <TabsList className="bg-slate-800">
-                          <TabsTrigger value="editor" className="data-[state=active]:bg-slate-700">
-                            <Code className="w-4 h-4 mr-2" />
-                            Editor
-                          </TabsTrigger>
-                        </TabsList>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            onClick={() => selectedFile?.content && handleRunCode(selectedFile.content)}
-                            className="bg-green-600 hover:bg-green-700"
-                            disabled={!selectedFile?.content || isRunning}
-                          >
-                            {isRunning ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveProject}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-hidden">
-                        <TabsContent value="editor" className="h-full m-0">
-                          <CodeEditor 
-                            onCodeChange={(files) => {
-                              const updatedFiles = files.map(file => ({
-                                id: file.id,
-                                name: file.name,
-                                type: 'file' as const,
-                                content: file.content
-                              }));
-                              console.log('Code editor files changed:', updatedFiles);
-                            }}
-                            onRun={handleRunCode}
-                            selectedFile={selectedFile}
-                          />
-                        </TabsContent>
-                      </div>
-                    </Tabs>
+                    <CodeEditor 
+                      onCodeChange={(files) => {
+                        console.log('Code editor files changed:', files);
+                      }}
+                      onRun={handleRunCode}
+                      selectedFile={selectedFile}
+                    />
                   </div>
                 </ResizablePanel>
 
@@ -343,22 +512,7 @@ export default App;`
                 {/* Preview Panel */}
                 <ResizablePanel defaultSize={50}>
                   <div className="h-full">
-                    <Tabs defaultValue="preview" className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-4 py-2">
-                        <TabsList className="bg-slate-800">
-                          <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Live Preview
-                          </TabsTrigger>
-                        </TabsList>
-                      </div>
-
-                      <div className="flex-1 overflow-hidden">
-                        <TabsContent value="preview" className="h-full m-0">
-                          <LivePreview code={previewCode} />
-                        </TabsContent>
-                      </div>
-                    </Tabs>
+                    <LivePreview code={previewCode} />
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
@@ -377,7 +531,17 @@ export default App;`
           </div>
         )}
 
-        <IDEStatusBar selectedFile={selectedFile} layout={layout} />
+        <IDEStatusBar 
+          selectedFile={selectedFile} 
+          layout={layout}
+          isBuilding={isBuilding}
+          hasUnsavedChanges={hasUnsavedChanges}
+          projectStats={{
+            files: projectFiles.length,
+            components: projectFiles.filter(f => f.name.endsWith('.tsx')).length,
+            lines: selectedFile?.content?.split('\n').length || 0
+          }}
+        />
       </div>
       
       <ToastProvider />

@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { CodeEditorHeader } from './CodeEditorHeader';
+import { MonacoCodeEditor } from './MonacoCodeEditor';
 import { FileTabs } from './FileTabs';
-import { CodeEditorArea } from './CodeEditorArea';
-import { StatusBar } from './StatusBar';
+import { BuildOutput } from './BuildOutput';
+import { PackageManager } from './PackageManager';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 interface CodeFile {
   id: string;
@@ -37,7 +38,7 @@ const App = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
       <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          React Counter
+          Sovereign AI IDE
         </h1>
         <div className="text-center">
           <div className="text-6xl font-bold text-indigo-600 mb-6">
@@ -76,6 +77,7 @@ export default App;`,
 
   const [activeFileId, setActiveFileId] = useState('1');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeBottomPanel, setActiveBottomPanel] = useState<'build' | 'packages'>('build');
 
   const activeFile = files.find(file => file.id === activeFileId) || files[0];
 
@@ -207,106 +209,79 @@ export default ${componentName};`;
     }
   };
 
-  const handleRun = () => {
-    console.log('Running code:', activeFile.content);
-    onRun?.(activeFile.content);
-  };
-
   const handleSave = () => {
     console.log('Saving files...', files);
     localStorage.setItem('ide_files', JSON.stringify(files));
-    
-    // Show save confirmation
-    const event = new CustomEvent('show-toast', {
-      detail: { message: 'Files saved successfully!', type: 'success' }
-    });
-    window.dispatchEvent(event);
-  };
-
-  const handleLoad = () => {
-    const savedFiles = localStorage.getItem('ide_files');
-    if (savedFiles) {
-      try {
-        const parsedFiles = JSON.parse(savedFiles);
-        setFiles(parsedFiles);
-        setActiveFileId(parsedFiles[0]?.id || '');
-        
-        const event = new CustomEvent('show-toast', {
-          detail: { message: 'Files loaded successfully!', type: 'success' }
-        });
-        window.dispatchEvent(event);
-      } catch (error) {
-        console.error('Error loading files:', error);
-        const event = new CustomEvent('show-toast', {
-          detail: { message: 'Error loading files', type: 'error' }
-        });
-        window.dispatchEvent(event);
-      }
-    }
-  };
-
-  const handleDownload = () => {
-    const content = JSON.stringify(files, null, 2);
-    const blob = new Blob([content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'project-files.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(activeFile.content);
-      const event = new CustomEvent('show-toast', {
-        detail: { message: 'Code copied to clipboard!', type: 'success' }
-      });
-      window.dispatchEvent(event);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
-
-  const resetFile = () => {
-    const template = getFileTemplate(activeFile.language, activeFile.name);
-    updateFileContent(activeFile.id, template);
   };
 
   return (
     <div className={`h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-      <CodeEditorHeader
-        filesCount={files.length}
-        onRun={handleRun}
-        onSave={handleSave}
-        onLoad={handleLoad}
-        onDownload={handleDownload}
-        onCopy={copyToClipboard}
-        onReset={resetFile}
-        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-      />
+      <ResizablePanelGroup direction="vertical" className="h-full">
+        {/* Main Editor Panel */}
+        <ResizablePanel defaultSize={70} minSize={50}>
+          <Tabs value={activeFileId} onValueChange={setActiveFileId} className="flex-1 flex flex-col h-full">
+            <FileTabs
+              files={files}
+              onDeleteFile={deleteFile}
+              onCreateFile={createNewFile}
+            />
 
-      <Tabs value={activeFileId} onValueChange={setActiveFileId} className="flex-1 flex flex-col">
-        <FileTabs
-          files={files}
-          onDeleteFile={deleteFile}
-          onCreateFile={createNewFile}
-        />
+            {files.map((file) => (
+              <TabsContent key={file.id} value={file.id} className="flex-1 m-0">
+                <MonacoCodeEditor
+                  file={file}
+                  onContentChange={updateFileContent}
+                  onRun={onRun}
+                  onSave={handleSave}
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+                />
+              </TabsContent>
+            ))}
+          </Tabs>
+        </ResizablePanel>
 
-        {files.map((file) => (
-          <TabsContent key={file.id} value={file.id} className="flex-1 m-0">
-            <div className="h-full flex flex-col">
-              <CodeEditorArea
-                file={file}
-                onContentChange={updateFileContent}
-              />
-              <StatusBar file={file} />
+        <ResizableHandle withHandle />
+
+        {/* Bottom Panel */}
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+          <Tabs value={activeBottomPanel} onValueChange={setActiveBottomPanel as any} className="h-full flex flex-col">
+            <div className="border-b border-slate-700 bg-slate-800">
+              <div className="flex items-center px-4 py-2">
+                <button
+                  onClick={() => setActiveBottomPanel('build')}
+                  className={`px-3 py-1 text-sm rounded ${
+                    activeBottomPanel === 'build' 
+                      ? 'bg-slate-700 text-white' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Build Output
+                </button>
+                <button
+                  onClick={() => setActiveBottomPanel('packages')}
+                  className={`ml-2 px-3 py-1 text-sm rounded ${
+                    activeBottomPanel === 'packages' 
+                      ? 'bg-slate-700 text-white' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Packages
+                </button>
+              </div>
             </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+
+            <div className="flex-1 overflow-hidden">
+              <TabsContent value="build" className="h-full m-0">
+                <BuildOutput />
+              </TabsContent>
+              <TabsContent value="packages" className="h-full m-0">
+                <PackageManager />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 };
