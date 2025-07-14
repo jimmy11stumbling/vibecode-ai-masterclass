@@ -2,13 +2,13 @@
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Zap, CheckCircle, AlertCircle } from 'lucide-react';
+import { Zap, Activity, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface RealTimeProgressProps {
   isStreaming: boolean;
   tokensReceived: number;
   responseTime: number;
-  status: 'idle' | 'connecting' | 'streaming' | 'complete' | 'error';
+  status: 'idle' | 'streaming' | 'complete' | 'error';
 }
 
 export const RealTimeProgress: React.FC<RealTimeProgressProps> = ({
@@ -20,68 +20,64 @@ export const RealTimeProgress: React.FC<RealTimeProgressProps> = ({
   const getStatusIcon = () => {
     switch (status) {
       case 'streaming':
-        return <Activity className="w-4 h-4 animate-pulse text-blue-500" />;
+        return <Activity className="w-4 h-4 text-blue-500 animate-pulse" />;
       case 'complete':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'connecting':
-        return <Zap className="w-4 h-4 animate-bounce text-yellow-500" />;
       default:
-        return <Activity className="w-4 h-4 text-gray-500" />;
+        return <Zap className="w-4 h-4 text-slate-500" />;
     }
   };
 
   const getStatusColor = () => {
     switch (status) {
       case 'streaming':
-        return 'bg-blue-500';
+        return 'border-blue-500 bg-blue-50';
       case 'complete':
-        return 'bg-green-500';
+        return 'border-green-500 bg-green-50';
       case 'error':
-        return 'bg-red-500';
-      case 'connecting':
-        return 'bg-yellow-500';
+        return 'border-red-500 bg-red-50';
       default:
-        return 'bg-gray-500';
+        return 'border-slate-300 bg-slate-50';
     }
-  };
-
-  const getProgressValue = () => {
-    if (status === 'complete') return 100;
-    if (status === 'error') return 0;
-    if (tokensReceived > 0) return Math.min((tokensReceived / 100) * 100, 95);
-    return 0;
   };
 
   if (status === 'idle') return null;
 
   return (
-    <div className="px-4 py-2 border-b border-slate-700 bg-slate-800">
+    <div className={`p-3 border-b border-slate-700 ${getStatusColor()}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
           {getStatusIcon()}
-          <span className="text-sm font-medium text-white capitalize">{status}</span>
-          {isStreaming && (
-            <Badge variant="secondary" className="text-xs">
-              Live
-            </Badge>
-          )}
+          <span className="text-sm font-medium text-slate-700 capitalize">{status}</span>
         </div>
         
-        <div className="flex items-center space-x-4 text-xs text-slate-400">
-          <span>{tokensReceived} tokens</span>
-          <span>{responseTime}ms</span>
+        <div className="flex items-center space-x-3">
+          {tokensReceived > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {tokensReceived} tokens
+            </Badge>
+          )}
+          
+          {responseTime > 0 && (
+            <div className="flex items-center space-x-1">
+              <Clock className="w-3 h-3 text-slate-500" />
+              <span className="text-xs text-slate-600">{responseTime}ms</span>
+            </div>
+          )}
         </div>
       </div>
       
-      <Progress 
-        value={getProgressValue()} 
-        className="h-1"
-        style={{
-          '--progress-background': getStatusColor()
-        } as React.CSSProperties}
-      />
+      {isStreaming && (
+        <div className="space-y-2">
+          <Progress value={Math.min((tokensReceived / 1000) * 100, 100)} className="h-2" />
+          <div className="flex justify-between text-xs text-slate-600">
+            <span>Processing sovereign AI response...</span>
+            <span>{Math.round(tokensReceived / Math.max(responseTime / 1000, 1))} tokens/sec</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

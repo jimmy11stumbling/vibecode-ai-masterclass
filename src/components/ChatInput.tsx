@@ -1,67 +1,94 @@
 
 import React from 'react';
-import { Send, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Send, Mic, Paperclip } from 'lucide-react';
 
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (e: React.FormEvent) => void;
   disabled?: boolean;
-  apiKey: string;
+  apiKey?: string;
+  placeholder?: string;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ 
-  value, 
-  onChange, 
-  onSubmit, 
+export const ChatInput: React.FC<ChatInputProps> = ({
+  value,
+  onChange,
+  onSubmit,
   disabled = false,
-  apiKey 
+  apiKey,
+  placeholder = "Ask me anything about your code..."
 }) => {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSubmit();
+      if (!disabled && value.trim()) {
+        onSubmit(e);
+      }
     }
   };
 
   return (
     <div className="p-4 border-t border-slate-700">
-      <div className="flex space-x-2">
-        <div className="flex-1 relative">
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div className="relative">
           <Textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Ask me anything about coding..."
-            className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 resize-none min-h-[60px] pr-20"
             onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="min-h-[60px] bg-slate-800 border-slate-600 text-white pr-20 resize-none"
+            disabled={disabled}
           />
-          <div className="absolute right-2 bottom-2 flex space-x-1">
+          
+          <div className="absolute right-2 bottom-2 flex items-center space-x-1">
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              className="text-slate-400 hover:text-white h-6 w-6 p-0"
+              className="text-slate-400 hover:text-white h-8 w-8 p-0"
+              disabled={disabled}
             >
-              <Mic className="w-3 h-3" />
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-slate-400 hover:text-white h-8 w-8 p-0"
+              disabled={disabled}
+            >
+              <Mic className="w-4 h-4" />
             </Button>
           </div>
         </div>
         
-        <Button
-          onClick={onSubmit}
-          disabled={!value.trim() || disabled || !apiKey}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Send className="w-4 h-4" />
-        </Button>
-      </div>
-      
-      <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
-        <span>Press Shift + Enter for new line</span>
-        <span>{apiKey ? 'AI Ready' : 'API Key Required'}</span>
-      </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-xs text-slate-400">
+            <span>Press Shift + Enter for new line</span>
+            <span>•</span>
+            <div className="flex items-center space-x-1">
+              <div className={`w-2 h-2 rounded-full ${
+                apiKey ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span>{apiKey ? 'API Connected' : 'API Key Required'}</span>
+            </div>
+          </div>
+          
+          <Button
+            type="submit"
+            size="sm"
+            disabled={disabled || !value.trim() || !apiKey}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Send
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };

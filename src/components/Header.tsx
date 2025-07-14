@@ -1,112 +1,96 @@
 
 import React from 'react';
-import { Code2, User, Settings, LogOut, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Code, 
+  Settings, 
+  User, 
+  Bell, 
+  Search,
+  Command,
+  Zap,
+  Database,
+  GitBranch
+} from 'lucide-react';
 
-export const Header = () => {
-  const location = useLocation();
-
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
-
+export const Header: React.FC = () => {
   return (
-    <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-              <Code2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl text-white">Vibecode</span>
-          </Link>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link
-              to="/"
-              className={`text-sm font-medium transition-colors hover:text-white ${
-                isActive('/') ? 'text-white' : 'text-gray-300'
-              }`}
-            >
-              Learn
-            </Link>
-            <Link
-              to="/dashboard"
-              className={`text-sm font-medium transition-colors hover:text-white ${
-                isActive('/dashboard') ? 'text-white' : 'text-gray-300'
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/ide"
-              className={`text-sm font-medium transition-colors hover:text-white ${
-                isActive('/ide') ? 'text-white' : 'text-gray-300'
-              }`}
-            >
-              IDE
-            </Link>
-            <a
-              href="#community"
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
-              Community
-            </a>
-            <a
-              href="#pricing"
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
-              Pricing
-            </a>
-          </nav>
-
-          {/* User Actions */}
+    <header className="bg-slate-800 border-b border-slate-700 px-6 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
-            {/* Notifications */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-gray-300 hover:text-white relative"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </Button>
-
-            {/* Settings */}
-            <Button
-              size="sm"
-              variant="ghost" 
-              className="text-gray-300 hover:text-white"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-
-            {/* Profile Dropdown */}
-            <div className="relative">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-gray-300 hover:text-white flex items-center space-x-2"
-              >
-                <div className="w-6 h-6 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                  <User className="w-3 h-3 text-white" />
-                </div>
-                <span className="text-sm">Developer</span>
-              </Button>
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Code className="w-5 h-5 text-white" />
             </div>
-
-            {/* Logout */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-gray-300 hover:text-red-400"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold text-white">Sovereign AI IDE</h1>
+              <p className="text-xs text-slate-400">Production-Ready Development Environment</p>
+            </div>
           </div>
+          
+          <div className="flex items-center space-x-3">
+            <Badge variant="outline" className="text-green-400 border-green-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-2" />
+              Online
+            </Badge>
+            <Badge variant="outline" className="text-blue-400 border-blue-400">
+              <Zap className="w-3 h-3 mr-1" />
+              DeepSeek AI
+            </Badge>
+            <Badge variant="outline" className="text-purple-400 border-purple-400">
+              <Database className="w-3 h-3 mr-1" />
+              Supabase
+            </Badge>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search project..."
+              className="w-64 pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-blue-400 focus:outline-none"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+              <Command className="w-3 h-3 text-slate-500" />
+              <span className="text-xs text-slate-500">K</span>
+            </div>
+          </div>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-slate-400 hover:text-white relative"
+          >
+            <Bell className="w-4 h-4" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
+          >
+            <GitBranch className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
+          >
+            <User className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </header>
