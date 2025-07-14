@@ -9,6 +9,7 @@ import { TypingIndicator } from './TypingIndicator';
 import { RealTimeProgress } from './RealTimeProgress';
 import { ConsoleLogger } from './ConsoleLogger';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
+import { useConsoleLogger } from '@/hooks/useConsoleLogger';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Terminal } from 'lucide-react';
@@ -36,6 +37,7 @@ export const ChatInterface = () => {
   const [showConsole, setShowConsole] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
+  const { logs, logInfo, logError, logWarn, clearLogs, exportLogs } = useConsoleLogger();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -48,10 +50,12 @@ export const ChatInterface = () => {
   // Log real-time validation info
   useEffect(() => {
     console.log('Real-time streaming stats updated:', streamingStats);
-  }, [streamingStats]);
+    logInfo('Streaming stats updated', streamingStats, 'ChatInterface');
+  }, [streamingStats, logInfo]);
 
   const handleSendMessage = async (content: string) => {
     console.log('User message sent:', content);
+    logInfo('User message sent', { content }, 'ChatInterface');
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -77,6 +81,7 @@ export const ChatInterface = () => {
       const conversationMessages = [...messages, userMessage];
       
       console.log('Starting real-time response streaming...');
+      logInfo('Starting real-time response streaming', {}, 'ChatInterface');
       
       await streamChatResponse(
         conversationMessages, 
@@ -93,12 +98,15 @@ export const ChatInterface = () => {
         },
         (stats) => {
           console.log('Real-time progress update:', stats);
+          logInfo('Real-time progress update', stats, 'ChatInterface');
         }
       );
       
       console.log('Real-time response completed successfully');
+      logInfo('Real-time response completed successfully', {}, 'ChatInterface');
     } catch (error) {
       console.error('Real-time response error:', error);
+      logError('Real-time response error', error, 'ChatInterface');
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantMessageId 
@@ -184,10 +192,15 @@ export const ChatInterface = () => {
       </Tabs>
 
       {/* Real-time Console Logger */}
-      <ConsoleLogger 
-        isVisible={showConsole}
-        onToggle={() => setShowConsole(!showConsole)}
-      />
+      {showConsole && (
+        <div className="absolute bottom-0 left-0 right-0 h-96 bg-slate-900 border-t border-white/20 rounded-b-2xl overflow-hidden">
+          <ConsoleLogger 
+            logs={logs}
+            onClear={clearLogs}
+            onExport={exportLogs}
+          />
+        </div>
+      )}
     </div>
   );
 };
