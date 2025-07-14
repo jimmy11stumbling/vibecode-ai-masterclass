@@ -31,6 +31,8 @@ export const useToast = () => {
   }) => {
     const id = `toast-${++toastCount}`;
     
+    console.log('🍞 Toast created:', { id, title, description, variant });
+    
     const newToast: ToastProps = {
       id,
       title,
@@ -40,7 +42,11 @@ export const useToast = () => {
       ...props
     };
 
-    setToasts(prev => [...prev, newToast]);
+    setToasts(prev => {
+      const updated = [...prev, newToast];
+      console.log('🍞 Toast state updated:', updated);
+      return updated;
+    });
 
     // Also use sonner for the actual toast display
     if (variant === 'destructive') {
@@ -59,7 +65,11 @@ export const useToast = () => {
 
     // Auto-remove toast after duration
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts(prev => {
+        const filtered = prev.filter(t => t.id !== id);
+        console.log('🍞 Toast auto-removed:', id, 'remaining:', filtered.length);
+        return filtered;
+      });
     }, duration);
 
     return {
@@ -73,11 +83,11 @@ export const useToast = () => {
 
   return { 
     toast, 
-    toasts,
+    toasts: toasts || [], // Ensure toasts is always an array
     dismiss: (toastId: string) => {
       setToasts(prev => prev.filter(t => t.id !== toastId));
     }
   };
 };
 
-export { toast } from 'sonner';
+export const toast = sonnerToast;
