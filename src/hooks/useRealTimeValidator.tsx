@@ -4,35 +4,38 @@ import { useState, useCallback } from 'react';
 export interface ValidationEntry {
   id: string;
   timestamp: Date;
-  level: 'success' | 'error' | 'warning' | 'info';
+  type: 'success' | 'error' | 'warning' | 'info'; // Changed from 'level' to 'type'
   message: string;
   details?: any;
   source: string;
+  duration?: number; // Added to match ValidationResult interface
 }
 
 export const useRealTimeValidator = () => {
   const [validations, setValidations] = useState<ValidationEntry[]>([]);
 
   const addValidation = useCallback((
-    level: ValidationEntry['level'],
+    type: ValidationEntry['type'], // Changed from 'level' to 'type'
     message: string,
     details?: any,
-    source: string = 'System'
+    source: string = 'System',
+    duration?: number
   ) => {
     const entry: ValidationEntry = {
       id: Date.now().toString(),
       timestamp: new Date(),
-      level,
+      type, // Changed from 'level' to 'type'
       message,
       details,
-      source
+      source,
+      duration
     };
 
     setValidations(prev => [entry, ...prev.slice(0, 999)]); // Keep last 1000 entries
   }, []);
 
-  const validateSuccess = useCallback((message: string, details?: any, source?: string) => {
-    addValidation('success', message, details, source);
+  const validateSuccess = useCallback((message: string, details?: any, source?: string, duration?: number) => {
+    addValidation('success', message, details, source, duration);
   }, [addValidation]);
 
   const validateError = useCallback((message: string, details?: any, source?: string) => {

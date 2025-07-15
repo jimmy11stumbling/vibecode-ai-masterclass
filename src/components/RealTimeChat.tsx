@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -110,7 +109,7 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
         tokens: Math.floor(Math.random() * 100) + 50
       });
 
-      validateSuccess('AI response generated', `${response.substring(0, 50)}...`, 'RealTimeChat', processingTime);
+      validateSuccess('AI response generated', `${response.substring(0, 50)}...`, 'RealTimeChat');
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';

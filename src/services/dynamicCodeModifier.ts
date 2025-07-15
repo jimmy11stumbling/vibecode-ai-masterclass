@@ -1,6 +1,4 @@
 
-import { supabase } from '@/integrations/supabase/client';
-
 export interface CodeModificationRequest {
   operation: 'create' | 'update' | 'delete' | 'rename';
   filePath: string;
@@ -21,6 +19,7 @@ export class DynamicCodeModifier {
 
   constructor() {
     this.initializeGlobalInterface();
+    this.loadFromLocalStorage();
   }
 
   private initializeGlobalInterface() {
@@ -29,6 +28,29 @@ export class DynamicCodeModifier {
     (window as any).getProjectStructure = this.getProjectStructure.bind(this);
     (window as any).readFile = this.readFile.bind(this);
     (window as any).writeFile = this.writeFile.bind(this);
+  }
+
+  private loadFromLocalStorage() {
+    try {
+      const savedFiles = localStorage.getItem('dynamic_code_files');
+      if (savedFiles) {
+        const files = JSON.parse(savedFiles);
+        Object.entries(files).forEach(([path, content]) => {
+          this.fileCache.set(path, content as string);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load files from localStorage:', error);
+    }
+  }
+
+  private saveToLocalStorage() {
+    try {
+      const filesObject = Object.fromEntries(this.fileCache.entries());
+      localStorage.setItem('dynamic_code_files', JSON.stringify(filesObject));
+    } catch (error) {
+      console.error('Failed to save files to localStorage:', error);
+    }
   }
 
   async applyChanges(changes: CodeModificationRequest[]): Promise<boolean> {
@@ -69,50 +91,20 @@ export class DynamicCodeModifier {
 
   async createFile(filePath: string, content: string): Promise<void> {
     this.fileCache.set(filePath, content);
-    
-    // Store in Supabase for persistence
-    const { error } = await supabase
-      .from('project_files')
-      .insert({
-        file_path: filePath,
-        content,
-        file_type: this.getFileType(filePath),
-        created_at: new Date().toISOString()
-      });
-
-    if (error) {
-      console.error('Failed to create file in database:', error);
-    }
+    this.saveToLocalStorage();
+    console.log(`Created file: ${filePath}`);
   }
 
   async updateFile(filePath: string, content: string): Promise<void> {
     this.fileCache.set(filePath, content);
-    
-    const { error } = await supabase
-      .from('project_files')
-      .upsert({
-        file_path: filePath,
-        content,
-        file_type: this.getFileType(filePath),
-        updated_at: new Date().toISOString()
-      });
-
-    if (error) {
-      console.error('Failed to update file in database:', error);
-    }
+    this.saveToLocalStorage();
+    console.log(`Updated file: ${filePath}`);
   }
 
   async deleteFile(filePath: string): Promise<void> {
     this.fileCache.delete(filePath);
-    
-    const { error } = await supabase
-      .from('project_files')
-      .delete()
-      .eq('file_path', filePath);
-
-    if (error) {
-      console.error('Failed to delete file from database:', error);
-    }
+    this.saveToLocalStorage();
+    console.log(`Deleted file: ${filePath}`);
   }
 
   async renameFile(oldPath: string, newPath: string): Promise<void> {
@@ -120,28 +112,12 @@ export class DynamicCodeModifier {
     if (content) {
       await this.deleteFile(oldPath);
       await this.createFile(newPath, content);
+      console.log(`Renamed file: ${oldPath} -> ${newPath}`);
     }
   }
 
   async readFile(filePath: string): Promise<string | null> {
-    // Check cache first
-    if (this.fileCache.has(filePath)) {
-      return this.fileCache.get(filePath) || null;
-    }
-
-    // Fetch from database
-    const { data, error } = await supabase
-      .from('project_files')
-      .select('content')
-      .eq('file_path', filePath)
-      .single();
-
-    if (error || !data) {
-      return null;
-    }
-
-    this.fileCache.set(filePath, data.content);
-    return data.content;
+    return this.fileCache.get(filePath) || null;
   }
 
   async writeFile(filePath: string, content: string): Promise<boolean> {
@@ -155,16 +131,8 @@ export class DynamicCodeModifier {
   }
 
   async getProjectStructure(): Promise<FileSystemNode[]> {
-    const { data, error } = await supabase
-      .from('project_files')
-      .select('file_path, file_type')
-      .order('file_path');
-
-    if (error || !data) {
-      return [];
-    }
-
-    return this.buildFileTree(data);
+    const files = Array.from(this.fileCache.keys());
+    return this.buildFileTree(files.map(path => ({ file_path: path, file_type: this.getFileType(path) })));
   }
 
   private buildFileTree(files: Array<{ file_path: string; file_type: string }>): FileSystemNode[] {
