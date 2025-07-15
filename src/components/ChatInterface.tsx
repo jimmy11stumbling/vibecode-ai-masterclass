@@ -42,7 +42,7 @@ export const ChatInterface = () => {
   const [activeView, setActiveView] = useState<'chat' | 'console'>('chat');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { logs, logInfo, logError, clearLogs } = useConsoleLogger();
+  const { logs, logInfo, logError, clearLogs, exportLogs } = useConsoleLogger();
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -262,6 +262,7 @@ export const ChatInterface = () => {
             <ConsoleLogger 
               logs={logs} 
               onClear={clearLogs}
+              onExport={exportLogs}
               title="Development Console"
             />
           </div>
