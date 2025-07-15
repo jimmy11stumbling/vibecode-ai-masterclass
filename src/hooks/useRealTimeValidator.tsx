@@ -1,80 +1,63 @@
+
 import { useState, useCallback } from 'react';
 
-interface ValidationResult {
+export interface ValidationEntry {
   id: string;
   timestamp: Date;
-  type: 'success' | 'error' | 'warning' | 'info';
+  level: 'success' | 'error' | 'warning' | 'info';
   message: string;
-  details?: string;
-  component?: string;
-  duration?: number;
+  details?: any;
+  source: string;
 }
 
-let validationCount = 0;
-
 export const useRealTimeValidator = () => {
-  const [validations, setValidations] = useState<ValidationResult[]>([]);
+  const [validations, setValidations] = useState<ValidationEntry[]>([]);
 
   const addValidation = useCallback((
-    type: ValidationResult['type'],
+    level: ValidationEntry['level'],
     message: string,
-    details?: string,
-    component?: string,
-    duration?: number
+    details?: any,
+    source: string = 'System'
   ) => {
-    const validation: ValidationResult = {
-      id: `validation-${++validationCount}`,
+    const entry: ValidationEntry = {
+      id: Date.now().toString(),
       timestamp: new Date(),
-      type,
+      level,
       message,
       details,
-      component,
-      duration
+      source
     };
 
-    console.log('🔍 Adding validation:', validation);
-
-    setValidations(prev => {
-      const updated = [...prev, validation];
-      // Keep only last 1000 validations to prevent memory issues
-      if (updated.length > 1000) {
-        return updated.slice(-1000);
-      }
-      return updated;
-    });
-
-    return validation;
+    setValidations(prev => [entry, ...prev.slice(0, 999)]); // Keep last 1000 entries
   }, []);
 
-  const validateSuccess = useCallback((message: string, details?: string, component?: string, duration?: number) => {
-    return addValidation('success', message, details, component, duration);
+  const validateSuccess = useCallback((message: string, details?: any, source?: string) => {
+    addValidation('success', message, details, source);
   }, [addValidation]);
 
-  const validateError = useCallback((message: string, details?: string, component?: string, duration?: number) => {
-    return addValidation('error', message, details, component, duration);
+  const validateError = useCallback((message: string, details?: any, source?: string) => {
+    addValidation('error', message, details, source);
   }, [addValidation]);
 
-  const validateWarning = useCallback((message: string, details?: string, component?: string, duration?: number) => {
-    return addValidation('warning', message, details, component, duration);
+  const validateWarning = useCallback((message: string, details?: any, source?: string) => {
+    addValidation('warning', message, details, source);
   }, [addValidation]);
 
-  const validateInfo = useCallback((message: string, details?: string, component?: string, duration?: number) => {
-    return addValidation('info', message, details, component, duration);
+  const validateInfo = useCallback((message: string, details?: any, source?: string) => {
+    addValidation('info', message, details, source);
   }, [addValidation]);
 
   const clearValidations = useCallback(() => {
-    console.log('🗑️ Clearing all validations');
     setValidations([]);
   }, []);
 
   const exportValidations = useCallback(() => {
-    console.log('📤 Exporting validations');
     const data = JSON.stringify(validations, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `validations-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `validation-log-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

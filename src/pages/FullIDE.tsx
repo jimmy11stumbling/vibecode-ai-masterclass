@@ -39,6 +39,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRealTimeValidator } from '@/hooks/useRealTimeValidator';
+import { AICodeGenerator } from '@/components/AICodeGenerator';
+import { ProjectAnalyzer } from '@/components/ProjectAnalyzer';
+import { DeploymentManager } from '@/components/DeploymentManager';
 
 interface ProjectFile {
   id: string;
@@ -168,7 +171,7 @@ function App() {
           <button
             onClick={() => setCount(0)}
             className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-          >
+            >
             Reset
           </button>
         </div>
@@ -449,12 +452,18 @@ export default App;`
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-6">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-8">
                       <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
                         <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
                         <Bot className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="generator" className="data-[state=active]:bg-slate-700">
+                        <Brain className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="analyzer" className="data-[state=active]:bg-slate-700">
+                        <Activity className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
                         <MessageSquare className="w-4 h-4" />
@@ -486,6 +495,14 @@ export default App;`
                         onCodeGenerated={handleCodeGenerated}
                         apiKey={aiApiKey}
                       />
+                    </TabsContent>
+
+                    <TabsContent value="generator" className="h-full m-0">
+                      <AICodeGenerator onCodeGenerated={() => {}} />
+                    </TabsContent>
+
+                    <TabsContent value="analyzer" className="h-full m-0">
+                      <ProjectAnalyzer />
                     </TabsContent>
 
                     <TabsContent value="chat" className="h-full m-0">
@@ -534,7 +551,7 @@ export default App;`
             <ResizableHandle withHandle />
 
             {/* Main Content Area */}
-            <ResizablePanel defaultSize={75}>
+            <ResizablePanel defaultSize={50}>
               <ResizablePanelGroup direction={layout === 'horizontal' ? 'horizontal' : 'vertical'}>
                 {/* Editor Panel */}
                 <ResizablePanel defaultSize={50}>
@@ -558,6 +575,13 @@ export default App;`
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
+
+            {/* Right Panel - Deployment */}
+            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+              <DeploymentManager />
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
