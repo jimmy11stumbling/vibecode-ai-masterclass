@@ -1,389 +1,268 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { 
   Rocket, 
   Globe, 
   Server, 
-  CheckCircle, 
-  AlertCircle, 
+  Settings, 
+  Activity,
+  CheckCircle,
+  AlertCircle,
   Clock,
-  Settings,
-  ExternalLink,
-  Copy,
-  RefreshCw
+  ExternalLink
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-interface Deployment {
-  id: string;
-  name: string;
-  url: string;
-  status: 'building' | 'ready' | 'failed' | 'deploying';
-  environment: 'development' | 'staging' | 'production';
-  branch: string;
-  timestamp: Date;
-  buildTime?: number;
-  logs?: string[];
-}
 
 interface DeploymentTarget {
   id: string;
   name: string;
-  provider: 'vercel' | 'netlify' | 'github-pages' | 'custom';
-  connected: boolean;
-  lastDeploy?: Date;
+  type: 'static' | 'serverless' | 'container';
+  status: 'idle' | 'deploying' | 'deployed' | 'failed';
+  url?: string;
+  lastDeployed?: Date;
+  buildTime?: number;
 }
 
 export const DeploymentManager: React.FC = () => {
-  const [deployments, setDeployments] = useState<Deployment[]>([
+  const [deployments, setDeployments] = useState<DeploymentTarget[]>([
     {
       id: '1',
-      name: 'Production Deploy',
-      url: 'https://sovereign-ai-ide.vercel.app',
-      status: 'ready',
-      environment: 'production',
-      branch: 'main',
-      timestamp: new Date(Date.now() - 3600000),
-      buildTime: 180
+      name: 'Production',
+      type: 'static',
+      status: 'deployed',
+      url: 'https://my-app.com',
+      lastDeployed: new Date(Date.now() - 3600000),
+      buildTime: 45
     },
     {
       id: '2',
-      name: 'Staging Deploy',
-      url: 'https://staging-sovereign-ai.vercel.app',
-      status: 'building',
-      environment: 'staging',
-      branch: 'develop',
-      timestamp: new Date(Date.now() - 600000)
+      name: 'Staging',
+      type: 'serverless',
+      status: 'idle',
+      lastDeployed: new Date(Date.now() - 86400000),
+      buildTime: 32
     }
   ]);
 
-  const [targets, setTargets] = useState<DeploymentTarget[]>([
-    {
-      id: '1',
-      name: 'Vercel Production',
-      provider: 'vercel',
-      connected: true,
-      lastDeploy: new Date(Date.now() - 3600000)
-    },
-    {
-      id: '2',
-      name: 'Netlify Staging',
-      provider: 'netlify',
-      connected: false
-    }
-  ]);
-
-  const [customDomain, setCustomDomain] = useState('');
   const [isDeploying, setIsDeploying] = useState(false);
-  const { toast } = useToast();
+  const [deployProgress, setDeployProgress] = useState(0);
 
-  const deployToTarget = async (targetId: string, environment: 'development' | 'staging' | 'production') => {
+  const handleDeploy = async (deploymentId: string) => {
     setIsDeploying(true);
+    setDeployProgress(0);
     
-    try {
-      const newDeployment: Deployment = {
-        id: Date.now().toString(),
-        name: `${environment} Deploy`,
-        url: `https://${environment}-sovereign-ai.vercel.app`,
-        status: 'deploying',
-        environment,
-        branch: environment === 'production' ? 'main' : 'develop',
-        timestamp: new Date()
-      };
+    setDeployments(prev => prev.map(dep => 
+      dep.id === deploymentId 
+        ? { ...dep, status: 'deploying' as const }
+        : dep
+    ));
 
-      setDeployments(prev => [newDeployment, ...prev]);
-
-      // Simulate deployment process
-      setTimeout(() => {
-        setDeployments(prev => 
-          prev.map(d => 
-            d.id === newDeployment.id 
-              ? { ...d, status: 'building' as const }
-              : d
-          )
-        );
-      }, 2000);
-
-      setTimeout(() => {
-        setDeployments(prev => 
-          prev.map(d => 
-            d.id === newDeployment.id 
-              ? { ...d, status: 'ready' as const, buildTime: 145 }
-              : d
-          )
-        );
-        
-        toast({
-          title: 'Deployment Successful',
-          description: `${environment} environment deployed successfully`
-        });
-      }, 8000);
-
-    } catch (error) {
-      toast({
-        title: 'Deployment Failed',
-        description: 'Failed to deploy to target environment',
-        variant: 'destructive'
+    // Simulate deployment progress
+    const progressInterval = setInterval(() => {
+      setDeployProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setIsDeploying(false);
+          setDeployments(prevDeps => prevDeps.map(dep => 
+            dep.id === deploymentId 
+              ? { 
+                  ...dep, 
+                  status: 'deployed' as const,
+                  lastDeployed: new Date(),
+                  buildTime: Math.floor(Math.random() * 60) + 20
+                }
+              : dep
+          ));
+          return 100;
+        }
+        return prev + 10;
       });
-    } finally {
-      setIsDeploying(false);
-    }
+    }, 500);
   };
 
-  const connectTarget = (targetId: string) => {
-    setTargets(prev => 
-      prev.map(t => 
-        t.id === targetId 
-          ? { ...t, connected: true, lastDeploy: new Date() }
-          : t
-      )
-    );
-    
-    toast({
-      title: 'Target Connected',
-      description: 'Deployment target configured successfully'
-    });
-  };
-
-  const copyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
-    toast({
-      title: 'URL Copied',
-      description: 'Deployment URL copied to clipboard'
-    });
-  };
-
-  const getStatusIcon = (status: Deployment['status']) => {
+  const getStatusIcon = (status: DeploymentTarget['status']) => {
     switch (status) {
-      case 'ready':
-        return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'building':
+      case 'deployed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'deploying':
-        return <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />;
+        return <Activity className="w-4 h-4 text-blue-500 animate-spin" />;
       case 'failed':
-        return <AlertCircle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Clock className="w-4 h-4 text-yellow-400" />;
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getStatusColor = (status: Deployment['status']) => {
+  const getStatusColor = (status: DeploymentTarget['status']) => {
     switch (status) {
-      case 'ready':
-        return 'bg-green-900 text-green-100';
-      case 'building':
+      case 'deployed':
+        return 'bg-green-500';
       case 'deploying':
-        return 'bg-blue-900 text-blue-100';
+        return 'bg-blue-500';
       case 'failed':
-        return 'bg-red-900 text-red-100';
+        return 'bg-red-500';
       default:
-        return 'bg-yellow-900 text-yellow-100';
-    }
-  };
-
-  const getEnvironmentColor = (env: Deployment['environment']) => {
-    switch (env) {
-      case 'production':
-        return 'bg-red-900 text-red-100';
-      case 'staging':
-        return 'bg-yellow-900 text-yellow-100';
-      case 'development':
-        return 'bg-green-900 text-green-100';
+        return 'bg-gray-500';
     }
   };
 
   return (
-    <div className="h-full bg-slate-900 rounded-xl border border-slate-700">
-      <div className="p-4 border-b border-slate-700">
-        <h3 className="text-lg font-semibold text-white">Deployment Manager</h3>
-        <p className="text-sm text-slate-400">Deploy and manage your application</p>
+    <div className="h-full bg-slate-900 p-4">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-2">
+          <Rocket className="w-5 h-5 text-blue-400" />
+          <h2 className="text-lg font-semibold text-white">Deployment</h2>
+        </div>
+        <Button size="sm" variant="outline" className="border-slate-600">
+          <Settings className="w-4 h-4 mr-1" />
+          Config
+        </Button>
       </div>
 
-      <Tabs defaultValue="deployments" className="flex-1">
-        <TabsList className="mx-4 mt-4 bg-slate-800">
-          <TabsTrigger value="deployments">Deployments</TabsTrigger>
-          <TabsTrigger value="targets">Targets</TabsTrigger>
-          <TabsTrigger value="domains">Domains</TabsTrigger>
-        </TabsList>
-
-        <div className="p-4">
-          <TabsContent value="deployments" className="space-y-4">
-            {/* Quick Deploy Actions */}
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => deployToTarget('1', 'development')}
+      <ScrollArea className="h-[calc(100vh-200px)]">
+        <div className="space-y-4">
+          {/* Quick Deploy */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-sm">Quick Deploy</CardTitle>
+              <CardDescription>Deploy current project instantly</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isDeploying && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-slate-300">Deploying...</span>
+                    <span className="text-sm text-slate-300">{deployProgress}%</span>
+                  </div>
+                  <Progress value={deployProgress} className="h-2" />
+                </div>
+              )}
+              <Button 
+                onClick={() => handleDeploy('1')} 
                 disabled={isDeploying}
-                size="sm"
-                className="bg-green-600 hover:bg-green-700"
+                className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 <Rocket className="w-4 h-4 mr-2" />
-                Deploy Dev
+                Deploy to Production
               </Button>
-              <Button
-                onClick={() => deployToTarget('1', 'staging')}
-                disabled={isDeploying}
-                size="sm"
-                className="bg-yellow-600 hover:bg-yellow-700"
-              >
-                <Rocket className="w-4 h-4 mr-2" />
-                Deploy Staging
-              </Button>
-              <Button
-                onClick={() => deployToTarget('1', 'production')}
-                disabled={isDeploying}
-                size="sm"
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <Rocket className="w-4 h-4 mr-2" />
-                Deploy Production
-              </Button>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Deployment History */}
-            <ScrollArea className="h-96">
-              <div className="space-y-3">
-                {deployments.map((deployment) => (
-                  <Card key={deployment.id} className="bg-slate-800 border-slate-700">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(deployment.status)}
-                          <h4 className="font-medium text-white">{deployment.name}</h4>
-                          <Badge className={getEnvironmentColor(deployment.environment)}>
-                            {deployment.environment}
-                          </Badge>
-                        </div>
-                        <Badge className={getStatusColor(deployment.status)}>
-                          {deployment.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Globe className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-300">{deployment.url}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => copyUrl(deployment.url)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => window.open(deployment.url, '_blank')}
-                            className="h-6 w-6 p-0"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span>Branch: {deployment.branch}</span>
-                          <span>{deployment.timestamp.toLocaleString()}</span>
-                          {deployment.buildTime && (
-                            <span>Build: {deployment.buildTime}s</span>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
+          {/* Deployment Targets */}
+          {deployments.map((deployment) => (
+            <Card key={deployment.id} className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      {deployment.type === 'static' ? (
+                        <Globe className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Server className="w-4 h-4 text-blue-400" />
+                      )}
+                      <CardTitle className="text-white text-sm">{deployment.name}</CardTitle>
+                    </div>
+                    <Badge 
+                      variant="secondary" 
+                      className={`${getStatusColor(deployment.status)} text-white text-xs`}
+                    >
+                      {deployment.status}
+                    </Badge>
+                  </div>
+                  {getStatusIcon(deployment.status)}
+                </div>
+                <CardDescription className="capitalize">
+                  {deployment.type} deployment
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {deployment.url && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">URL:</span>
+                    <a 
+                      href={deployment.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-400 hover:text-blue-300 flex items-center"
+                    >
+                      {deployment.url}
+                      <ExternalLink className="w-3 h-3 ml-1" />
+                    </a>
+                  </div>
+                )}
+                
+                {deployment.lastDeployed && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">Last deployed:</span>
+                    <span className="text-sm text-slate-300">
+                      {deployment.lastDeployed.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                
+                {deployment.buildTime && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">Build time:</span>
+                    <span className="text-sm text-slate-300">{deployment.buildTime}s</span>
+                  </div>
+                )}
 
-          <TabsContent value="targets" className="space-y-4">
-            <div className="grid gap-4">
-              {targets.map((target) => (
-                <Card key={target.id} className="bg-slate-800 border-slate-700">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Server className="w-5 h-5 text-slate-400" />
-                        <div>
-                          <h4 className="font-medium text-white">{target.name}</h4>
-                          <p className="text-sm text-slate-400 capitalize">{target.provider}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {target.connected ? (
-                          <Badge className="bg-green-900 text-green-100">Connected</Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => connectTarget(target.id)}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            Connect
-                          </Button>
-                        )}
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleDeploy(deployment.id)}
+                    disabled={deployment.status === 'deploying'}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    {deployment.status === 'deploying' ? 'Deploying...' : 'Deploy'}
+                  </Button>
+                  {deployment.url && (
+                    <Button size="sm" variant="outline" className="border-slate-600">
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* Deployment History */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-sm">Recent Deployments</CardTitle>
+              <CardDescription>Latest deployment activity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {[
+                  { time: '2 hours ago', status: 'success', branch: 'main', commit: 'abc123f' },
+                  { time: '1 day ago', status: 'success', branch: 'develop', commit: 'def456a' },
+                  { time: '3 days ago', status: 'failed', branch: 'feature/auth', commit: 'ghi789b' }
+                ].map((deploy, index) => (
+                  <div key={index} className="flex items-center justify-between py-2 border-b border-slate-700 last:border-b-0">
+                    <div className="flex items-center space-x-3">
+                      {deploy.status === 'success' ? (
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3 text-red-500" />
+                      )}
+                      <div>
+                        <span className="text-sm text-slate-300">{deploy.branch}</span>
+                        <span className="text-xs text-slate-500 ml-2">{deploy.commit}</span>
                       </div>
                     </div>
-                    
-                    {target.lastDeploy && (
-                      <p className="text-xs text-slate-500 mt-2">
-                        Last deploy: {target.lastDeploy.toLocaleString()}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="domains" className="space-y-4">
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Custom Domain</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex space-x-2">
-                  <Input
-                    value={customDomain}
-                    onChange={(e) => setCustomDomain(e.target.value)}
-                    placeholder="your-domain.com"
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    Add Domain
-                  </Button>
-                </div>
-                
-                <div className="text-sm text-slate-400">
-                  <p className="mb-2">To configure your custom domain:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Add your domain above</li>
-                    <li>Configure DNS records with your provider</li>
-                    <li>Wait for SSL certificate provisioning</li>
-                  </ol>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Domain List */}
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Configured Domains</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center text-slate-500 py-4">
-                  <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No custom domains configured</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <span className="text-xs text-slate-400">{deploy.time}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </Tabs>
+      </ScrollArea>
     </div>
   );
 };

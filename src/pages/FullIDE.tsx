@@ -19,6 +19,7 @@ import { ProjectFileManager } from '@/components/ProjectFileManager';
 import { AIAssistant } from '@/components/AIAssistant';
 import { CodePreviewPanel } from '@/components/CodePreviewPanel';
 import { TerminalPanel } from '@/components/TerminalPanel';
+import { DeploymentManager } from '@/components/DeploymentManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +49,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRealTimeValidator } from '@/hooks/useRealTimeValidator';
 import { AICodeGenerator } from '@/components/AICodeGenerator';
 import { ProjectAnalyzer } from '@/components/ProjectAnalyzer';
-import { DeploymentManager } from '@/components/DeploymentManager';
 
 interface ProjectFile {
   id: string;
@@ -56,6 +56,19 @@ interface ProjectFile {
   type: 'file' | 'folder';
   content?: string;
   children?: ProjectFile[];
+}
+
+interface KnowledgeChunk {
+  id: string;
+  title: string;
+  content: string;
+  source: string;
+  category: string;
+  tags: string[];
+  embedding?: number[];
+  similarity?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const FullIDE = () => {
@@ -359,6 +372,28 @@ export default App;`
     validateInfo('Terminal toggled', showTerminal ? 'closed' : 'opened', 'FullIDE');
   };
 
+  const handleRAGSearch = async (query: string): Promise<KnowledgeChunk[]> => {
+    // Mock RAG search implementation
+    return [
+      {
+        id: '1',
+        title: 'Search Result',
+        content: `Results for "${query}"`,
+        source: 'knowledge-base',
+        category: 'search',
+        tags: ['search'],
+        similarity: 0.95,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+  };
+
+  const handleChunkSelect = (chunk: KnowledgeChunk) => {
+    console.log('Knowledge chunk selected:', chunk);
+    validateInfo('Knowledge chunk selected', chunk.title, 'FullIDE');
+  };
+
   return (
     <>
       <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
@@ -459,7 +494,7 @@ export default App;`
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2 flex-shrink-0">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-4">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-5">
                       <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
                         <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
@@ -468,6 +503,9 @@ export default App;`
                       </TabsTrigger>
                       <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
                         <MessageSquare className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
+                        <Brain className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="validator" className="data-[state=active]:bg-slate-700">
                         <Shield className="w-4 h-4" />
@@ -494,6 +532,13 @@ export default App;`
 
                     <TabsContent value="chat" className="h-full m-0">
                       <RealTimeChat />
+                    </TabsContent>
+
+                    <TabsContent value="rag" className="h-full m-0">
+                      <RAGDatabase 
+                        onChunkSelect={handleChunkSelect}
+                        onSearch={handleRAGSearch}
+                      />
                     </TabsContent>
 
                     <TabsContent value="validator" className="h-full m-0">
