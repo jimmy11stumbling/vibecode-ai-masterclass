@@ -1,8 +1,11 @@
 
 import React from 'react';
-import { Bot, User, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Bot, User, Copy, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -19,102 +22,149 @@ interface MessageListProps {
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ 
-  messages, 
-  isLoading, 
-  messagesEndRef 
+export const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  isLoading,
+  messagesEndRef
 }) => {
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const { toast } = useToast();
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({
+        title: "Message copied",
+        description: "Message has been copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy message",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDownloadCode = (code: string, language: string) => {
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `code.${language}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Code downloaded",
+      description: `Code has been downloaded as code.${language}`,
+    });
+  };
+
+  const formatTime = (timestamp: Date) => {
+    return timestamp.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   return (
-    <ScrollArea className="flex-1 p-4">
-      <div className="space-y-4">
+    <ScrollArea className="flex-1 px-4">
+      <div className="space-y-6 py-4">
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex items-start space-x-3 ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
+            className={`flex items-start space-x-4 ${
+              message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
             }`}
           >
-            {message.role === 'assistant' && (
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-            )}
-            
-            <div
-              className={`max-w-[70%] p-3 rounded-lg ${
+            <Avatar className="w-8 h-8 flex-shrink-0">
+              <AvatarFallback className={
+                message.role === 'user' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-green-600 text-white'
+              }>
+                {message.role === 'user' ? (
+                  <User className="w-4 h-4" />
+                ) : (
+                  <Bot className="w-4 h-4" />
+                )}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className={`flex-1 min-w-0 ${
+              message.role === 'user' ? 'text-right' : 'text-left'
+            }`}>
+              <div className={`inline-block max-w-[80%] ${
                 message.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 backdrop-blur-sm border border-white/20 text-white'
-              }`}
-            >
-              <div className="whitespace-pre-wrap">{message.content}</div>
-              
-              {message.code && (
-                <div className="mt-2 bg-gray-900 rounded-lg p-3 text-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400 text-xs">{message.language || 'code'}</span>
+                  ? 'bg-blue-600 text-white rounded-tl-lg rounded-bl-lg rounded-br-lg'
+                  : 'bg-slate-800 text-slate-100 rounded-tr-lg rounded-bl-lg rounded-br-lg'
+              } px-4 py-3 relative group`}>
+                
+                {/* Message Actions */}
+                <div className={`absolute top-2 ${
+                  message.role === 'user' ? 'left-2' : 'right-2'
+                } opacity-0 group-hover:opacity-100 transition-opacity`}>
+                  <div className="flex items-center space-x-1">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => copyToClipboard(message.code!)}
-                      className="text-gray-400 hover:text-white"
+                      className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                      onClick={() => handleCopyMessage(message.content)}
                     >
                       <Copy className="w-3 h-3" />
                     </Button>
+                    
+                    {message.code && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                        onClick={() => handleDownloadCode(message.code!, message.language || 'txt')}
+                      >
+                        <Download className="w-3 h-3" />
+                      </Button>
+                    )}
                   </div>
-                  <pre className="text-green-400 overflow-x-auto">
-                    <code>{message.code}</code>
-                  </pre>
                 </div>
-              )}
-              
-              {message.role === 'assistant' && (
-                <div className="flex items-center space-x-2 mt-2">
-                  <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
-                    <ThumbsUp className="w-3 h-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
-                    <ThumbsDown className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(message.content)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    <Copy className="w-3 h-3" />
-                  </Button>
+
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {message.content}
                 </div>
-              )}
-            </div>
-            
-            {message.role === 'user' && (
-              <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+
+                {/* Code Block */}
+                {message.code && (
+                  <div className="mt-3 p-3 bg-slate-900 rounded-lg border border-slate-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="outline" className="text-xs">
+                        {message.language || 'code'}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-slate-400 hover:text-white"
+                        onClick={() => handleCopyMessage(message.code!)}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    <pre className="text-xs text-slate-300 overflow-x-auto">
+                      <code>{message.code}</code>
+                    </pre>
+                  </div>
+                )}
+
+                <div className={`text-xs mt-2 opacity-70 ${
+                  message.role === 'user' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  {formatTime(message.timestamp)}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         ))}
-        
-        {isLoading && (
-          <div className="flex items-start space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-              <Bot className="w-4 h-4 text-white" />
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 text-white p-3 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-100"></div>
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse delay-200"></div>
-              </div>
-            </div>
-          </div>
-        )}
-        
+
         <div ref={messagesEndRef} />
       </div>
     </ScrollArea>

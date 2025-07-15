@@ -23,6 +23,14 @@ interface Message {
   language?: string;
 }
 
+interface CodeBlock {
+  id: string;
+  language: string;
+  code: string;
+  filename?: string;
+  description?: string;
+}
+
 export const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -35,6 +43,7 @@ export const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   const [showConsole, setShowConsole] = useState(false);
+  const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
   const { logs, logInfo, logError, logWarn, clearLogs, exportLogs } = useConsoleLogger();
@@ -52,6 +61,31 @@ export const ChatInterface = () => {
     console.log('Real-time streaming stats updated:', streamingStats);
     logInfo('Streaming stats updated', streamingStats, 'ChatInterface');
   }, [streamingStats, logInfo]);
+
+  const extractCodeFromMessage = (content: string): CodeBlock[] => {
+    const codeBlocks: CodeBlock[] = [];
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    let match;
+    let blockId = 1;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || 'text';
+      const code = match[2].trim();
+      
+      if (code) {
+        codeBlocks.push({
+          id: `code-${Date.now()}-${blockId}`,
+          language,
+          code,
+          filename: `code.${language}`,
+          description: `Generated ${language} code`
+        });
+        blockId++;
+      }
+    }
+
+    return codeBlocks;
+  };
 
   const handleSendMessage = async (content: string) => {
     console.log('User message sent:', content);
@@ -83,10 +117,13 @@ export const ChatInterface = () => {
       console.log('Starting real-time response streaming...');
       logInfo('Starting real-time response streaming', {}, 'ChatInterface');
       
+      let fullResponse = '';
+      
       await streamChatResponse(
         conversationMessages, 
         (token: string) => {
           console.log('Real-time token received:', token);
+          fullResponse += token;
           setMessages(prev => {
             const updated = prev.map(msg => 
               msg.id === assistantMessageId 
@@ -101,6 +138,13 @@ export const ChatInterface = () => {
           logInfo('Real-time progress update', stats, 'ChatInterface');
         }
       );
+      
+      // Extract code blocks from the complete response
+      const extractedCodeBlocks = extractCodeFromMessage(fullResponse);
+      if (extractedCodeBlocks.length > 0) {
+        setCodeBlocks(prev => [...prev, ...extractedCodeBlocks]);
+        logInfo('Code blocks extracted', { count: extractedCodeBlocks.length }, 'ChatInterface');
+      }
       
       console.log('Real-time response completed successfully');
       logInfo('Real-time response completed successfully', {}, 'ChatInterface');
@@ -117,6 +161,12 @@ export const ChatInterface = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRunCode = async (code: string, language: string) => {
+    logInfo('Code execution requested', { language, codeLength: code.length }, 'ChatInterface');
+    // Code execution logic would be implemented here
+    console.log('Executing code:', { language, code: code.substring(0, 100) + '...' });
   };
 
   return (
@@ -174,11 +224,16 @@ export const ChatInterface = () => {
                 <TypingIndicator 
                   isVisible={isLoading}
                   typingText={`AI is generating response... (${streamingStats.tokensReceived} tokens)`}
+                  variant="pulse"
                 />
               </div>
             )}
             
-            <MessageInput onSendMessage={handleSendMessage} />
+            <MessageInput 
+              onSendMessage={handleSendMessage}
+              disabled={isLoading}
+              placeholder="Describe what you want to build..."
+            />
           </TabsContent>
 
           <TabsContent value="builder" className="h-full m-0">
@@ -186,7 +241,10 @@ export const ChatInterface = () => {
           </TabsContent>
 
           <TabsContent value="preview" className="h-full m-0">
-            <CodePreview />
+            <CodePreview 
+              codeBlocks={codeBlocks}
+              onRunCode={handleRunCode}
+            />
           </TabsContent>
         </div>
       </Tabs>

@@ -1,64 +1,120 @@
 
 import React, { useState } from 'react';
-import { Send, Mic } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Send, Mic, MicOff, Paperclip, Smile } from 'lucide-react';
 
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
-export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage }) => {
-  const [inputValue, setInputValue] = useState('');
+export const MessageInput: React.FC<MessageInputProps> = ({
+  onSendMessage,
+  disabled = false,
+  placeholder = "Type your message..."
+}) => {
+  const [message, setMessage] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
 
-  const handleSend = () => {
-    if (inputValue.trim()) {
-      onSendMessage(inputValue);
-      setInputValue('');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (message.trim() && !disabled) {
+      onSendMessage(message.trim());
+      setMessage('');
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    // Voice recording functionality would be implemented here
+  };
+
+  const handleAttachment = () => {
+    // File attachment functionality would be implemented here
+  };
+
+  const handleEmojiClick = () => {
+    // Emoji picker functionality would be implemented here
+  };
+
   return (
-    <div className="p-4 border-t border-white/10">
-      <div className="flex space-x-2">
+    <form onSubmit={handleSubmit} className="border-t border-white/10 p-4">
+      <div className="flex items-end space-x-2">
         <div className="flex-1 relative">
           <Textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me anything about coding..."
-            className="bg-white/10 border border-white/20 text-white placeholder:text-gray-400 resize-none min-h-[60px] pr-20"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="min-h-[60px] max-h-[200px] bg-white/10 border-white/20 text-white placeholder:text-white/50 resize-none pr-20"
           />
-          <div className="absolute right-2 bottom-2 flex space-x-1">
+          
+          {/* Input Actions */}
+          <div className="absolute right-2 bottom-2 flex items-center space-x-1">
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              className="text-gray-400 hover:text-white h-6 w-6 p-0"
+              onClick={handleEmojiClick}
+              className="h-6 w-6 p-0 text-white/50 hover:text-white"
             >
-              <Mic className="w-3 h-3" />
+              <Smile className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleAttachment}
+              className="h-6 w-6 p-0 text-white/50 hover:text-white"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={toggleRecording}
+              className={`h-6 w-6 p-0 ${
+                isRecording 
+                  ? 'text-red-400 hover:text-red-300' 
+                  : 'text-white/50 hover:text-white'
+              }`}
+            >
+              {isRecording ? (
+                <MicOff className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>
         
         <Button
-          onClick={handleSend}
-          disabled={!inputValue.trim()}
-          className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
+          type="submit"
+          size="sm"
+          disabled={!message.trim() || disabled}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
         >
           <Send className="w-4 h-4" />
         </Button>
       </div>
       
-      <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+      <div className="flex items-center justify-between mt-2 text-xs text-white/50">
         <span>Press Shift + Enter for new line</span>
-        <span>AI Assistant Ready</span>
+        <span>{message.length}/2000</span>
       </div>
-    </div>
+    </form>
   );
 };

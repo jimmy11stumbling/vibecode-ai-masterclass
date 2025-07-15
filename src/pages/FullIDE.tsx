@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
@@ -6,11 +5,14 @@ import { LivePreview } from '@/components/LivePreview';
 import { FileExplorer } from '@/components/FileExplorer';
 import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
 import { Terminal } from '@/components/Terminal';
-import { IDEToolbar } from '@/components/IDEToolbar';
 import { IDEStatusBar } from '@/components/IDEStatusBar';
 import { MCPHub } from '@/components/MCPHub';
 import { RAGDatabase } from '@/components/RAGDatabase';
 import { DatabaseManager } from '@/components/DatabaseManager';
+import { RealTimeChat } from '@/components/RealTimeChat';
+import { RealTimeStatusIndicator } from '@/components/RealTimeStatusIndicator';
+import { RealTimeValidator } from '@/components/RealTimeValidator';
+import { ChatInterface } from '@/components/ChatInterface';
 import { ToastProvider } from '@/components/ToastProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -30,9 +32,13 @@ import {
   Brain,
   Save,
   Upload,
-  Download
+  Download,
+  MessageSquare,
+  Activity,
+  Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRealTimeValidator } from '@/hooks/useRealTimeValidator';
 
 interface ProjectFile {
   id: string;
@@ -54,13 +60,27 @@ const FullIDE = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting' | 'processing' | 'error'>('connected');
   const { toast } = useToast();
+  const { validateSuccess, validateError, validateInfo } = useRealTimeValidator();
+
+  // Real-time status updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      validateInfo('IDE heartbeat', { timestamp: new Date().toISOString() }, 'FullIDE');
+    }, 30000); // Every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [validateInfo]);
 
   // Load API key and project state from localStorage
   useEffect(() => {
     const savedApiKey = localStorage.getItem('deepseek_api_key');
     if (savedApiKey) {
       setAiApiKey(savedApiKey);
+      validateSuccess('API key loaded', 'DeepSeek API key found', 'FullIDE');
+    } else {
+      validateError('API key missing', 'No DeepSeek API key found', 'FullIDE');
     }
 
     // Load saved project
@@ -75,15 +95,17 @@ const FullIDE = () => {
         if (firstFile) {
           setSelectedFile(firstFile);
           setPreviewCode(firstFile.content || '');
+          validateSuccess('Project loaded', `Selected file: ${firstFile.name}`, 'FullIDE');
         }
       } catch (error) {
         console.error('Failed to load saved project:', error);
+        validateError('Project load failed', error, 'FullIDE');
         initializeDefaultProject();
       }
     } else {
       initializeDefaultProject();
     }
-  }, []);
+  }, [validateSuccess, validateError]);
 
   const findFirstFile = (files: ProjectFile[]): ProjectFile | null => {
     for (const file of files) {
@@ -159,6 +181,7 @@ export default App;`
     if (firstFile) {
       setSelectedFile(firstFile);
       setPreviewCode(firstFile.content || '');
+      validateSuccess('Default project initialized', firstFile.name, 'FullIDE');
     }
   };
 
@@ -167,6 +190,7 @@ export default App;`
     setSelectedFile(file);
     if (file.content) {
       setPreviewCode(file.content);
+      validateInfo('File selected', file.name, 'FullIDE');
     }
   };
 
@@ -175,6 +199,7 @@ export default App;`
     setProjectFiles(files);
     setHasUnsavedChanges(true);
     localStorage.setItem('ide_project_files', JSON.stringify(files));
+    validateInfo('Project updated', `${files.length} files`, 'FullIDE');
   };
 
   const handleCodeGenerated = (code: string) => {
@@ -185,6 +210,7 @@ export default App;`
     if (selectedFile) {
       const updatedFiles = updateFileContent(projectFiles, selectedFile.id, code);
       setProjectFiles(updatedFiles);
+      validateSuccess('Code generated', `Updated ${selectedFile.name}`, 'FullIDE');
     }
   };
 
@@ -204,12 +230,17 @@ export default App;`
     console.log('Running code:', code);
     setIsRunning(true);
     setIsBuilding(true);
+    setConnectionStatus('processing');
     setPreviewCode(code);
+    
+    validateInfo('Code execution started', 'Building application...', 'FullIDE');
     
     // Simulate build process
     setTimeout(() => {
       setIsBuilding(false);
       setIsRunning(false);
+      setConnectionStatus('connected');
+      validateSuccess('Code executed', 'Application built successfully', 'FullIDE');
       toast({
         title: "Code executed successfully",
         description: "Your application is now running in the preview panel",
@@ -223,6 +254,7 @@ export default App;`
     localStorage.setItem('deepseek_api_key', aiApiKey);
     setHasUnsavedChanges(false);
     
+    validateSuccess('Project saved', 'All changes saved locally', 'FullIDE');
     toast({
       title: "Project saved",
       description: "All changes have been saved locally",
@@ -311,10 +343,13 @@ export default App;`
   const toggleTerminal = () => {
     setShowTerminal(!showTerminal);
     setTerminalMinimized(false);
+    validateInfo('Terminal toggled', showTerminal ? 'closed' : 'opened', 'FullIDE');
   };
 
   const toggleLayout = () => {
-    setLayout(layout === 'horizontal' ? 'vertical' : 'horizontal');
+    const newLayout = layout === 'horizontal' ? 'vertical' : 'horizontal';
+    setLayout(newLayout);
+    validateInfo('Layout changed', newLayout, 'FullIDE');
   };
 
   return (
@@ -377,7 +412,14 @@ export default App;`
               </label>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
+              <RealTimeStatusIndicator
+                status={connectionStatus}
+                lastUpdate={new Date()}
+                responseTime={isBuilding ? undefined : 150}
+                aiModel="DeepSeek Reasoner"
+              />
+              
               {hasUnsavedChanges && (
                 <span className="text-xs text-amber-400">● Unsaved changes</span>
               )}
@@ -388,24 +430,6 @@ export default App;`
                   Building...
                 </span>
               )}
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={toggleTerminal}
-                className="border-slate-600"
-              >
-                Terminal
-              </Button>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={toggleLayout}
-                className="border-slate-600"
-              >
-                {layout === 'horizontal' ? 'Vertical' : 'Horizontal'}
-              </Button>
             </div>
           </div>
         </div>
@@ -418,12 +442,15 @@ export default App;`
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-5">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-6">
                       <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
                         <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
                         <Bot className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
+                        <MessageSquare className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="mcp" className="data-[state=active]:bg-slate-700">
                         <Server className="w-4 h-4" />
@@ -431,8 +458,8 @@ export default App;`
                       <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
                         <Brain className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="database" className="data-[state=active]:bg-slate-700">
-                        <Database className="w-4 h-4" />
+                      <TabsTrigger value="validator" className="data-[state=active]:bg-slate-700">
+                        <Shield className="w-4 h-4" />
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -454,13 +481,19 @@ export default App;`
                       />
                     </TabsContent>
 
+                    <TabsContent value="chat" className="h-full m-0">
+                      <ChatInterface />
+                    </TabsContent>
+
                     <TabsContent value="mcp" className="h-full m-0">
                       <MCPHub 
                         onServerSelect={(server) => {
                           console.log('MCP Server selected:', server);
+                          validateInfo('MCP server selected', server, 'FullIDE');
                         }}
                         onToolInvoke={(tool, params) => {
                           console.log('MCP Tool invoked:', tool, params);
+                          validateInfo('MCP tool invoked', { tool, params }, 'FullIDE');
                         }}
                       />
                     </TabsContent>
@@ -469,20 +502,18 @@ export default App;`
                       <RAGDatabase 
                         onChunkSelect={(chunk) => {
                           console.log('Knowledge chunk selected:', chunk);
+                          validateInfo('RAG chunk selected', chunk, 'FullIDE');
                         }}
                         onSearch={async (query) => {
                           console.log('RAG search:', query);
+                          validateInfo('RAG search performed', query, 'FullIDE');
                           return [];
                         }}
                       />
                     </TabsContent>
 
-                    <TabsContent value="database" className="h-full m-0">
-                      <DatabaseManager 
-                        onSchemaChange={(tables) => {
-                          console.log('Database schema updated:', tables);
-                        }}
-                      />
+                    <TabsContent value="validator" className="h-full m-0">
+                      <RealTimeValidator />
                     </TabsContent>
                   </div>
                 </Tabs>
