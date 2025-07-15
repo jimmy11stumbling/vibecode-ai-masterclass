@@ -7,13 +7,10 @@ import {
   Terminal, 
   Trash2, 
   Download, 
-  Search,
-  Filter,
   AlertCircle,
   Info,
   AlertTriangle,
-  CheckCircle,
-  X
+  CheckCircle
 } from 'lucide-react';
 
 interface LogEntry {
@@ -78,8 +75,7 @@ export const ConsoleLogger: React.FC<ConsoleLoggerProps> = ({
     return timestamp.toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit', 
-      second: '2-digit',
-      fractionalSecondDigits: 3 
+      second: '2-digit'
     });
   };
 

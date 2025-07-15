@@ -1,11 +1,12 @@
+
 import { useState, useCallback } from 'react';
 
 interface LogEntry {
   id: string;
   timestamp: Date;
-  level: 'log' | 'info' | 'warn' | 'error' | 'debug';
+  level: 'info' | 'warn' | 'error' | 'success';
   message: string;
-  data?: any;
+  details?: any;
   source?: string;
 }
 
@@ -17,7 +18,7 @@ export const useConsoleLogger = () => {
   const addLog = useCallback((
     level: LogEntry['level'],
     message: string,
-    data?: any,
+    details?: any,
     source?: string
   ) => {
     const log: LogEntry = {
@@ -25,7 +26,7 @@ export const useConsoleLogger = () => {
       timestamp: new Date(),
       level,
       message,
-      data,
+      details,
       source
     };
 
@@ -41,24 +42,24 @@ export const useConsoleLogger = () => {
     return log;
   }, []);
 
-  const logInfo = useCallback((message: string, data?: any, source?: string) => {
-    return addLog('info', message, data, source);
+  const logInfo = useCallback((message: string, details?: any, source?: string) => {
+    return addLog('info', message, details, source);
   }, [addLog]);
 
-  const logError = useCallback((message: string, data?: any, source?: string) => {
-    return addLog('error', message, data, source);
+  const logError = useCallback((message: string, details?: any, source?: string) => {
+    return addLog('error', message, details, source);
   }, [addLog]);
 
-  const logWarn = useCallback((message: string, data?: any, source?: string) => {
-    return addLog('warn', message, data, source);
+  const logWarn = useCallback((message: string, details?: any, source?: string) => {
+    return addLog('warn', message, details, source);
   }, [addLog]);
 
-  const logDebug = useCallback((message: string, data?: any, source?: string) => {
-    return addLog('debug', message, data, source);
+  const logSuccess = useCallback((message: string, details?: any, source?: string) => {
+    return addLog('success', message, details, source);
   }, [addLog]);
 
-  const log = useCallback((message: string, data?: any, source?: string) => {
-    return addLog('log', message, data, source);
+  const log = useCallback((message: string, details?: any, source?: string) => {
+    return addLog('info', message, details, source);
   }, [addLog]);
 
   const clearLogs = useCallback(() => {
@@ -83,7 +84,7 @@ export const useConsoleLogger = () => {
     logInfo,
     logError,
     logWarn,
-    logDebug,
+    logSuccess,
     log,
     clearLogs,
     exportLogs
