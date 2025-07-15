@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Home, Search, ArrowLeft } from 'lucide-react';
+import { Home, Search, ArrowLeft, Code, Activity, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const NotFound = () => {
@@ -16,18 +16,32 @@ const NotFound = () => {
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Button asChild className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
             <Link to="/">
               <Home className="w-4 h-4 mr-2" />
-              Go Home
+              Home
+            </Link>
+          </Button>
+          
+          <Button asChild className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600">
+            <Link to="/ide">
+              <Code className="w-4 h-4 mr-2" />
+              IDE
             </Link>
           </Button>
           
           <Button variant="outline" asChild className="border-white/20 text-white hover:bg-white/10">
             <Link to="/dashboard">
-              <Search className="w-4 h-4 mr-2" />
+              <Activity className="w-4 h-4 mr-2" />
               Dashboard
+            </Link>
+          </Button>
+          
+          <Button variant="outline" asChild className="border-white/20 text-white hover:bg-white/10">
+            <Link to="/learning">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Learning
             </Link>
           </Button>
         </div>
@@ -35,7 +49,7 @@ const NotFound = () => {
         <Button 
           variant="ghost" 
           onClick={() => window.history.back()}
-          className="mt-4 text-gray-400 hover:text-white"
+          className="text-gray-400 hover:text-white"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Go Back
