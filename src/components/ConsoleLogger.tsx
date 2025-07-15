@@ -1,27 +1,27 @@
 
-import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { 
   Terminal, 
-  Search, 
-  Filter, 
   Trash2, 
-  Download,
-  Bug,
+  Download, 
+  Search,
+  Filter,
+  AlertCircle,
   Info,
   AlertTriangle,
-  XCircle
+  CheckCircle,
+  X
 } from 'lucide-react';
 
 interface LogEntry {
   id: string;
   timestamp: Date;
-  level: 'log' | 'info' | 'warn' | 'error' | 'debug';
+  level: 'info' | 'warn' | 'error' | 'success';
   message: string;
-  data?: any;
+  details?: any;
   source?: string;
 }
 
@@ -29,104 +29,68 @@ interface ConsoleLoggerProps {
   logs: LogEntry[];
   onClear: () => void;
   onExport: () => void;
-  maxEntries?: number;
+  maxHeight?: string;
+  title?: string;
 }
 
 export const ConsoleLogger: React.FC<ConsoleLoggerProps> = ({
   logs,
   onClear,
   onExport,
-  maxEntries = 500
+  maxHeight = '300px',
+  title = 'Console Logger'
 }) => {
-  const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<'all' | LogEntry['level']>('all');
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const filtered = logs
-      .filter(log => {
-        const matchesSearch = !searchQuery || 
-          log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          log.source?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesLevel = levelFilter === 'all' || log.level === levelFilter;
-        return matchesSearch && matchesLevel;
-      })
-      .slice(-maxEntries)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    setFilteredLogs(filtered);
-
-    // Log to actual console for debugging
-    logs.forEach(log => {
-      const prefix = `[${log.source || 'System'}]`;
-      const timestamp = log.timestamp.toLocaleTimeString();
-      
-      switch (log.level) {
-        case 'error':
-          console.error(`${prefix} ${timestamp}:`, log.message, log.data);
-          break;
-        case 'warn':
-          console.warn(`${prefix} ${timestamp}:`, log.message, log.data);
-          break;
-        case 'info':
-          console.info(`${prefix} ${timestamp}:`, log.message, log.data);
-          break;
-        case 'debug':
-          console.debug(`${prefix} ${timestamp}:`, log.message, log.data);
-          break;
-        default:
-          console.log(`${prefix} ${timestamp}:`, log.message, log.data);
-      }
-    });
-  }, [logs, searchQuery, levelFilter, maxEntries]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   const getLogIcon = (level: LogEntry['level']) => {
     switch (level) {
       case 'error':
-        return <XCircle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className="w-3 h-3 text-red-400" />;
       case 'warn':
-        return <AlertTriangle className="w-4 h-4 text-yellow-400" />;
-      case 'info':
-        return <Info className="w-4 h-4 text-blue-400" />;
-      case 'debug':
-        return <Bug className="w-4 h-4 text-purple-400" />;
+        return <AlertTriangle className="w-3 h-3 text-yellow-400" />;
+      case 'success':
+        return <CheckCircle className="w-3 h-3 text-green-400" />;
       default:
-        return <Terminal className="w-4 h-4 text-gray-400" />;
+        return <Info className="w-3 h-3 text-blue-400" />;
     }
   };
 
   const getLogColor = (level: LogEntry['level']) => {
     switch (level) {
       case 'error':
-        return 'text-red-400 bg-red-900/20 border-red-800';
+        return 'text-red-400 border-red-400/20 bg-red-400/5';
       case 'warn':
-        return 'text-yellow-400 bg-yellow-900/20 border-yellow-800';
-      case 'info':
-        return 'text-blue-400 bg-blue-900/20 border-blue-800';
-      case 'debug':
-        return 'text-purple-400 bg-purple-900/20 border-purple-800';
+        return 'text-yellow-400 border-yellow-400/20 bg-yellow-400/5';
+      case 'success':
+        return 'text-green-400 border-green-400/20 bg-green-400/5';
       default:
-        return 'text-gray-400 bg-gray-900/20 border-gray-800';
+        return 'text-blue-400 border-blue-400/20 bg-blue-400/5';
     }
   };
 
-  const getLevelCounts = () => {
-    return logs.reduce((counts, log) => {
-      counts[log.level] = (counts[log.level] || 0) + 1;
-      return counts;
-    }, {} as Record<LogEntry['level'], number>);
+  const formatTimestamp = (timestamp: Date) => {
+    return timestamp.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      fractionalSecondDigits: 3 
+    });
   };
 
-  const levelCounts = getLevelCounts();
-
   return (
-    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
+    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
-        <div className="flex items-center space-x-3">
-          <Terminal className="w-5 h-5 text-green-400" />
-          <h3 className="text-sm font-semibold text-white">Console Logger</h3>
-          <Badge variant="secondary" className="text-xs">
+      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Terminal className="w-4 h-4 text-green-400" />
+          <h3 className="text-sm font-medium text-white">{title}</h3>
+          <Badge variant="secondary" className="text-xs bg-slate-700 text-slate-300">
             {logs.length} entries
           </Badge>
         </div>
@@ -136,118 +100,79 @@ export const ConsoleLogger: React.FC<ConsoleLoggerProps> = ({
             size="sm"
             variant="ghost"
             onClick={onExport}
-            className="text-slate-400 hover:text-white h-8 w-8 p-0"
+            className="h-7 px-2 text-slate-400 hover:text-white"
+            disabled={logs.length === 0}
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3 h-3" />
           </Button>
           
           <Button
             size="sm"
             variant="ghost"
             onClick={onClear}
-            className="text-slate-400 hover:text-red-400 h-8 w-8 p-0"
+            className="h-7 px-2 text-slate-400 hover:text-white"
+            disabled={logs.length === 0}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3 h-3" />
           </Button>
         </div>
       </div>
 
-      {/* Search and Filter */}
-      <div className="p-4 border-b border-slate-700 space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search logs..."
-            className="pl-10 bg-slate-800 border-slate-600 text-white text-sm"
-          />
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {(['all', 'error', 'warn', 'info', 'debug', 'log'] as const).map((level) => (
-            <button
-              key={level}
-              onClick={() => setLevelFilter(level)}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                levelFilter === level
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
-            >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-              {level !== 'all' && levelCounts[level] && (
-                <span className="ml-1 text-xs opacity-75">
-                  ({levelCounts[level]})
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Logs */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-2">
-          {filteredLogs.length === 0 ? (
-            <div className="text-center text-slate-500 py-8">
-              <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No logs to display</p>
-            </div>
-          ) : (
-            filteredLogs.map((log) => (
-              <div
-                key={log.id}
-                className={`border rounded-lg p-3 ${getLogColor(log.level)}`}
-              >
-                <div className="flex items-start space-x-3">
-                  {getLogIcon(log.level)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">
-                          {log.level.toUpperCase()}
-                        </span>
-                        {log.source && (
-                          <Badge variant="outline" className="text-xs">
-                            {log.source}
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-xs opacity-70">
-                        {log.timestamp.toLocaleTimeString()}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm mb-2 break-words">
-                      {log.message}
-                    </p>
-                    
-                    {log.data && (
-                      <div className="bg-slate-800 rounded p-2 text-xs font-mono overflow-x-auto">
-                        <pre>{JSON.stringify(log.data, null, 2)}</pre>
-                      </div>
-                    )}
-                  </div>
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea 
+          className="h-full"
+          style={{ maxHeight }}
+        >
+          <div className="p-2 space-y-1" ref={scrollRef}>
+            {logs.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-slate-500">
+                <div className="text-center">
+                  <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No logs yet</p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Stats Footer */}
-      <div className="border-t border-slate-700 px-4 py-2 bg-slate-800">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Total: {logs.length}</span>
-          <div className="flex items-center space-x-4">
-            <span className="text-red-400">E: {levelCounts.error || 0}</span>
-            <span className="text-yellow-400">W: {levelCounts.warn || 0}</span>
-            <span className="text-blue-400">I: {levelCounts.info || 0}</span>
-            <span className="text-purple-400">D: {levelCounts.debug || 0}</span>
-            <span className="text-gray-400">L: {levelCounts.log || 0}</span>
+            ) : (
+              logs.map((log) => (
+                <div
+                  key={log.id}
+                  className={`p-2 rounded border-l-2 text-xs font-mono ${getLogColor(log.level)}`}
+                >
+                  <div className="flex items-start space-x-2">
+                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                      {getLogIcon(log.level)}
+                      
+                      <span className="text-slate-400 text-xs tabular-nums">
+                        {formatTimestamp(log.timestamp)}
+                      </span>
+                      
+                      {log.source && (
+                        <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                          {log.source}
+                        </Badge>
+                      )}
+                      
+                      <span className="text-slate-200 break-words flex-1">
+                        {log.message}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {log.details && (
+                    <div className="mt-1 pl-5 text-slate-400 text-xs">
+                      <pre className="whitespace-pre-wrap break-words">
+                        {typeof log.details === 'string' 
+                          ? log.details 
+                          : JSON.stringify(log.details, null, 2)
+                        }
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

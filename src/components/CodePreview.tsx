@@ -1,20 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  Code2, 
-  Copy, 
-  Download, 
+  Code, 
   Play, 
-  RefreshCw, 
-  Eye,
-  FileText,
-  Zap
+  Download, 
+  Copy, 
+  FileText, 
+  Folder,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface CodeBlock {
   id: string;
@@ -25,237 +25,173 @@ interface CodeBlock {
 }
 
 interface CodePreviewProps {
-  codeBlocks?: CodeBlock[];
+  codeBlocks: CodeBlock[];
   onRunCode?: (code: string, language: string) => void;
-  onSaveCode?: (code: string, filename: string) => void;
 }
 
 export const CodePreview: React.FC<CodePreviewProps> = ({
-  codeBlocks = [],
-  onRunCode,
-  onSaveCode
+  codeBlocks,
+  onRunCode
 }) => {
-  const [activeTab, setActiveTab] = useState('preview');
-  const [selectedBlock, setSelectedBlock] = useState<CodeBlock | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const { toast } = useToast();
+  const [activeBlock, setActiveBlock] = useState<string | null>(null);
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (codeBlocks.length > 0 && !selectedBlock) {
-      setSelectedBlock(codeBlocks[0]);
-    }
-  }, [codeBlocks, selectedBlock]);
-
-  const handleCopyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      toast({
-        title: "Code copied",
-        description: "Code has been copied to clipboard",
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Failed to copy code to clipboard",
-        variant: "destructive"
-      });
-    }
+  const toggleExpanded = (blockId: string) => {
+    setExpandedBlocks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(blockId)) {
+        newSet.delete(blockId);
+      } else {
+        newSet.add(blockId);
+      }
+      return newSet;
+    });
   };
 
-  const handleDownloadCode = (code: string, filename: string) => {
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+  };
+
+  const downloadCode = (code: string, filename: string) => {
     const blob = new Blob([code], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || 'code.txt';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    toast({
-      title: "Code downloaded",
-      description: `${filename} has been downloaded`,
-    });
   };
 
-  const handleRunCode = async (code: string, language: string) => {
-    setIsRunning(true);
-    try {
-      await onRunCode?.(code, language);
-      toast({
-        title: "Code executed",
-        description: "Code has been executed successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Execution failed",
-        description: "Failed to execute code",
-        variant: "destructive"
-      });
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const getLanguageIcon = (language: string) => {
-    switch (language.toLowerCase()) {
-      case 'typescript':
-      case 'tsx':
-        return '🔷';
-      case 'javascript':
-      case 'jsx':
-        return '🟨';
-      case 'html':
-        return '🌐';
-      case 'css':
-        return '🎨';
-      case 'json':
-        return '📋';
-      default:
-        return '📄';
-    }
+  const getLanguageColor = (language: string) => {
+    const colors: Record<string, string> = {
+      javascript: 'bg-yellow-600',
+      typescript: 'bg-blue-600',
+      jsx: 'bg-cyan-600',
+      tsx: 'bg-blue-500',
+      html: 'bg-orange-600',
+      css: 'bg-purple-600',
+      python: 'bg-green-600',
+      json: 'bg-gray-600'
+    };
+    return colors[language.toLowerCase()] || 'bg-slate-600';
   };
 
   if (codeBlocks.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-700">
-        <div className="text-center text-slate-400">
-          <Code2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold mb-2">No Code to Preview</h3>
-          <p className="text-sm">Generate some code to see it here</p>
+      <div className="h-full flex items-center justify-center bg-slate-900 text-slate-400">
+        <div className="text-center">
+          <Code className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No code blocks generated yet</p>
+          <p className="text-sm">Code will appear here when AI generates it</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-slate-900 rounded-lg border border-slate-700 flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="border-b border-slate-700 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-white">Code Preview</h3>
-            <Badge variant="secondary">{codeBlocks.length} blocks</Badge>
+    <div className="h-full flex flex-col bg-slate-900 text-white">
+      <div className="border-b border-slate-700 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Code Preview</h2>
+            <p className="text-sm text-slate-400">
+              {codeBlocks.length} code block{codeBlocks.length !== 1 ? 's' : ''} generated
+            </p>
           </div>
-          
-          <TabsList className="bg-slate-800 w-full">
-            <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview
-            </TabsTrigger>
-            <TabsTrigger value="blocks" className="data-[state=active]:bg-slate-700">
-              <FileText className="w-4 h-4 mr-2" />
-              Blocks
-            </TabsTrigger>
-          </TabsList>
+          <Badge variant="secondary" className="bg-slate-800 text-slate-300">
+            AI Generated
+          </Badge>
         </div>
+      </div>
 
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value="preview" className="h-full m-0">
-            {selectedBlock && (
-              <div className="h-full flex flex-col">
-                <div className="border-b border-slate-700 p-4">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4">
+            {codeBlocks.map((block) => (
+              <Card key={block.id} className="bg-slate-800 border-slate-700">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg">{getLanguageIcon(selectedBlock.language)}</span>
+                      <button
+                        onClick={() => toggleExpanded(block.id)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        {expandedBlocks.has(block.id) ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </button>
+                      
+                      <FileText className="w-4 h-4 text-blue-400" />
+                      
                       <div>
-                        <h4 className="font-medium text-white">
-                          {selectedBlock.filename || `${selectedBlock.language} Code`}
-                        </h4>
-                        {selectedBlock.description && (
-                          <p className="text-sm text-slate-400">{selectedBlock.description}</p>
+                        <CardTitle className="text-sm font-medium text-white">
+                          {block.filename || `${block.language} code`}
+                        </CardTitle>
+                        {block.description && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            {block.description}
+                          </p>
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
+                      <Badge 
+                        className={`text-xs text-white ${getLanguageColor(block.language)}`}
+                      >
+                        {block.language}
+                      </Badge>
+                      
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleCopyCode(selectedBlock.code)}
-                        className="text-slate-400 hover:text-white"
+                        onClick={() => copyCode(block.code)}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-white"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3 h-3" />
                       </Button>
                       
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleDownloadCode(
-                          selectedBlock.code, 
-                          selectedBlock.filename || `code.${selectedBlock.language}`
-                        )}
-                        className="text-slate-400 hover:text-white"
+                        onClick={() => downloadCode(block.code, block.filename || `code.${block.language}`)}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-white"
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-3 h-3" />
                       </Button>
                       
                       {onRunCode && (
                         <Button
                           size="sm"
-                          onClick={() => handleRunCode(selectedBlock.code, selectedBlock.language)}
-                          disabled={isRunning}
-                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => onRunCode(block.code, block.language)}
+                          className="h-8 px-3 bg-green-600 hover:bg-green-700"
                         >
-                          {isRunning ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
+                          <Play className="w-3 h-3 mr-1" />
+                          Run
                         </Button>
                       )}
                     </div>
                   </div>
-                </div>
-                
-                <ScrollArea className="flex-1">
-                  <pre className="p-4 text-sm text-slate-100 font-mono overflow-x-auto">
-                    <code>{selectedBlock.code}</code>
-                  </pre>
-                </ScrollArea>
-              </div>
-            )}
-          </TabsContent>
+                </CardHeader>
 
-          <TabsContent value="blocks" className="h-full m-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-3">
-                {codeBlocks.map((block) => (
-                  <div
-                    key={block.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                      selectedBlock?.id === block.id
-                        ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-slate-600 bg-slate-800 hover:bg-slate-700'
-                    }`}
-                    onClick={() => setSelectedBlock(block)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span>{getLanguageIcon(block.language)}</span>
-                        <span className="font-medium text-white">
-                          {block.filename || `${block.language} Code`}
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {block.language}
-                      </Badge>
+                {expandedBlocks.has(block.id) && (
+                  <CardContent className="pt-0">
+                    <div className="bg-slate-900 rounded-lg p-4 border border-slate-600">
+                      <pre className="text-sm text-slate-300 overflow-x-auto">
+                        <code>{block.code}</code>
+                      </pre>
                     </div>
-                    
-                    {block.description && (
-                      <p className="text-sm text-slate-400 mb-2">{block.description}</p>
-                    )}
-                    
-                    <div className="text-xs text-slate-500">
-                      {block.code.split('\n').length} lines • {block.code.length} chars
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </div>
-      </Tabs>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 };

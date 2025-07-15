@@ -1,404 +1,243 @@
 
-import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  Plus, 
-  Trash2, 
-  Copy, 
-  Save, 
-  Wand2, 
-  Code2,
-  Database,
+  Lightbulb, 
+  Code, 
+  Database, 
+  Smartphone, 
+  Globe, 
+  Bot,
   Zap,
-  Brain,
-  FileText,
-  Settings
+  Copy,
+  Download
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface PromptTemplate {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  template: string;
-  variables: string[];
   category: string;
-  tags: string[];
+  template: string;
+  icon: React.ComponentType<any>;
 }
 
-interface PromptVariable {
-  name: string;
-  value: string;
-  description?: string;
-}
+const promptTemplates: PromptTemplate[] = [
+  {
+    id: '1',
+    title: 'React Component',
+    description: 'Create a new React component with TypeScript',
+    category: 'frontend',
+    template: 'Create a React component called {ComponentName} that {functionality}. Include proper TypeScript types, styling with Tailwind CSS, and handle {state} state management.',
+    icon: Code
+  },
+  {
+    id: '2',
+    title: 'Full-Stack App',
+    description: 'Build a complete application with backend',
+    category: 'fullstack',
+    template: 'Build a full-stack {appType} application with React frontend and Node.js backend. Include {features} features, database integration with {database}, and authentication.',
+    icon: Globe
+  },
+  {
+    id: '3',
+    title: 'Database Schema',
+    description: 'Design database tables and relationships',
+    category: 'backend',
+    template: 'Create a database schema for {domain} with tables for {entities}. Include proper relationships, indexes, and constraints. Use {database} as the database.',
+    icon: Database
+  },
+  {
+    id: '4',
+    title: 'Mobile App',
+    description: 'Create a mobile app with Expo',
+    category: 'mobile',
+    template: 'Create a mobile app for {platform} using Expo and React Native. Include {screens} screens, navigation, and {features} functionality.',
+    icon: Smartphone
+  },
+  {
+    id: '5',
+    title: 'AI Integration',
+    description: 'Add AI capabilities to your app',
+    category: 'ai',
+    template: 'Integrate {aiService} AI into my application to {aiFunction}. Include proper error handling, streaming responses, and user-friendly interface.',
+    icon: Bot
+  },
+  {
+    id: '6',
+    title: 'API Integration',
+    description: 'Connect to external APIs',
+    category: 'integration',
+    template: 'Integrate {apiName} API into my application. Include authentication, error handling, and implement {endpoints} endpoints.',
+    icon: Zap
+  }
+];
 
 export const PromptBuilder: React.FC = () => {
-  const [activeTemplate, setActiveTemplate] = useState<PromptTemplate | null>(null);
-  const [variables, setVariables] = useState<PromptVariable[]>([]);
-  const [builtPrompt, setBuiltPrompt] = useState('');
   const [customPrompt, setCustomPrompt] = useState('');
-  const [activeTab, setActiveTab] = useState('templates');
-  const { toast } = useToast();
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
+  const [variables, setVariables] = useState<Record<string, string>>({});
 
-  const defaultTemplates: PromptTemplate[] = [
-    {
-      id: '1',
-      name: 'React Component Generator',
-      description: 'Generate a React component with TypeScript and Tailwind CSS',
-      template: `Create a React component called {{componentName}} that {{functionality}}. 
-
-Requirements:
-- Use TypeScript with proper type definitions
-- Use Tailwind CSS for styling
-- Include proper props interface
-- Add JSDoc comments
-- Follow React best practices
-- Make it responsive and accessible
-
-Additional requirements: {{additionalRequirements}}`,
-      variables: ['componentName', 'functionality', 'additionalRequirements'],
-      category: 'React',
-      tags: ['component', 'typescript', 'tailwind']
-    },
-    {
-      id: '2',
-      name: 'API Integration',
-      description: 'Create API integration with error handling',
-      template: `Create an API integration for {{apiName}} that {{apiPurpose}}.
-
-Requirements:
-- Use fetch or axios for HTTP requests
-- Include proper error handling
-- Add TypeScript types for API responses
-- Implement loading states
-- Add retry mechanism if needed
-- Include proper authentication: {{authMethod}}
-
-Endpoints to integrate: {{endpoints}}`,
-      variables: ['apiName', 'apiPurpose', 'authMethod', 'endpoints'],
-      category: 'API',
-      tags: ['api', 'integration', 'typescript']
-    },
-    {
-      id: '3',
-      name: 'Database Schema',
-      description: 'Design database schema with relationships',
-      template: `Design a database schema for {{entityName}} with the following requirements:
-
-Entity Description: {{entityDescription}}
-
-Required Fields: {{requiredFields}}
-
-Relationships: {{relationships}}
-
-Include:
-- Primary and foreign keys
-- Proper data types
-- Constraints and validations
-- Indexes for performance
-- RLS policies if using Supabase`,
-      variables: ['entityName', 'entityDescription', 'requiredFields', 'relationships'],
-      category: 'Database',
-      tags: ['database', 'schema', 'supabase']
-    },
-    {
-      id: '4',
-      name: 'Full-Stack Feature',
-      description: 'Create a complete full-stack feature',
-      template: `Create a complete full-stack feature for {{featureName}} that allows users to {{userAction}}.
-
-Frontend Requirements:
-- React components with TypeScript
-- Responsive design with Tailwind CSS
-- Form validation and error handling
-- Loading states and user feedback
-
-Backend Requirements:
-- Database schema and tables
-- API endpoints with proper validation
-- Error handling and logging
-- Authentication and authorization
-
-User Flow: {{userFlow}}
-Business Logic: {{businessLogic}}`,
-      variables: ['featureName', 'userAction', 'userFlow', 'businessLogic'],
-      category: 'Full-Stack',
-      tags: ['full-stack', 'feature', 'complete']
-    }
-  ];
-
-  const [templates] = useState<PromptTemplate[]>(defaultTemplates);
-
-  useEffect(() => {
-    if (activeTemplate) {
-      const newVariables = activeTemplate.variables.map(varName => ({
-        name: varName,
-        value: variables.find(v => v.name === varName)?.value || '',
-        description: getVariableDescription(varName)
-      }));
-      setVariables(newVariables);
-      buildPrompt(activeTemplate.template, newVariables);
-    }
-  }, [activeTemplate]);
-
-  const getVariableDescription = (varName: string): string => {
-    const descriptions: Record<string, string> = {
-      componentName: 'Name of the React component (e.g., UserProfile)',
-      functionality: 'What the component should do (e.g., display user information)',
-      additionalRequirements: 'Any specific requirements or features',
-      apiName: 'Name of the API service (e.g., User API)',
-      apiPurpose: 'What the API integration should accomplish',
-      authMethod: 'Authentication method (e.g., Bearer token, API key)',
-      endpoints: 'List of API endpoints to integrate',
-      entityName: 'Name of the database entity (e.g., User, Product)',
-      entityDescription: 'Description of what this entity represents',
-      requiredFields: 'List of required fields and their types',
-      relationships: 'How this entity relates to others',
-      featureName: 'Name of the feature (e.g., User Management)',
-      userAction: 'What users can do with this feature',
-      userFlow: 'Step-by-step user interaction flow',
-      businessLogic: 'Core business rules and logic'
-    };
-    return descriptions[varName] || 'Variable description';
-  };
-
-  const buildPrompt = (template: string, vars: PromptVariable[]) => {
-    let prompt = template;
-    vars.forEach(variable => {
-      const placeholder = `{{${variable.name}}}`;
-      prompt = prompt.replace(new RegExp(placeholder, 'g'), variable.value || `[${variable.name}]`);
+  const handleTemplateSelect = (template: PromptTemplate) => {
+    setSelectedTemplate(template);
+    const templateVars = template.template.match(/\{([^}]+)\}/g) || [];
+    const newVariables: Record<string, string> = {};
+    templateVars.forEach(varMatch => {
+      const varName = varMatch.slice(1, -1);
+      newVariables[varName] = '';
     });
-    setBuiltPrompt(prompt);
+    setVariables(newVariables);
   };
 
-  const handleVariableChange = (varName: string, value: string) => {
-    const updatedVariables = variables.map(v => 
-      v.name === varName ? { ...v, value } : v
-    );
-    setVariables(updatedVariables);
+  const buildPrompt = () => {
+    if (!selectedTemplate) return '';
     
-    if (activeTemplate) {
-      buildPrompt(activeTemplate.template, updatedVariables);
-    }
-  };
-
-  const handleCopyPrompt = async (prompt: string) => {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      toast({
-        title: "Prompt copied",
-        description: "Prompt has been copied to clipboard",
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Failed to copy prompt to clipboard",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSaveTemplate = () => {
-    toast({
-      title: "Template saved",
-      description: "Custom template has been saved locally",
+    let prompt = selectedTemplate.template;
+    Object.entries(variables).forEach(([key, value]) => {
+      prompt = prompt.replace(new RegExp(`\\{${key}\\}`, 'g'), value || `[${key}]`);
     });
+    return prompt;
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'React':
-        return <Code2 className="w-4 h-4" />;
-      case 'API':
-        return <Zap className="w-4 h-4" />;
-      case 'Database':
-        return <Database className="w-4 h-4" />;
-      case 'Full-Stack':
-        return <Brain className="w-4 h-4" />;
-      default:
-        return <FileText className="w-4 h-4" />;
-    }
+  const copyPrompt = () => {
+    const prompt = customPrompt || buildPrompt();
+    navigator.clipboard.writeText(prompt);
   };
+
+  const categories = Array.from(new Set(promptTemplates.map(t => t.category)));
 
   return (
-    <div className="h-full bg-slate-900 rounded-lg border border-slate-700 flex flex-col">
+    <div className="h-full flex flex-col bg-slate-900 text-white">
       <div className="border-b border-slate-700 p-4">
-        <h3 className="font-semibold text-white mb-2">Prompt Builder</h3>
-        <p className="text-sm text-slate-400">Build sophisticated prompts for AI code generation</p>
+        <h2 className="text-lg font-semibold">Prompt Builder</h2>
+        <p className="text-sm text-slate-400">Create effective prompts for AI-powered development</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      <Tabs defaultValue="templates" className="flex-1 flex flex-col">
         <div className="border-b border-slate-700 px-4">
           <TabsList className="bg-slate-800">
             <TabsTrigger value="templates" className="data-[state=active]:bg-slate-700">
-              <Wand2 className="w-4 h-4 mr-2" />
               Templates
             </TabsTrigger>
-            <TabsTrigger value="builder" className="data-[state=active]:bg-slate-700">
-              <Settings className="w-4 h-4 mr-2" />
-              Builder
-            </TabsTrigger>
             <TabsTrigger value="custom" className="data-[state=active]:bg-slate-700">
-              <FileText className="w-4 h-4 mr-2" />
               Custom
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value="templates" className="h-full m-0">
+        <TabsContent value="templates" className="flex-1 flex flex-col m-0">
+          <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full">
               <div className="p-4 space-y-4">
-                {templates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className={`p-4 cursor-pointer transition-all ${
-                      activeTemplate?.id === template.id
-                        ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-slate-600 bg-slate-800 hover:bg-slate-700'
-                    }`}
-                    onClick={() => setActiveTemplate(template)}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        {getCategoryIcon(template.category)}
-                        <h4 className="font-medium text-white">{template.name}</h4>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {template.category}
-                      </Badge>
+                {categories.map(category => (
+                  <div key={category}>
+                    <h3 className="text-sm font-medium text-slate-300 mb-2 capitalize">
+                      {category}
+                    </h3>
+                    <div className="space-y-2">
+                      {promptTemplates
+                        .filter(t => t.category === category)
+                        .map(template => (
+                          <Card 
+                            key={template.id}
+                            className={`cursor-pointer transition-colors ${
+                              selectedTemplate?.id === template.id 
+                                ? 'bg-slate-700 border-blue-500' 
+                                : 'bg-slate-800 border-slate-600 hover:bg-slate-750'
+                            }`}
+                            onClick={() => handleTemplateSelect(template)}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-start space-x-3">
+                                <template.icon className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-white">{template.title}</h4>
+                                  <p className="text-sm text-slate-400">{template.description}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                     </div>
-                    
-                    <p className="text-sm text-slate-400 mb-3">{template.description}</p>
-                    
-                    <div className="flex flex-wrap gap-1">
-                      {template.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </ScrollArea>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="builder" className="h-full m-0">
-            {activeTemplate ? (
-              <div className="h-full flex flex-col">
-                <div className="border-b border-slate-700 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-white">{activeTemplate.name}</h4>
-                      <p className="text-sm text-slate-400">{activeTemplate.description}</p>
+          {selectedTemplate && (
+            <div className="border-t border-slate-700 p-4 space-y-4">
+              <div>
+                <h3 className="font-medium text-white mb-2">Configure Template</h3>
+                <div className="space-y-2">
+                  {Object.keys(variables).map(varName => (
+                    <div key={varName}>
+                      <label className="text-sm text-slate-300 capitalize">
+                        {varName.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                      </label>
+                      <input
+                        type="text"
+                        value={variables[varName]}
+                        onChange={(e) => setVariables(prev => ({
+                          ...prev,
+                          [varName]: e.target.value
+                        }))}
+                        className="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm"
+                        placeholder={`Enter ${varName}`}
+                      />
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleCopyPrompt(builtPrompt)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Prompt
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-hidden">
-                  <div className="h-full flex">
-                    <div className="w-1/3 border-r border-slate-700 overflow-hidden">
-                      <div className="p-4 border-b border-slate-700">
-                        <h5 className="font-medium text-white">Variables</h5>
-                      </div>
-                      <ScrollArea className="flex-1">
-                        <div className="p-4 space-y-4">
-                          {variables.map((variable) => (
-                            <div key={variable.name}>
-                              <label className="block text-sm font-medium text-white mb-1">
-                                {variable.name}
-                              </label>
-                              <p className="text-xs text-slate-400 mb-2">{variable.description}</p>
-                              <Textarea
-                                value={variable.value}
-                                onChange={(e) => handleVariableChange(variable.name, e.target.value)}
-                                placeholder={`Enter ${variable.name}...`}
-                                className="bg-slate-800 border-slate-600 text-white text-sm min-h-[80px]"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-
-                    <div className="flex-1 overflow-hidden">
-                      <div className="p-4 border-b border-slate-700">
-                        <h5 className="font-medium text-white">Generated Prompt</h5>
-                      </div>
-                      <ScrollArea className="flex-1">
-                        <div className="p-4">
-                          <pre className="text-sm text-slate-100 whitespace-pre-wrap font-mono">
-                            {builtPrompt}
-                          </pre>
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center text-slate-400">
-                  <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h4 className="text-lg font-semibold mb-2">Select a Template</h4>
-                  <p className="text-sm">Choose a template from the Templates tab to start building</p>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="custom" className="h-full m-0">
-            <div className="h-full flex flex-col">
-              <div className="border-b border-slate-700 p-4">
-                <div className="flex items-center justify-between">
-                  <h5 className="font-medium text-white">Custom Prompt</h5>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleCopyPrompt(customPrompt)}
-                      className="text-slate-400 hover:text-white"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveTemplate}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex-1 p-4">
+              <div>
+                <h3 className="font-medium text-white mb-2">Generated Prompt</h3>
+                <div className="bg-slate-800 border border-slate-600 rounded p-3">
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                    {buildPrompt()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex space-x-2">
+                <Button size="sm" onClick={copyPrompt} className="flex-1">
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Prompt
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="custom" className="flex-1 flex flex-col m-0">
+          <div className="flex-1 p-4">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-300">
+                  Custom Prompt
+                </label>
                 <Textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Write your custom prompt here..."
-                  className="w-full h-full bg-slate-800 border-slate-600 text-white resize-none font-mono"
+                  className="mt-2 bg-slate-800 border-slate-600 text-white min-h-[200px]"
                 />
               </div>
+
+              <div className="flex space-x-2">
+                <Button size="sm" onClick={copyPrompt} className="flex-1">
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Prompt
+                </Button>
+              </div>
             </div>
-          </TabsContent>
-        </div>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

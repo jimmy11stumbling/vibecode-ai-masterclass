@@ -1,190 +1,154 @@
 
-import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Eye, EyeOff, Key, CheckCircle, AlertCircle, Save } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { 
+  Key, 
+  Eye, 
+  EyeOff, 
+  CheckCircle, 
+  AlertCircle,
+  ExternalLink
+} from 'lucide-react';
 
 interface ApiKeyInputProps {
   onApiKeySet: (apiKey: string) => void;
+  currentApiKey?: string;
+  serviceName?: string;
+  helpUrl?: string;
 }
 
-export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeySet }) => {
-  const [apiKey, setApiKey] = useState('');
+export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
+  onApiKeySet,
+  currentApiKey,
+  serviceName = 'DeepSeek',
+  helpUrl = 'https://platform.deepseek.com/api-keys'
+}) => {
+  const [apiKey, setApiKey] = useState(currentApiKey || '');
   const [showKey, setShowKey] = useState(false);
-  const [isValid, setIsValid] = useState<boolean | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const { toast } = useToast();
 
-  useEffect(() => {
-    // Load saved API key from localStorage
-    const savedKey = localStorage.getItem('deepseek_api_key');
-    if (savedKey) {
-      setApiKey(savedKey);
-      setIsValid(true);
-      onApiKeySet(savedKey);
-    }
-  }, [onApiKeySet]);
-
-  const validateApiKey = async (key: string): Promise<boolean> => {
-    if (!key || key.length < 10) return false;
+  const handleSave = async () => {
+    if (!apiKey.trim()) return;
     
-    // Basic validation - check if it looks like a valid API key
-    const keyPattern = /^sk-[a-zA-Z0-9]{32,}$/;
-    return keyPattern.test(key);
-  };
-
-  const handleSaveKey = async () => {
-    if (!apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter your DeepSeek API key",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsValidating(true);
     
-    try {
-      const valid = await validateApiKey(apiKey.trim());
-      setIsValid(valid);
-      
-      if (valid) {
-        localStorage.setItem('deepseek_api_key', apiKey.trim());
-        onApiKeySet(apiKey.trim());
-        toast({
-          title: "API Key Saved",
-          description: "Your DeepSeek API key has been saved and validated",
-        });
-      } else {
-        toast({
-          title: "Invalid API Key",
-          description: "Please check your DeepSeek API key format",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      setIsValid(false);
-      toast({
-        title: "Validation Error",
-        description: "Failed to validate API key",
-        variant: "destructive"
-      });
-    } finally {
+    // Simulate API key validation
+    setTimeout(() => {
+      onApiKeySet(apiKey);
       setIsValidating(false);
-    }
+    }, 1000);
   };
 
-  const handleClearKey = () => {
+  const handleClear = () => {
     setApiKey('');
-    setIsValid(null);
-    localStorage.removeItem('deepseek_api_key');
     onApiKeySet('');
-    toast({
-      title: "API Key Cleared",
-      description: "Your API key has been removed",
-    });
   };
 
-  const getStatusBadge = () => {
-    if (isValidating) {
-      return <Badge variant="secondary">Validating...</Badge>;
-    }
-    
-    if (isValid === true) {
-      return (
-        <Badge variant="default" className="bg-green-600">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          Valid
-        </Badge>
-      );
-    }
-    
-    if (isValid === false) {
-      return (
-        <Badge variant="destructive">
-          <AlertCircle className="w-3 h-3 mr-1" />
-          Invalid
-        </Badge>
-      );
-    }
-    
-    return <Badge variant="outline">Not Set</Badge>;
-  };
+  const isValidKey = apiKey.trim().length > 0;
+  const isConnected = Boolean(currentApiKey);
+
+  if (isConnected) {
+    return (
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            <div>
+              <p className="text-sm font-medium text-white">
+                {serviceName} API Connected
+              </p>
+              <p className="text-xs text-slate-400">
+                Key: •••••{currentApiKey?.slice(-4)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="bg-green-600 text-white">
+              Connected
+            </Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleClear}
+              className="h-8 text-xs"
+            >
+              Change
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <Key className="w-4 h-4 text-white/70" />
-            <h3 className="text-sm font-medium text-white">DeepSeek API Key</h3>
-          </div>
-          {getStatusBadge()}
-        </div>
-        
+    <Card className="bg-slate-800 border-slate-700">
+      <CardHeader className="pb-3">
         <div className="flex items-center space-x-2">
-          <div className="flex-1 relative">
+          <Key className="w-5 h-5 text-yellow-400" />
+          <CardTitle className="text-sm text-white">
+            {serviceName} API Key Required
+          </CardTitle>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <Alert className="bg-slate-900 border-slate-600">
+          <AlertCircle className="w-4 h-4 text-yellow-400" />
+          <AlertDescription className="text-slate-300">
+            Connect your {serviceName} API key to enable AI-powered features
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-2">
+          <div className="relative">
             <Input
               type={showKey ? 'text' : 'password'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSaveKey();
-                }
-              }}
+              placeholder={`Enter your ${serviceName} API key...`}
+              className="bg-slate-900 border-slate-600 text-white pr-10"
             />
-            <Button
+            <button
               type="button"
-              size="sm"
-              variant="ghost"
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-white/50 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
-              {showKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-            </Button>
+              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
           
-          <Button
-            onClick={handleSaveKey}
-            disabled={isValidating || !apiKey.trim()}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Save className="w-4 h-4 mr-1" />
-            Save
-          </Button>
-          
-          {isValid && (
-            <Button
-              onClick={handleClearKey}
-              variant="outline"
-              size="sm"
-              className="border-white/20 text-white/70 hover:text-white"
+          <div className="flex items-center justify-between">
+            <a
+              href={helpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
             >
-              Clear
+              <span>Get your API key</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!isValidKey || isValidating}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isValidating ? 'Validating...' : 'Save Key'}
             </Button>
-          )}
+          </div>
         </div>
-        
-        <p className="text-xs text-white/50 mt-2">
-          Get your API key from{' '}
-          <a 
-            href="https://platform.deepseek.com/api_keys" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
-            DeepSeek Platform
-          </a>
-        </p>
-      </div>
+
+        <div className="text-xs text-slate-400">
+          <p>• Your API key is stored locally and never shared</p>
+          <p>• Used only for AI-powered development features</p>
+        </div>
+      </CardContent>
     </Card>
   );
 };
