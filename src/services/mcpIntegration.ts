@@ -134,12 +134,10 @@ class MCPIntegrationService {
     if (message.method === 'generate-response') {
       const response = await this.generateAIResponse(message.params?.prompt, agent.config);
       this.sendMessage({
-        id: Date.now().toString(),
         from: agent.id,
         to: message.from,
         type: 'response',
-        result: { response },
-        timestamp: new Date()
+        result: { response }
       });
     }
   }
@@ -148,12 +146,10 @@ class MCPIntegrationService {
     if (message.method === 'analyze-document') {
       const analysis = await this.analyzeDocument(message.params?.document);
       this.sendMessage({
-        id: Date.now().toString(),
         from: agent.id,
         to: message.from,
         type: 'response',
-        result: analysis,
-        timestamp: new Date()
+        result: analysis
       });
     }
   }
@@ -162,12 +158,10 @@ class MCPIntegrationService {
     if (message.method === 'search-knowledge') {
       const results = await this.searchKnowledgeBase(message.params?.query);
       this.sendMessage({
-        id: Date.now().toString(),
         from: agent.id,
         to: message.from,
         type: 'response',
-        result: { results },
-        timestamp: new Date()
+        result: { results }
       });
     }
   }
