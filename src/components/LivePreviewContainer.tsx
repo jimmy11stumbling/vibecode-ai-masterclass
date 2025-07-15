@@ -34,11 +34,11 @@ export const LivePreviewContainer: React.FC<LivePreviewContainerProps> = ({
   const getViewportDimensions = () => {
     switch (viewMode) {
       case 'mobile':
-        return { width: '375px', height: '667px' };
+        return { width: '375px', height: '812px', label: 'iPhone 13 Pro' };
       case 'tablet':
-        return { width: '768px', height: '1024px' };
+        return { width: '768px', height: '1024px', label: 'iPad' };
       case 'desktop':
-        return { width: '100%', height: '100%' };
+        return { width: '100%', height: '100%', label: 'Desktop' };
     }
   };
 
@@ -122,8 +122,8 @@ export const LivePreviewContainer: React.FC<LivePreviewContainerProps> = ({
       isFullscreen ? 'fixed inset-0 z-50' : ''
     }`}>
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-2">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
+        <div className="flex items-center space-x-3">
           <h3 className="text-sm font-semibold text-white">Live Preview</h3>
           
           {isLoading && (
@@ -141,72 +141,91 @@ export const LivePreviewContainer: React.FC<LivePreviewContainerProps> = ({
           )}
         </div>
         
-        <div className="flex items-center space-x-2">
-          {/* Viewport Buttons */}
-          <div className="flex items-center space-x-1 border border-slate-600 rounded">
+        <div className="flex items-center space-x-3">
+          {/* Device Preview Controls - Made more prominent */}
+          <div className="flex items-center space-x-1 bg-slate-700 rounded-lg p-1">
             <Button
               size="sm"
-              variant={viewMode === 'mobile' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('mobile')}
-              className="h-7 px-2"
+              variant={viewMode === 'desktop' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('desktop')}
+              className="h-8 px-3 text-xs font-medium"
+              title="Desktop Preview"
             >
-              <Smartphone className="w-3 h-3" />
+              <Monitor className="w-4 h-4 mr-1" />
+              PC
             </Button>
             <Button
               size="sm"
               variant={viewMode === 'tablet' ? 'default' : 'ghost'}
               onClick={() => setViewMode('tablet')}
-              className="h-7 px-2"
+              className="h-8 px-3 text-xs font-medium"
+              title="iPad Preview"
             >
-              <Tablet className="w-3 h-3" />
+              <Tablet className="w-4 h-4 mr-1" />
+              iPad
             </Button>
             <Button
               size="sm"
-              variant={viewMode === 'desktop' ? 'default' : 'ghost'}
-              onClick={() => setViewMode('desktop')}
-              className="h-7 px-2"
+              variant={viewMode === 'mobile' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('mobile')}
+              className="h-8 px-3 text-xs font-medium"
+              title="iPhone Preview"
             >
-              <Monitor className="w-3 h-3" />
+              <Smartphone className="w-4 h-4 mr-1" />
+              iPhone
             </Button>
           </div>
           
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleRefresh}
-            className="text-slate-400 hover:text-white h-7"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onOpenExternal}
-            className="text-slate-400 hover:text-white h-7"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="text-slate-400 hover:text-white h-7"
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </Button>
+          <div className="flex items-center space-x-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleRefresh}
+              className="text-slate-400 hover:text-white h-8"
+              title="Refresh Preview"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onOpenExternal}
+              className="text-slate-400 hover:text-white h-8"
+              title="Open in New Tab"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="text-slate-400 hover:text-white h-8"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Viewport Info */}
-      {viewMode !== 'desktop' && (
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-1">
+      {/* Viewport Info Bar */}
+      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
+        <div className="flex items-center justify-between">
           <span className="text-xs text-slate-400">
-            {viewMode === 'mobile' ? 'iPhone 13 Pro' : 'iPad Pro'} • {dimensions.width} × {dimensions.height}
+            {dimensions.label} • {dimensions.width} × {dimensions.height}
           </span>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              hasError ? 'bg-red-500' : isLoading ? 'bg-yellow-500' : 'bg-green-500'
+            }`}></div>
+            <span className="text-xs text-slate-400">
+              {hasError ? 'Error' : isLoading ? 'Loading' : 'Ready'}
+            </span>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Preview Container */}
       <div className="flex-1 bg-white overflow-auto">
@@ -219,16 +238,21 @@ export const LivePreviewContainer: React.FC<LivePreviewContainerProps> = ({
             sandbox="allow-scripts allow-same-origin"
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-slate-100">
+          <div className="flex items-center justify-center h-full bg-gradient-to-br from-slate-100 to-slate-200 p-8">
             <div 
-              className="bg-white shadow-2xl rounded-lg overflow-hidden border-4 border-slate-800"
+              className="bg-white shadow-2xl rounded-2xl overflow-hidden border-8 border-slate-800 relative"
               style={{
                 width: dimensions.width,
                 height: dimensions.height,
-                maxWidth: '100%',
-                maxHeight: '100%'
+                maxWidth: 'calc(100% - 4rem)',
+                maxHeight: 'calc(100% - 4rem)'
               }}
             >
+              {/* Device Frame Decoration */}
+              {viewMode === 'mobile' && (
+                <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-slate-800 rounded-full z-10"></div>
+              )}
+              
               <iframe
                 ref={iframeRef}
                 className="w-full h-full border-0"
@@ -239,23 +263,6 @@ export const LivePreviewContainer: React.FC<LivePreviewContainerProps> = ({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Status Bar */}
-      <div className="bg-slate-800 border-t border-slate-700 px-4 py-1">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>
-            {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} Preview
-          </span>
-          <div className="flex items-center space-x-1">
-            <div className={`w-2 h-2 rounded-full ${
-              hasError ? 'bg-red-500' : isLoading ? 'bg-yellow-500' : 'bg-green-500'
-            }`}></div>
-            <span>
-              {hasError ? 'Error' : isLoading ? 'Loading' : 'Ready'}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
