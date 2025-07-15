@@ -21,9 +21,9 @@ export const LessonNavigation = () => {
   } = useLessons();
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col">
+    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col overflow-hidden">
       {/* Tab Navigation */}
-      <div className="p-4 border-b border-white/10">
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
         <div className="flex space-x-2">
           <Button
             variant={activeTab === 'lessons' ? 'default' : 'ghost'}
@@ -52,46 +52,49 @@ export const LessonNavigation = () => {
         </div>
       </div>
 
-      {activeTab === 'lessons' ? (
-        <>
-          <LessonProgress 
-            completedLessons={completedLessons}
-            totalLessons={totalLessons}
-            progressPercentage={progressPercentage}
-          />
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'lessons' ? (
+          <div className="h-full flex flex-col">
+            <LessonProgress 
+              completedLessons={completedLessons}
+              totalLessons={totalLessons}
+              progressPercentage={progressPercentage}
+            />
 
-          <ScrollArea className="flex-1 p-6">
-            <div className="space-y-4">
-              {lessons.map((lesson, index) => (
-                <LessonCard
-                  key={lesson.id}
-                  lesson={lesson}
-                  index={index}
-                  isSelected={selectedLesson === lesson.id}
-                  onSelect={setSelectedLesson}
-                  getDifficultyColor={getDifficultyColor}
-                />
-              ))}
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="p-6 space-y-4">
+                  {lessons.map((lesson, index) => (
+                    <LessonCard
+                      key={lesson.id}
+                      lesson={lesson}
+                      index={index}
+                      isSelected={selectedLesson === lesson.id}
+                      onSelect={setSelectedLesson}
+                      getDifficultyColor={getDifficultyColor}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
-          </ScrollArea>
 
-          <div className="p-6 border-t border-white/10">
-            <div className="text-center">
-              <p className="text-xs text-gray-400 mb-2">
-                Complete lessons to unlock advanced content
-              </p>
-              <div className="flex items-center justify-center space-x-1 text-xs text-gray-500">
-                <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                <span>4.8 average rating</span>
+            <div className="p-6 border-t border-white/10 flex-shrink-0">
+              <div className="text-center">
+                <p className="text-xs text-gray-400 mb-2">
+                  Complete lessons to unlock advanced content
+                </p>
+                <div className="flex items-center justify-center space-x-1 text-xs text-gray-500">
+                  <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                  <span>4.8 average rating</span>
+                </div>
               </div>
             </div>
           </div>
-        </>
-      ) : (
-        <div className="flex-1 overflow-hidden">
+        ) : (
           <Tutorial />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

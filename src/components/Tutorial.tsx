@@ -87,13 +87,13 @@ export const Tutorial: React.FC = () => {
   const currentStepData = steps[currentStep];
 
   return (
-    <div className="h-full flex flex-col bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <BookOpen className="w-6 h-6 text-purple-400" />
-            <h2 className="text-xl font-semibold text-white">AI Development Tutorial</h2>
+            <BookOpen className="w-5 h-5 text-purple-400" />
+            <h2 className="text-lg font-semibold text-white">AI Development Tutorial</h2>
           </div>
           <Badge variant="secondary" className="bg-green-500/20 text-green-400">
             {completedSteps}/{steps.length} Complete
@@ -111,99 +111,103 @@ export const Tutorial: React.FC = () => {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Step Navigation */}
-        <div className="w-80 border-r border-white/10 flex-shrink-0">
-          <ScrollArea className="h-full p-4">
-            <h3 className="text-sm font-medium text-white mb-4">Tutorial Steps</h3>
-            <div className="space-y-2">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  onClick={() => goToStep(index)}
-                  className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                    currentStep === index
-                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/50'
-                      : 'bg-white/5 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      {step.completed ? (
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                      ) : currentStep === index ? (
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                          {step.icon}
-                        </div>
-                      ) : (
-                        <Circle className="w-5 h-5 text-gray-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-white truncate">
-                          {step.title}
-                        </h4>
-                        <span className="text-xs text-gray-400 ml-2">
-                          {step.duration}
-                        </span>
+        <div className="w-72 border-r border-white/10 flex-shrink-0">
+          <ScrollArea className="h-full">
+            <div className="p-4">
+              <h3 className="text-sm font-medium text-white mb-3">Tutorial Steps</h3>
+              <div className="space-y-2">
+                {steps.map((step, index) => (
+                  <div
+                    key={step.id}
+                    onClick={() => goToStep(index)}
+                    className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                      currentStep === index
+                        ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/50'
+                        : 'bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        {step.completed ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : currentStep === index ? (
+                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                            {step.icon}
+                          </div>
+                        ) : (
+                          <Circle className="w-5 h-5 text-gray-500" />
+                        )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                        {step.description}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-white truncate">
+                            {step.title}
+                          </h4>
+                          <span className="text-xs text-gray-400 ml-2">
+                            {step.duration}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                          {step.description}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </ScrollArea>
         </div>
 
         {/* Step Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Target className="w-5 h-5 text-purple-400" />
-                  <span className="text-sm text-gray-400">Step {currentStep + 1} of {steps.length}</span>
-                </div>
-                <h1 className="text-2xl font-bold text-white mb-2">
-                  {currentStepData.title}
-                </h1>
-                <p className="text-gray-300 mb-6">
-                  {currentStepData.description}
-                </p>
-              </div>
-
-              <div className="bg-white/5 rounded-xl p-6">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    {currentStepData.icon}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-6">
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Target className="w-5 h-5 text-purple-400" />
+                    <span className="text-sm text-gray-400">Step {currentStep + 1} of {steps.length}</span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-white mb-3">What you'll learn</h3>
-                    <p className="text-gray-300 leading-relaxed">
-                      {currentStepData.content}
-                    </p>
+                  <h1 className="text-2xl font-bold text-white mb-2">
+                    {currentStepData.title}
+                  </h1>
+                  <p className="text-gray-300 mb-6">
+                    {currentStepData.description}
+                  </p>
+                </div>
+
+                <div className="bg-white/5 rounded-xl p-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      {currentStepData.icon}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-medium text-white mb-3">What you'll learn</h3>
+                      <p className="text-gray-300 leading-relaxed">
+                        {currentStepData.content}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Interactive Example */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/20 mt-6">
-                <h3 className="text-lg font-medium text-white mb-3">Try it yourself</h3>
-                <p className="text-gray-300 mb-4">
-                  Ready to practice? Use the AI chat on the right to start building your first AI-powered application.
-                </p>
-                <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Building
-                </Button>
+                {/* Interactive Example */}
+                <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/20 mt-6">
+                  <h3 className="text-lg font-medium text-white mb-3">Try it yourself</h3>
+                  <p className="text-gray-300 mb-4">
+                    Ready to practice? Use the AI chat on the right to start building your first AI-powered application.
+                  </p>
+                  <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Building
+                  </Button>
+                </div>
               </div>
-            </div>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
 
           {/* Navigation */}
-          <div className="p-6 border-t border-white/10 flex-shrink-0">
+          <div className="p-4 border-t border-white/10 flex-shrink-0">
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
