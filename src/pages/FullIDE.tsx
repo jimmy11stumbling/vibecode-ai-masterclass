@@ -62,12 +62,19 @@ const FullIDE = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting' | 'processing' | 'error'>('connected');
   const { toast } = useToast();
-  const { validateSuccess, validateError, validateInfo } = useRealTimeValidator();
+  const { 
+    validations, 
+    validateSuccess, 
+    validateError, 
+    validateInfo, 
+    clearValidations, 
+    exportValidations 
+  } = useRealTimeValidator();
 
   // Real-time status updates
   useEffect(() => {
     const interval = setInterval(() => {
-      validateInfo('IDE heartbeat', { timestamp: new Date().toISOString() }, 'FullIDE');
+      validateInfo('IDE heartbeat', new Date().toISOString(), 'FullIDE');
     }, 30000); // Every 30 seconds
 
     return () => clearInterval(interval);
@@ -489,11 +496,11 @@ export default App;`
                       <MCPHub 
                         onServerSelect={(server) => {
                           console.log('MCP Server selected:', server);
-                          validateInfo('MCP server selected', server, 'FullIDE');
+                          validateInfo('MCP server selected', server.name || 'Unknown server', 'FullIDE');
                         }}
                         onToolInvoke={(tool, params) => {
                           console.log('MCP Tool invoked:', tool, params);
-                          validateInfo('MCP tool invoked', { tool, params }, 'FullIDE');
+                          validateInfo('MCP tool invoked', `${tool.name} with params`, 'FullIDE');
                         }}
                       />
                     </TabsContent>
@@ -502,7 +509,7 @@ export default App;`
                       <RAGDatabase 
                         onChunkSelect={(chunk) => {
                           console.log('Knowledge chunk selected:', chunk);
-                          validateInfo('RAG chunk selected', chunk, 'FullIDE');
+                          validateInfo('RAG chunk selected', chunk.content || 'Unknown chunk', 'FullIDE');
                         }}
                         onSearch={async (query) => {
                           console.log('RAG search:', query);
@@ -513,7 +520,11 @@ export default App;`
                     </TabsContent>
 
                     <TabsContent value="validator" className="h-full m-0">
-                      <RealTimeValidator />
+                      <RealTimeValidator 
+                        validations={validations}
+                        onClear={clearValidations}
+                        onExport={exportValidations}
+                      />
                     </TabsContent>
                   </div>
                 </Tabs>
