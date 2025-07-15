@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { CodeEditor } from '@/components/CodeEditor';
@@ -14,8 +15,13 @@ import { RealTimeStatusIndicator } from '@/components/RealTimeStatusIndicator';
 import { RealTimeValidator } from '@/components/RealTimeValidator';
 import { ChatInterface } from '@/components/ChatInterface';
 import { ToastProvider } from '@/components/ToastProvider';
+import { ProjectFileManager } from '@/components/ProjectFileManager';
+import { AIAssistant } from '@/components/AIAssistant';
+import { CodePreviewPanel } from '@/components/CodePreviewPanel';
+import { TerminalPanel } from '@/components/TerminalPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { 
   Code, 
@@ -35,7 +41,8 @@ import {
   Download,
   MessageSquare,
   Activity,
-  Shield
+  Shield,
+  Terminal as TerminalIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRealTimeValidator } from '@/hooks/useRealTimeValidator';
@@ -78,7 +85,7 @@ const FullIDE = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       validateInfo('IDE heartbeat', new Date().toISOString(), 'FullIDE');
-    }, 30000); // Every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [validateInfo]);
@@ -93,14 +100,12 @@ const FullIDE = () => {
       validateError('API key missing', 'No DeepSeek API key found', 'FullIDE');
     }
 
-    // Load saved project
     const savedProject = localStorage.getItem('ide_project_files');
     if (savedProject) {
       try {
         const parsed = JSON.parse(savedProject);
         setProjectFiles(parsed);
         
-        // Auto-select first file
         const firstFile = findFirstFile(parsed);
         if (firstFile) {
           setSelectedFile(firstFile);
@@ -245,7 +250,6 @@ export default App;`
     
     validateInfo('Code execution started', 'Building application...', 'FullIDE');
     
-    // Simulate build process
     setTimeout(() => {
       setIsBuilding(false);
       setIsRunning(false);
@@ -346,7 +350,6 @@ export default App;`
     };
     reader.readAsText(file);
     
-    // Reset the input
     event.target.value = '';
   };
 
@@ -356,19 +359,13 @@ export default App;`
     validateInfo('Terminal toggled', showTerminal ? 'closed' : 'opened', 'FullIDE');
   };
 
-  const toggleLayout = () => {
-    const newLayout = layout === 'horizontal' ? 'vertical' : 'horizontal';
-    setLayout(newLayout);
-    validateInfo('Layout changed', newLayout, 'FullIDE');
-  };
-
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+      <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
         <Header />
         
         {/* Enhanced IDE Toolbar */}
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2">
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button
@@ -420,6 +417,16 @@ export default App;`
                   </span>
                 </Button>
               </label>
+
+              <Button
+                size="sm"
+                onClick={toggleTerminal}
+                variant="outline"
+                className="border-slate-600"
+              >
+                <TerminalIcon className="w-4 h-4 mr-1" />
+                Terminal
+              </Button>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -451,28 +458,16 @@ export default App;`
             <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
-                  <div className="border-b border-slate-700 p-2">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-8">
+                  <div className="border-b border-slate-700 p-2 flex-shrink-0">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-4">
                       <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
                         <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
                         <Bot className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="generator" className="data-[state=active]:bg-slate-700">
-                        <Brain className="w-4 h-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="analyzer" className="data-[state=active]:bg-slate-700">
-                        <Activity className="w-4 h-4" />
-                      </TabsTrigger>
                       <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
                         <MessageSquare className="w-4 h-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="mcp" className="data-[state=active]:bg-slate-700">
-                        <Server className="w-4 h-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
-                        <Brain className="w-4 h-4" />
                       </TabsTrigger>
                       <TabsTrigger value="validator" className="data-[state=active]:bg-slate-700">
                         <Shield className="w-4 h-4" />
@@ -482,58 +477,23 @@ export default App;`
 
                   <div className="flex-1 overflow-hidden">
                     <TabsContent value="files" className="h-full m-0">
-                      <FileExplorer 
+                      <ProjectFileManager 
+                        files={projectFiles}
+                        onFilesChange={handleProjectChange}
                         onFileSelect={handleFileSelect}
-                        onProjectChange={handleProjectChange}
+                        selectedFileId={selectedFile?.id}
                       />
                     </TabsContent>
 
                     <TabsContent value="ai" className="h-full m-0">
-                      <EnhancedAIChatBot 
-                        projectFiles={projectFiles}
-                        onFilesChange={setProjectFiles}
+                      <AIAssistant 
                         onCodeGenerated={handleCodeGenerated}
-                        apiKey={aiApiKey}
+                        projectContext={projectFiles}
                       />
-                    </TabsContent>
-
-                    <TabsContent value="generator" className="h-full m-0">
-                      <AICodeGenerator onCodeGenerated={() => {}} />
-                    </TabsContent>
-
-                    <TabsContent value="analyzer" className="h-full m-0">
-                      <ProjectAnalyzer />
                     </TabsContent>
 
                     <TabsContent value="chat" className="h-full m-0">
-                      <ChatInterface />
-                    </TabsContent>
-
-                    <TabsContent value="mcp" className="h-full m-0">
-                      <MCPHub 
-                        onServerSelect={(server) => {
-                          console.log('MCP Server selected:', server);
-                          validateInfo('MCP server selected', server.name || 'Unknown server', 'FullIDE');
-                        }}
-                        onToolInvoke={(tool, params) => {
-                          console.log('MCP Tool invoked:', tool, params);
-                          validateInfo('MCP tool invoked', `${tool.name} with params`, 'FullIDE');
-                        }}
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="rag" className="h-full m-0">
-                      <RAGDatabase 
-                        onChunkSelect={(chunk) => {
-                          console.log('Knowledge chunk selected:', chunk);
-                          validateInfo('RAG chunk selected', chunk.content || 'Unknown chunk', 'FullIDE');
-                        }}
-                        onSearch={async (query) => {
-                          console.log('RAG search:', query);
-                          validateInfo('RAG search performed', query, 'FullIDE');
-                          return [];
-                        }}
-                      />
+                      <RealTimeChat />
                     </TabsContent>
 
                     <TabsContent value="validator" className="h-full m-0">
@@ -552,9 +512,9 @@ export default App;`
 
             {/* Main Content Area */}
             <ResizablePanel defaultSize={50}>
-              <ResizablePanelGroup direction={layout === 'horizontal' ? 'horizontal' : 'vertical'}>
+              <ResizablePanelGroup direction="vertical">
                 {/* Editor Panel */}
-                <ResizablePanel defaultSize={50}>
+                <ResizablePanel defaultSize={60}>
                   <div className="h-full">
                     <CodeEditor 
                       onCodeChange={(files) => {
@@ -569,9 +529,14 @@ export default App;`
                 <ResizableHandle withHandle />
 
                 {/* Preview Panel */}
-                <ResizablePanel defaultSize={50}>
+                <ResizablePanel defaultSize={40}>
                   <div className="h-full">
-                    <LivePreview code={previewCode} />
+                    <CodePreviewPanel 
+                      code={previewCode} 
+                      isRunning={isRunning}
+                      onRun={() => handleRunCode(previewCode)}
+                      onStop={() => setIsRunning(false)}
+                    />
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
@@ -581,7 +546,9 @@ export default App;`
 
             {/* Right Panel - Deployment */}
             <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-              <DeploymentManager />
+              <ScrollArea className="h-full">
+                <DeploymentManager />
+              </ScrollArea>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
@@ -589,9 +556,9 @@ export default App;`
         {/* Terminal Overlay */}
         {showTerminal && (
           <div className={`absolute ${terminalMinimized ? 'bottom-4 right-4' : 'bottom-4 left-4 right-4'} z-50`}>
-            <Terminal
-              onClose={() => setShowTerminal(false)}
+            <TerminalPanel
               isMinimized={terminalMinimized}
+              onClose={() => setShowTerminal(false)}
               onToggleMinimize={() => setTerminalMinimized(!terminalMinimized)}
             />
           </div>

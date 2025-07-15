@@ -1,53 +1,57 @@
 
 import { useState, useCallback } from 'react';
 
-export interface ValidationEntry {
+export interface ValidationResult {
   id: string;
   timestamp: Date;
-  type: 'success' | 'error' | 'warning' | 'info'; // Changed from 'level' to 'type'
+  type: 'success' | 'error' | 'warning' | 'info';
   message: string;
-  details?: any;
-  source: string;
-  duration?: number; // Added to match ValidationResult interface
+  details?: string;
+  component?: string;
+  duration?: number;
 }
 
 export const useRealTimeValidator = () => {
-  const [validations, setValidations] = useState<ValidationEntry[]>([]);
+  const [validations, setValidations] = useState<ValidationResult[]>([]);
 
   const addValidation = useCallback((
-    type: ValidationEntry['type'], // Changed from 'level' to 'type'
+    type: ValidationResult['type'],
     message: string,
-    details?: any,
-    source: string = 'System',
+    details?: string,
+    component?: string,
     duration?: number
   ) => {
-    const entry: ValidationEntry = {
-      id: Date.now().toString(),
+    const validation: ValidationResult = {
+      id: `validation-${Date.now()}-${Math.random()}`,
       timestamp: new Date(),
-      type, // Changed from 'level' to 'type'
+      type,
       message,
       details,
-      source,
+      component,
       duration
     };
 
-    setValidations(prev => [entry, ...prev.slice(0, 999)]); // Keep last 1000 entries
+    setValidations(prev => [...prev.slice(-99), validation]); // Keep last 100
+    return validation;
   }, []);
 
-  const validateSuccess = useCallback((message: string, details?: any, source?: string, duration?: number) => {
-    addValidation('success', message, details, source, duration);
+  const validateSuccess = useCallback((message: string, details?: string, component?: string) => {
+    return addValidation('success', message, details, component);
   }, [addValidation]);
 
-  const validateError = useCallback((message: string, details?: any, source?: string) => {
-    addValidation('error', message, details, source);
+  const validateError = useCallback((message: string, details?: any, component?: string) => {
+    const errorDetails = typeof details === 'string' ? details : 
+                        details instanceof Error ? details.message :
+                        details ? JSON.stringify(details) : undefined;
+    return addValidation('error', message, errorDetails, component);
   }, [addValidation]);
 
-  const validateWarning = useCallback((message: string, details?: any, source?: string) => {
-    addValidation('warning', message, details, source);
+  const validateWarning = useCallback((message: string, details?: string, component?: string) => {
+    return addValidation('warning', message, details, component);
   }, [addValidation]);
 
-  const validateInfo = useCallback((message: string, details?: any, source?: string) => {
-    addValidation('info', message, details, source);
+  const validateInfo = useCallback((message: string, details?: string, component?: string) => {
+    return addValidation('info', message, details, component);
   }, [addValidation]);
 
   const clearValidations = useCallback(() => {
@@ -55,12 +59,17 @@ export const useRealTimeValidator = () => {
   }, []);
 
   const exportValidations = useCallback(() => {
-    const data = JSON.stringify(validations, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    const data = {
+      validations,
+      exportedAt: new Date().toISOString(),
+      totalCount: validations.length
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `validation-log-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `validations-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -74,6 +83,7 @@ export const useRealTimeValidator = () => {
     validateWarning,
     validateInfo,
     clearValidations,
-    exportValidations
+    exportValidations,
+    addValidation
   };
 };

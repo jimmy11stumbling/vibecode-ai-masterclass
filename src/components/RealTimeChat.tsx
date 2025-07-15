@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { validateSuccess, validateError, validateInfo, validateWarning } = useRealTimeValidator();
+  const { validateSuccess, validateError, validateInfo } = useRealTimeValidator();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -74,16 +75,13 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
     const startTime = Date.now();
     setIsProcessing(true);
 
-    // Add system message about processing
     const systemMsg = addMessage('system', `Processing "${userMessage}" with ${aiModel}...`, 'processing');
 
     try {
       validateInfo('AI processing started', userMessage, 'RealTimeChat');
 
-      // Simulate AI thinking time
       await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
-      // Simulate AI response
       const responses = [
         'I understand your request. Let me help you with that.',
         'That\'s an interesting question. Here\'s what I think...',
@@ -95,14 +93,12 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
       const response = responses[Math.floor(Math.random() * responses.length)];
       const processingTime = Date.now() - startTime;
 
-      // Update system message to completed
       updateMessage(systemMsg.id, {
         status: 'completed',
         processingTime,
         content: `Processed in ${processingTime}ms`
       });
 
-      // Add AI response
       const aiMsg = addMessage('assistant', response, 'completed');
       updateMessage(aiMsg.id, {
         processingTime,
@@ -127,13 +123,9 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
     const userMessage = input.trim();
     setInput('');
 
-    // Add user message
     addMessage('user', userMessage, 'sent');
-
-    // Trigger callback
     onMessage?.(userMessage);
 
-    // Simulate AI response
     await simulateAIResponse(userMessage);
   };
 
@@ -167,7 +159,6 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
-      {/* Header */}
       <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
         <div className="flex items-center space-x-3">
           <Bot className="w-5 h-5 text-blue-400" />
@@ -190,7 +181,6 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
         </div>
       </div>
 
-      {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         <div className="space-y-4">
           {messages.length === 0 ? (
@@ -250,7 +240,6 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
         </div>
       </ScrollArea>
 
-      {/* Input */}
       <form onSubmit={handleSubmit} className="border-t border-slate-700 p-4">
         <div className="flex items-center space-x-2">
           <Input
