@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,16 +10,18 @@ import {
   Send, 
   Loader2,
   Code,
-  FileText,
-  Zap
+  Zap,
+  Key
 } from 'lucide-react';
+import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  type?: 'text' | 'code' | 'error';
+  type?: 'text' | 'code';
 }
 
 interface AIAssistantProps {
@@ -31,10 +33,20 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   onCodeGenerated,
   projectContext
 }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Hello! I\'m your AI coding assistant. I can help you write code, debug issues, and explain programming concepts. What would you like to work on today?',
+      timestamp: new Date()
+    }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,6 +57,15 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please add your DeepSeek API key to start chatting",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -57,40 +78,67 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: `msg-${Date.now()}-ai`,
+    try {
+      const assistantMessageId = `msg-${Date.now()}-ai`;
+      const assistantMessage: Message = {
+        id: assistantMessageId,
         role: 'assistant',
-        content: generateAIResponse(userMessage.content),
-        timestamp: new Date(),
-        type: userMessage.content.toLowerCase().includes('code') ? 'code' : 'text'
+        content: '',
+        timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, aiResponse]);
-      
-      if (aiResponse.type === 'code' && onCodeGenerated) {
-        onCodeGenerated(aiResponse.content);
+      setMessages(prev => [...prev, assistantMessage]);
+
+      let fullResponse = '';
+
+      await streamChatResponse(
+        [...messages, userMessage],
+        (token) => {
+          fullResponse += token;
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: fullResponse }
+                : msg
+            )
+          );
+        },
+        (stats) => {
+          // Progress updates handled by the hook
+        }
+      );
+
+      // Extract code blocks if any
+      const codeMatch = fullResponse.match(/```(?:javascript|typescript|jsx|tsx)?\n([\s\S]*?)```/);
+      if (codeMatch && onCodeGenerated) {
+        onCodeGenerated(codeMatch[1]);
       }
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages(prev => [...prev, {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please check your API key and try again.',
+        timestamp: new Date()
+      }]);
       
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000 + Math.random() * 2000);
+    }
   };
 
-  const generateAIResponse = (userInput: string): string => {
-    const responses = [
-      "I can help you with that! Let me generate some code for you.",
-      "Here's a solution based on your requirements:",
-      "I understand what you're looking for. Let me create that component.",
-      "Great idea! Here's how we can implement that feature:",
-      "Let me help you build that functionality step by step."
-    ];
-
-    if (userInput.toLowerCase().includes('component')) {
-      return `${responses[Math.floor(Math.random() * responses.length)]}\n\n\`\`\`typescript\nimport React from 'react';\n\nconst MyComponent = () => {\n  return (\n    <div className="p-4">\n      <h2>Generated Component</h2>\n    </div>\n  );\n};\n\nexport default MyComponent;\n\`\`\``;
-    }
-
-    return responses[Math.floor(Math.random() * responses.length)];
+  const handleApiKeyChange = (newKey: string) => {
+    setApiKey(newKey);
+    toast({
+      title: "API Key Updated",
+      description: "Your DeepSeek API key has been saved",
+    });
   };
 
   const getMessageIcon = (message: Message) => {
@@ -106,86 +154,84 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
         <div className="flex items-center space-x-2">
           <Bot className="w-5 h-5 text-green-400" />
           <h3 className="text-sm font-semibold text-white">AI Assistant</h3>
-          <Badge variant="secondary" className="text-xs">
-            Online
+          <Badge variant={apiKey ? "default" : "destructive"} className="text-xs">
+            {apiKey ? 'Connected' : 'No API Key'}
           </Badge>
         </div>
       </div>
 
+      {!apiKey && (
+        <div className="p-3 border-b border-slate-700 bg-slate-800">
+          <div className="flex items-center space-x-2 mb-2">
+            <Key className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm text-white">API Key Required</span>
+          </div>
+          <div className="flex space-x-2">
+            <input
+              type="password"
+              placeholder="Enter your DeepSeek API key..."
+              className="flex-1 px-3 py-1 text-sm bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleApiKeyChange(e.currentTarget.value);
+                  e.currentTarget.value = '';
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                const input = document.querySelector('input[type="password"]') as HTMLInputElement;
+                if (input?.value) {
+                  handleApiKeyChange(input.value);
+                  input.value = '';
+                }
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         <div className="space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-slate-500 py-8">
-              <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <h4 className="text-lg font-medium mb-2">AI Assistant Ready</h4>
-              <p className="text-sm mb-4">Ask me to help you code, debug, or explain concepts!</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Badge variant="outline">React Components</Badge>
-                <Badge variant="outline">TypeScript</Badge>
-                <Badge variant="outline">Debugging</Badge>
-                <Badge variant="outline">Code Review</Badge>
-              </div>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex items-start space-x-3 ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                    {getMessageIcon(message)}
-                  </div>
-                )}
-                
-                <div className={`max-w-[80%] ${
-                  message.role === 'user' ? 'order-2' : 'order-1'
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex items-start space-x-3 ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                  {getMessageIcon(message)}
+                </div>
+              )}
+              
+              <div className={`max-w-[80%] ${
+                message.role === 'user' ? 'order-2' : 'order-1'
+              }`}>
+                <div className={`px-4 py-3 rounded-lg ${
+                  message.role === 'user' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-slate-800 text-slate-100'
                 }`}>
-                  <div className={`px-4 py-3 rounded-lg ${
-                    message.role === 'user' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-slate-800 text-slate-100'
-                  }`}>
-                    {message.type === 'code' ? (
-                      <div>
-                        <div className="flex items-center mb-2">
-                          <Code className="w-4 h-4 mr-2" />
-                          <span className="text-xs font-medium">Generated Code</span>
-                        </div>
-                        <pre className="text-sm bg-slate-900 p-3 rounded overflow-x-auto">
-                          <code>{message.content}</code>
-                        </pre>
-                      </div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    )}
-                    
-                    <div className="flex items-center justify-between mt-2 text-xs opacity-70">
-                      <span>{message.timestamp.toLocaleTimeString()}</span>
-                      {message.type === 'code' && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => onCodeGenerated?.(message.content)}
-                        >
-                          <Zap className="w-3 h-3 mr-1" />
-                          Apply
-                        </Button>
-                      )}
-                    </div>
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  
+                  <div className="flex items-center justify-between mt-2 text-xs opacity-70">
+                    <span>{message.timestamp.toLocaleTimeString()}</span>
                   </div>
                 </div>
-                
-                {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                    {getMessageIcon(message)}
-                  </div>
-                )}
               </div>
-            ))
-          )}
+              
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                  {getMessageIcon(message)}
+                </div>
+              )}
+            </div>
+          ))}
           
           {isLoading && (
             <div className="flex items-start space-x-3">
@@ -204,18 +250,24 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
       </ScrollArea>
 
       <form onSubmit={handleSubmit} className="border-t border-slate-700 p-4">
-        <div className="flex items-center space-x-2">
-          <Input
+        <div className="flex space-x-2">
+          <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask AI to help you code..."
-            className="flex-1 bg-slate-800 border-slate-600 text-white"
-            disabled={isLoading}
+            placeholder={apiKey ? "Ask AI to help you code..." : "Add API key first..."}
+            className="flex-1 bg-slate-800 border-slate-600 text-white min-h-[60px] resize-none"
+            disabled={!apiKey || isLoading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
           />
           <Button
             type="submit"
             size="sm"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || !apiKey || isLoading}
             className="bg-green-600 hover:bg-green-700"
           >
             {isLoading ? (
@@ -224,6 +276,20 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
               <Send className="w-4 h-4" />
             )}
           </Button>
+        </div>
+        
+        <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
+          <span>Press Shift + Enter for new line</span>
+          <div className="flex items-center space-x-2">
+            {streamingStats.status === 'streaming' && (
+              <span className="text-blue-400">
+                {streamingStats.tokensReceived} tokens received
+              </span>
+            )}
+            <div className={`w-2 h-2 rounded-full ${
+              apiKey ? 'bg-green-500' : 'bg-red-500'
+            }`} />
+          </div>
         </div>
       </form>
     </div>
