@@ -31,7 +31,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="p-4 border-t border-slate-700">
+    <div className="p-4 border-t border-slate-700 bg-slate-900 flex-shrink-0">
       <form onSubmit={onSubmit} className="space-y-3">
         <div className="relative">
           <Textarea
@@ -39,7 +39,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="min-h-[60px] bg-slate-800 border-slate-600 text-white pr-20 resize-none"
+            className="min-h-[60px] max-h-[120px] bg-slate-800 border-slate-600 text-white pr-20 resize-none placeholder:text-slate-400"
             disabled={disabled}
           />
           

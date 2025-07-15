@@ -8,21 +8,31 @@ interface MessageInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
   disabled = false,
-  placeholder = "Type your message..."
+  placeholder = "Type your message...",
+  value: controlledValue,
+  onChange: controlledOnChange
 }) => {
-  const [message, setMessage] = useState('');
+  const [internalMessage, setInternalMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+
+  // Use controlled or uncontrolled state
+  const message = controlledValue !== undefined ? controlledValue : internalMessage;
+  const setMessage = controlledOnChange || setInternalMessage;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
       onSendMessage(message.trim());
-      setMessage('');
+      if (controlledValue === undefined) {
+        setInternalMessage('');
+      }
     }
   };
 
@@ -47,7 +57,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-white/10 p-4">
+    <form onSubmit={handleSubmit} className="border-t border-slate-700 p-4">
       <div className="flex items-end space-x-2">
         <div className="flex-1 relative">
           <Textarea
@@ -56,7 +66,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="min-h-[60px] max-h-[200px] bg-white/10 border-white/20 text-white placeholder:text-white/50 resize-none pr-20"
+            className="min-h-[60px] max-h-[200px] bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 resize-none pr-20"
           />
           
           {/* Input Actions */}
@@ -66,7 +76,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               size="sm"
               variant="ghost"
               onClick={handleEmojiClick}
-              className="h-6 w-6 p-0 text-white/50 hover:text-white"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white"
             >
               <Smile className="w-4 h-4" />
             </Button>
@@ -76,7 +86,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               size="sm"
               variant="ghost"
               onClick={handleAttachment}
-              className="h-6 w-6 p-0 text-white/50 hover:text-white"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white"
             >
               <Paperclip className="w-4 h-4" />
             </Button>
@@ -89,7 +99,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               className={`h-6 w-6 p-0 ${
                 isRecording 
                   ? 'text-red-400 hover:text-red-300' 
-                  : 'text-white/50 hover:text-white'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               {isRecording ? (
@@ -111,7 +121,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </Button>
       </div>
       
-      <div className="flex items-center justify-between mt-2 text-xs text-white/50">
+      <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
         <span>Press Shift + Enter for new line</span>
         <span>{message.length}/2000</span>
       </div>

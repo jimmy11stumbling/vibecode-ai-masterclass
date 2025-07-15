@@ -1,11 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Send, 
   Bot, 
   User, 
   Zap, 
@@ -17,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { useToast } from '@/hooks/use-toast';
+import { ChatInput } from './ChatInput';
 
 interface Message {
   id: string;
@@ -189,6 +187,7 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
+      {/* Header */}
       <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
         <div className="flex items-center space-x-3">
           <Bot className="w-5 h-5 text-blue-400" />
@@ -229,22 +228,23 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
                 }
               }}
             />
-            <Button
-              size="sm"
+            <button
               onClick={() => {
-                const input = document.querySelector('input[type="password"]') as HTMLInputElement;
-                if (input?.value) {
-                  handleApiKeyChange(input.value);
-                  input.value = '';
+                const inputEl = document.querySelector('input[type="password"]') as HTMLInputElement;
+                if (inputEl?.value) {
+                  handleApiKeyChange(inputEl.value);
+                  inputEl.value = '';
                 }
               }}
+              className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
             >
               Save
-            </Button>
+            </button>
           </div>
         </div>
       )}
 
+      {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         <div className="space-y-4">
           {messages.map((message) => (
@@ -297,31 +297,15 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="border-t border-slate-700 p-4">
-        <div className="flex items-center space-x-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={apiKey ? "Type your message..." : "Add API key first..."}
-            className="flex-1 bg-slate-800 border-slate-600 text-white"
-            disabled={!apiKey || isProcessing}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!input.trim() || !apiKey || isProcessing}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {streamingStats.status === 'streaming' && (
-          <div className="mt-2 text-xs text-blue-400">
-            Streaming: {streamingStats.tokensReceived} tokens received
-          </div>
-        )}
-      </form>
+      {/* Chat Input */}
+      <ChatInput
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSubmit}
+        disabled={!apiKey || isProcessing}
+        apiKey={apiKey}
+        placeholder="Type your message..."
+      />
     </div>
   );
 };

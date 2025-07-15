@@ -1,13 +1,14 @@
+
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Code, Database, Trash2, RefreshCw, Download, Zap, Brain } from 'lucide-react';
+import { Code, Database, Brain, Zap } from 'lucide-react';
 import { AICodeGenerator } from '@/services/aiCodeGenerator';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { RealTimeProgress } from './RealTimeProgress';
 import { TypingIndicator } from './TypingIndicator';
+import { ChatInput } from './ChatInput';
 
 interface ProjectFile {
   id: string;
@@ -304,52 +305,15 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-700">
-        <div className="flex space-x-2">
-          <Textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
-            className="flex-1 bg-slate-800 border-slate-600 text-white min-h-[60px] resize-none"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button
-            type="submit"
-            disabled={!inputValue.trim() || isProcessing || !apiKey}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {!apiKey && (
-          <p className="text-xs text-slate-400 mt-2">
-            Add your DeepSeek API key to enable sovereign AI capabilities
-          </p>
-        )}
-        
-        <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
-          <span>Press Shift + Enter for new line</span>
-          <span className="flex items-center">
-            <div className={`w-2 h-2 rounded-full mr-2 ${
-              streamingStats.status === 'streaming' ? 'bg-blue-500 animate-pulse' :
-              streamingStats.status === 'complete' ? 'bg-green-500' :
-              streamingStats.status === 'error' ? 'bg-red-500' :
-              apiKey ? 'bg-green-500' : 'bg-red-500'
-            }`} />
-            {streamingStats.status === 'streaming' ? 'Sovereign AI Active' :
-             streamingStats.status === 'complete' ? 'Task Complete' :
-             streamingStats.status === 'error' ? 'Processing Error' :
-             apiKey ? 'Ready for Sovereign AI' : 'API Key Required'}
-          </span>
-        </div>
-      </form>
+      {/* Chat Input */}
+      <ChatInput
+        value={inputValue}
+        onChange={setInputValue}
+        onSubmit={handleSubmit}
+        disabled={isProcessing || !apiKey}
+        apiKey={apiKey}
+        placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
+      />
     </div>
   );
 };
