@@ -87,7 +87,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
     ];
 
     if (userInput.toLowerCase().includes('component')) {
-      return `${responses[Math.floor(Math.random() * responses.length)]\n\n\`\`\`typescript\nimport React from 'react';\n\nconst MyComponent = () => {\n  return (\n    <div className="p-4">\n      <h2>Generated Component</h2>\n    </div>\n  );\n};\n\nexport default MyComponent;\n\`\`\``;
+      return `${responses[Math.floor(Math.random() * responses.length)]}\n\n\`\`\`typescript\nimport React from 'react';\n\nconst MyComponent = () => {\n  return (\n    <div className="p-4">\n      <h2>Generated Component</h2>\n    </div>\n  );\n};\n\nexport default MyComponent;\n\`\`\``;
     }
 
     return responses[Math.floor(Math.random() * responses.length)];
