@@ -1,18 +1,19 @@
 
 import React, { useState } from 'react';
-import { Play, CheckCircle, Circle, ArrowRight, ArrowLeft, BookOpen, Target, Lightbulb } from 'lucide-react';
+import { Play, CheckCircle, Circle, ArrowRight, ArrowLeft, BookOpen, Target, Lightbulb, Code, Zap, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface TutorialStep {
   id: number;
   title: string;
   description: string;
   content: string;
-  videoUrl?: string;
   completed: boolean;
   duration: string;
+  icon: React.ReactNode;
 }
 
 export const Tutorial: React.FC = () => {
@@ -20,43 +21,39 @@ export const Tutorial: React.FC = () => {
   const [steps, setSteps] = useState<TutorialStep[]>([
     {
       id: 1,
-      title: "Welcome to Vibecode",
-      description: "Get started with your coding journey",
-      content: "Welcome to Vibecode AI! This platform helps you master prompt engineering and full-stack development. In this tutorial, you'll learn how to navigate the interface, use the AI chat, and build your first project.",
+      title: "Welcome to AI Development",
+      description: "Get started with your AI-powered coding journey",
+      content: "Welcome to the next generation of development! This platform combines AI assistance with full-stack development capabilities. You'll learn how to use natural language to build applications, leverage AI for code generation, and create sophisticated web applications without traditional coding barriers.",
       completed: false,
-      duration: "2 min"
+      duration: "3 min",
+      icon: <Lightbulb className="w-4 h-4" />
     },
     {
       id: 2,
       title: "AI Chat Interface",
-      description: "Learn to communicate with AI effectively",
-      content: "The AI chat is your main tool for learning. You can ask questions, request code examples, and get explanations. Try using specific prompts like 'Create a React component for a user profile' to get better results.",
+      description: "Master AI-driven development communication",
+      content: "The AI chat is your primary development tool. Use specific, detailed prompts like 'Create a React dashboard with user authentication and data visualization' to get better results. The AI can generate complete applications, debug issues, and even refactor existing code.",
       completed: false,
-      duration: "3 min"
+      duration: "4 min",
+      icon: <Brain className="w-4 h-4" />
     },
     {
       id: 3,
-      title: "Code Editor Basics",
-      description: "Master the integrated development environment",
-      content: "The code editor supports multiple files, syntax highlighting, and real-time preview. You can run your code, see the output, and make changes instantly. Use the tabs to switch between files.",
+      title: "Code Generation & Preview",
+      description: "See your ideas come to life instantly",
+      content: "Watch as your natural language descriptions transform into working code. The integrated preview shows real-time results, and you can iterate quickly by refining your requests. The AI handles everything from component creation to styling and functionality.",
       completed: false,
-      duration: "4 min"
+      duration: "5 min",
+      icon: <Code className="w-4 h-4" />
     },
     {
       id: 4,
-      title: "Building Your First Component",
-      description: "Create and customize React components",
-      content: "Let's build a simple React component together. We'll create a button component with props, styling, and interactive features. This will teach you the basics of component architecture.",
+      title: "Advanced AI Features",
+      description: "Leverage cutting-edge AI capabilities",
+      content: "Explore advanced features like automatic API integration, database schema generation, and intelligent code optimization. The AI can connect to external services, create complex workflows, and even handle deployment configurations.",
       completed: false,
-      duration: "5 min"
-    },
-    {
-      id: 5,
-      title: "Project Management",
-      description: "Organize and structure your projects",
-      content: "Learn how to organize your files, create folders, and manage project structure. Good organization is key to maintaining large applications and collaborating with others.",
-      completed: false,
-      duration: "3 min"
+      duration: "6 min",
+      icon: <Zap className="w-4 h-4" />
     }
   ]);
 
@@ -70,6 +67,8 @@ export const Tutorial: React.FC = () => {
     if (currentStep < steps.length - 1) {
       completeStep(currentStep);
       setCurrentStep(currentStep + 1);
+    } else {
+      completeStep(currentStep);
     }
   };
 
@@ -90,11 +89,11 @@ export const Tutorial: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20">
       {/* Header */}
-      <div className="p-6 border-b border-white/10">
+      <div className="p-6 border-b border-white/10 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <BookOpen className="w-6 h-6 text-purple-400" />
-            <h2 className="text-xl font-semibold text-white">Getting Started Tutorial</h2>
+            <h2 className="text-xl font-semibold text-white">AI Development Tutorial</h2>
           </div>
           <Badge variant="secondary" className="bg-green-500/20 text-green-400">
             {completedSteps}/{steps.length} Complete
@@ -110,102 +109,101 @@ export const Tutorial: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Step Navigation */}
-        <div className="w-80 border-r border-white/10 p-4">
-          <h3 className="text-sm font-medium text-white mb-4">Tutorial Steps</h3>
-          <div className="space-y-2">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                onClick={() => goToStep(index)}
-                className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                  currentStep === index
-                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/50'
-                    : 'bg-white/5 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    {step.completed ? (
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                    ) : currentStep === index ? (
-                      <Play className="w-5 h-5 text-blue-400" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-gray-500" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-white truncate">
-                        {step.title}
-                      </h4>
-                      <span className="text-xs text-gray-400 ml-2">
-                        {step.duration}
-                      </span>
+        <div className="w-80 border-r border-white/10 flex-shrink-0">
+          <ScrollArea className="h-full p-4">
+            <h3 className="text-sm font-medium text-white mb-4">Tutorial Steps</h3>
+            <div className="space-y-2">
+              {steps.map((step, index) => (
+                <div
+                  key={step.id}
+                  onClick={() => goToStep(index)}
+                  className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                    currentStep === index
+                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/50'
+                      : 'bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {step.completed ? (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      ) : currentStep === index ? (
+                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                          {step.icon}
+                        </div>
+                      ) : (
+                        <Circle className="w-5 h-5 text-gray-500" />
+                      )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                      {step.description}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-white truncate">
+                          {step.title}
+                        </h4>
+                        <span className="text-xs text-gray-400 ml-2">
+                          {step.duration}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Step Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1">
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Target className="w-5 h-5 text-purple-400" />
+                  <span className="text-sm text-gray-400">Step {currentStep + 1} of {steps.length}</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white mb-2">
+                  {currentStepData.title}
+                </h1>
+                <p className="text-gray-300 mb-6">
+                  {currentStepData.description}
+                </p>
+              </div>
+
+              <div className="bg-white/5 rounded-xl p-6">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    {currentStepData.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-medium text-white mb-3">What you'll learn</h3>
+                    <p className="text-gray-300 leading-relaxed">
+                      {currentStepData.content}
                     </p>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Step Content */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 p-6">
-            <div className="mb-6">
-              <div className="flex items-center space-x-2 mb-2">
-                <Target className="w-5 h-5 text-purple-400" />
-                <span className="text-sm text-gray-400">Step {currentStep + 1} of {steps.length}</span>
+              {/* Interactive Example */}
+              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/20 mt-6">
+                <h3 className="text-lg font-medium text-white mb-3">Try it yourself</h3>
+                <p className="text-gray-300 mb-4">
+                  Ready to practice? Use the AI chat on the right to start building your first AI-powered application.
+                </p>
+                <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Building
+                </Button>
               </div>
-              <h1 className="text-2xl font-bold text-white mb-2">
-                {currentStepData.title}
-              </h1>
-              <p className="text-gray-300 mb-6">
-                {currentStepData.description}
-              </p>
             </div>
-
-            <div className="bg-white/5 rounded-xl p-6 mb-6">
-              <div className="flex items-start space-x-3 mb-4">
-                <Lightbulb className="w-5 h-5 text-yellow-400 mt-0.5" />
-                <div>
-                  <h3 className="text-lg font-medium text-white mb-2">What you'll learn</h3>
-                  <p className="text-gray-300 leading-relaxed">
-                    {currentStepData.content}
-                  </p>
-                </div>
-              </div>
-
-              {currentStepData.videoUrl && (
-                <div className="mt-4 bg-gray-900/50 rounded-lg p-4">
-                  <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-                    <Play className="w-12 h-12 text-white" />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">Video tutorial coming soon</p>
-                </div>
-              )}
-            </div>
-
-            {/* Interactive Example */}
-            <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/20">
-              <h3 className="text-lg font-medium text-white mb-3">Try it yourself</h3>
-              <p className="text-gray-300 mb-4">
-                Click the button below to practice what you've learned in this step.
-              </p>
-              <Button className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-                <Play className="w-4 h-4 mr-2" />
-                Start Practice
-              </Button>
-            </div>
-          </div>
+          </ScrollArea>
 
           {/* Navigation */}
-          <div className="p-6 border-t border-white/10">
+          <div className="p-6 border-t border-white/10 flex-shrink-0">
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
@@ -229,7 +227,6 @@ export const Tutorial: React.FC = () => {
 
                 <Button
                   onClick={nextStep}
-                  disabled={currentStep === steps.length - 1}
                   className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
                 >
                   {currentStep === steps.length - 1 ? 'Finish' : 'Next'}

@@ -1,34 +1,28 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageList } from './MessageList';
-import { MessageInput } from './MessageInput';
-import { PromptBuilder } from './PromptBuilder';
-import { CodePreview } from './CodePreview';
-import { ApiKeyInput } from './ApiKeyInput';
-import { TypingIndicator } from './TypingIndicator';
-import { RealTimeProgress } from './RealTimeProgress';
-import { ConsoleLogger } from './ConsoleLogger';
-import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
-import { useConsoleLogger } from '@/hooks/useConsoleLogger';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Send, Bot, User, Sparkles, Code, Database, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Terminal } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
+import { ApiKeyInput } from '@/components/ApiKeyInput';
+import { ConsoleLogger } from '@/components/ConsoleLogger';
+import { useConsoleLogger } from '@/hooks/useConsoleLogger';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  code?: string;
-  language?: string;
 }
 
-interface CodeBlock {
+interface ProjectFile {
   id: string;
-  language: string;
-  code: string;
-  filename?: string;
-  description?: string;
+  name: string;
+  type: 'file' | 'folder';
+  content?: string;
+  children?: ProjectFile[];
 }
 
 export const ChatInterface = () => {
@@ -36,219 +30,243 @@ export const ChatInterface = () => {
     {
       id: '1',
       role: 'assistant',
-      content: "Welcome to Vibecode AI! I'm here to help you master prompt engineering for full-stack development. Let's start with a simple React component. What would you like to build?",
+      content: 'Welcome to the AI Development Environment! I\'m here to help you build amazing applications using natural language. You can:\n\n• Create React components and full applications\n• Generate and modify code in real-time\n• Integrate with databases and APIs\n• Build responsive UIs with Tailwind CSS\n• Debug and optimize your code\n\nWhat would you like to build today?',
       timestamp: new Date(),
-    }
+    },
   ]);
+  
+  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat');
-  const [showConsole, setShowConsole] = useState(false);
-  const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
-  const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
-  const { logs, logInfo, logError, logWarn, clearLogs, exportLogs } = useConsoleLogger();
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [apiKey, setApiKey] = useState('');
+  const [activeView, setActiveView] = useState<'chat' | 'console'>('chat');
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { logs, logInfo, logError, clearLogs } = useConsoleLogger();
 
-  // Log real-time validation info
   useEffect(() => {
-    console.log('Real-time streaming stats updated:', streamingStats);
-    logInfo('Streaming stats updated', streamingStats, 'ChatInterface');
-  }, [streamingStats, logInfo]);
-
-  const extractCodeFromMessage = (content: string): CodeBlock[] => {
-    const codeBlocks: CodeBlock[] = [];
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    let match;
-    let blockId = 1;
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const language = match[1] || 'text';
-      const code = match[2].trim();
-      
-      if (code) {
-        codeBlocks.push({
-          id: `code-${Date.now()}-${blockId}`,
-          language,
-          code,
-          filename: `code.${language}`,
-          description: `Generated ${language} code`
-        });
-        blockId++;
-      }
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+  }, [messages]);
 
-    return codeBlocks;
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
 
-  const handleSendMessage = async (content: string) => {
-    console.log('User message sent:', content);
-    logInfo('User message sent', { content }, 'ChatInterface');
-    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content,
+      content: inputValue,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
     setIsLoading(true);
 
-    const assistantMessageId = (Date.now() + 1).toString();
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-    };
+    // Log the user message
+    logInfo(`User: ${inputValue}`, undefined, 'Chat Interface');
 
-    setMessages(prev => [...prev, assistantMessage]);
+    // Simulate AI response
+    setTimeout(() => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `I understand you want to work on: "${inputValue}". Let me help you with that! This is a simulated response - connect your API key to enable full AI functionality.`,
+        timestamp: new Date(),
+      };
 
-    try {
-      const conversationMessages = [...messages, userMessage];
-      
-      console.log('Starting real-time response streaming...');
-      logInfo('Starting real-time response streaming', {}, 'ChatInterface');
-      
-      let fullResponse = '';
-      
-      await streamChatResponse(
-        conversationMessages, 
-        (token: string) => {
-          console.log('Real-time token received:', token);
-          fullResponse += token;
-          setMessages(prev => {
-            const updated = prev.map(msg => 
-              msg.id === assistantMessageId 
-                ? { ...msg, content: msg.content + token }
-                : msg
-            );
-            return updated;
-          });
-        },
-        (stats) => {
-          console.log('Real-time progress update:', stats);
-          logInfo('Real-time progress update', stats, 'ChatInterface');
-        }
-      );
-      
-      // Extract code blocks from the complete response
-      const extractedCodeBlocks = extractCodeFromMessage(fullResponse);
-      if (extractedCodeBlocks.length > 0) {
-        setCodeBlocks(prev => [...prev, ...extractedCodeBlocks]);
-        logInfo('Code blocks extracted', { count: extractedCodeBlocks.length }, 'ChatInterface');
-      }
-      
-      console.log('Real-time response completed successfully');
-      logInfo('Real-time response completed successfully', {}, 'ChatInterface');
-    } catch (error) {
-      console.error('Real-time response error:', error);
-      logError('Real-time response error', error, 'ChatInterface');
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, content: `Error: ${error instanceof Error ? error.message : 'Failed to get response from DeepSeek API'}` }
-            : msg
-        )
-      );
-    } finally {
+      setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
-    }
+      
+      logInfo('AI response generated', undefined, 'Chat Interface');
+    }, 1000);
   };
 
-  const handleRunCode = async (code: string, language: string) => {
-    logInfo('Code execution requested', { language, codeLength: code.length }, 'ChatInterface');
-    // Code execution logic would be implemented here
-    console.log('Executing code:', { language, code: code.substring(0, 100) + '...' });
+  const handleFilesChange = (files: ProjectFile[]) => {
+    setProjectFiles(files);
+    logInfo(`Project files updated: ${files.length} files`, undefined, 'File Manager');
   };
+
+  const quickActions = [
+    {
+      label: 'Create React App',
+      prompt: 'Create a modern React application with routing, state management, and responsive design',
+      icon: Code,
+      color: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    },
+    {
+      label: 'Database Setup',
+      prompt: 'Set up a database schema with user authentication and data models',
+      icon: Database,
+      color: 'bg-green-500/20 text-green-400 border-green-500/30'
+    },
+    {
+      label: 'API Integration',
+      prompt: 'Create API endpoints and integrate with external services',
+      icon: Zap,
+      color: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+    }
+  ];
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 h-full flex flex-col relative">
-      <ApiKeyInput onApiKeySet={setApiKey} />
-      
-      {/* Real-time Progress Indicator */}
-      <div className="px-6 py-2">
-        <RealTimeProgress
-          isStreaming={isLoading}
-          tokensReceived={streamingStats.tokensReceived}
-          responseTime={streamingStats.responseTime}
-          status={streamingStats.status}
-        />
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="border-b border-white/10 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20">
-              <TabsTrigger value="chat" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-                Chat
-              </TabsTrigger>
-              <TabsTrigger value="builder" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-                Prompt Builder
-              </TabsTrigger>
-              <TabsTrigger value="preview" className="data-[state=active]:bg-white/20 data-[state=active]:text-white">
-                Code Preview
-              </TabsTrigger>
-            </TabsList>
-            
+    <div className="h-full flex flex-col bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20">
+      {/* Header */}
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Bot className="w-6 h-6 text-purple-400" />
+            <h2 className="text-xl font-semibold text-white">AI Development Assistant</h2>
+            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+              <Sparkles className="w-3 h-3 mr-1" />
+              Active
+            </Badge>
+          </div>
+          
+          <div className="flex items-center space-x-2">
             <Button
+              variant={activeView === 'chat' ? 'default' : 'ghost'}
+              onClick={() => setActiveView('chat')}
               size="sm"
-              variant="ghost"
-              onClick={() => setShowConsole(!showConsole)}
-              className="text-white/70 hover:text-white"
+              className={activeView === 'chat' ? 'bg-purple-500/20 text-purple-300' : 'text-gray-400'}
             >
-              <Terminal className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            <Button
+              variant={activeView === 'console' ? 'default' : 'ghost'}
+              onClick={() => setActiveView('console')}
+              size="sm"
+              className={activeView === 'console' ? 'bg-purple-500/20 text-purple-300' : 'text-gray-400'}
+            >
               Console
             </Button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value="chat" className="h-full m-0 flex flex-col">
-            <MessageList 
-              messages={messages} 
-              isLoading={isLoading} 
-            />
-            
-            {/* Typing Indicator */}
-            {isLoading && (
-              <div className="px-4 pb-2">
-                <TypingIndicator 
-                  isVisible={isLoading}
-                  typingText={`AI is generating response... (${streamingStats.tokensReceived} tokens)`}
-                  variant="pulse"
-                />
+        {/* API Key Input */}
+        <ApiKeyInput onApiKeyChange={setApiKey} />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {quickActions.map((action, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              onClick={() => setInputValue(action.prompt)}
+              className={`text-xs justify-start h-auto p-3 ${action.color}`}
+            >
+              <action.icon className="w-4 h-4 mr-2" />
+              <div className="text-left">
+                <div className="font-medium">{action.label}</div>
               </div>
-            )}
-            
-            <MessageInput 
-              onSendMessage={handleSendMessage}
-              disabled={isLoading}
-              placeholder="Describe what you want to build..."
-            />
-          </TabsContent>
-
-          <TabsContent value="builder" className="h-full m-0">
-            <PromptBuilder />
-          </TabsContent>
-
-          <TabsContent value="preview" className="h-full m-0">
-            <CodePreview 
-              codeBlocks={codeBlocks}
-              onRunCode={handleRunCode}
-            />
-          </TabsContent>
+            </Button>
+          ))}
         </div>
-      </Tabs>
+      </div>
 
-      {/* Real-time Console Logger */}
-      {showConsole && (
-        <div className="absolute bottom-0 left-0 right-0 h-96 bg-slate-900 border-t border-white/20 rounded-b-2xl overflow-hidden">
-          <ConsoleLogger 
-            logs={logs}
-            onClear={clearLogs}
-            onExport={exportLogs}
-          />
-        </div>
-      )}
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeView === 'chat' ? (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="p-4 space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] p-4 rounded-lg ${
+                          message.role === 'user'
+                            ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30'
+                            : 'bg-white/10 text-gray-100 border border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-start space-x-2">
+                          <div className="flex-shrink-0 mt-1">
+                            {message.role === 'user' ? (
+                              <User className="w-4 h-4" />
+                            ) : (
+                              <Bot className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                            <div className="text-xs opacity-70 mt-2">
+                              {message.timestamp.toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white/10 text-gray-100 border border-white/20 p-4 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Bot className="w-4 h-4" />
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Input Form */}
+            <div className="p-4 border-t border-white/10 flex-shrink-0">
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <Textarea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Describe what you want to build... Be specific for better results!"
+                  className="min-h-[80px] bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e as any);
+                    }
+                  }}
+                />
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-400">
+                    Press Enter to send, Shift+Enter for new line
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={!inputValue.trim() || isLoading}
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="h-full">
+            <ConsoleLogger 
+              logs={logs} 
+              onClear={clearLogs}
+              title="Development Console"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

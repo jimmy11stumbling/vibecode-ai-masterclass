@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Code, Database, Brain, Zap } from 'lucide-react';
+import { Code, Database, Brain, Zap, Sparkles } from 'lucide-react';
 import { AICodeGenerator } from '@/services/aiCodeGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
@@ -47,7 +47,7 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m your Sovereign AI Development Assistant powered by DeepSeek Reasoner with real-time streaming and RAG 2.0 integration. I can:\n\n• Create and modify React components with live updates\n• Execute complex reasoning tasks\n• Generate CRUD operations in real-time\n• Integrate with MCP servers and tools\n• Access knowledge from RAG database\n• Handle full-stack development\n\nWhat would you like to build today?',
+      content: 'Hello! I\'m your Enhanced AI Development Assistant with advanced capabilities:\n\n• Real-time code generation and modification\n• Full-stack application scaffolding\n• Database schema design and optimization\n• API integration and testing\n• Advanced reasoning and problem solving\n• Multi-file project management\n\nI can help you build complete applications from natural language descriptions. What would you like to create?',
       timestamp: new Date()
     }
   ]);
@@ -66,46 +66,9 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     }
   }, [messages]);
 
-  const flattenFiles = (files: ProjectFile[]): Array<{name: string; content: string; type: string}> => {
-    const result: Array<{name: string; content: string; type: string}> = [];
-    
-    const traverse = (fileList: ProjectFile[], path = '') => {
-      fileList.forEach(file => {
-        const fullPath = path ? `${path}/${file.name}` : file.name;
-        
-        if (file.type === 'file' && file.content) {
-          result.push({
-            name: fullPath,
-            content: file.content,
-            type: getFileType(file.name)
-          });
-        }
-        
-        if (file.children) {
-          traverse(file.children, fullPath);
-        }
-      });
-    };
-    
-    traverse(files);
-    return result;
-  };
-
-  const getFileType = (filename: string): string => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'tsx': case 'jsx': return 'component';
-      case 'ts': case 'js': return 'script';
-      case 'css': return 'styles';
-      case 'json': return 'config';
-      case 'md': return 'documentation';
-      default: return 'file';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !apiKey) return;
+    if (!inputValue.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -130,20 +93,41 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
+      if (!apiKey) {
+        // Simulated response when no API key is provided
+        setTimeout(() => {
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { 
+                    ...msg, 
+                    content: `I understand you want to work on: "${inputValue}"\n\nTo enable full AI functionality, please provide your OpenAI API key in the settings above. Once connected, I can:\n\n• Generate complete React applications\n• Create database schemas\n• Integrate APIs and external services\n• Debug and optimize code\n• Provide real-time assistance\n\nFor now, I can provide guidance and suggestions based on your request.` 
+                  }
+                : msg
+            )
+          );
+          setIsProcessing(false);
+        }, 1500);
+        return;
+      }
+
       const projectContext = {
-        files: flattenFiles(projectFiles),
+        files: projectFiles.map(file => ({
+          name: file.name,
+          content: file.content || '',
+          type: file.type
+        })),
         framework: 'React',
         database: 'Supabase',
-        features: ['TypeScript', 'Tailwind CSS', 'MCP Integration', 'RAG 2.0'],
-        mcpServers: ['deepseek-reasoner', 'rag-database', 'code-executor'],
-        ragEnabled: true
+        features: ['TypeScript', 'Tailwind CSS'],
+        capabilities: ['Real-time streaming', 'Code generation', 'Multi-file editing']
       };
 
-      console.log('Starting sovereign AI processing with deepseek-reasoner:', { prompt: inputValue, projectContext });
+      console.log('Starting enhanced AI processing:', { prompt: inputValue, projectContext });
 
-      // Use real-time streaming with enhanced reasoning
+      // Use real-time streaming
       await streamChatResponse(
-        [...messages, userMessage],
+        [...messages.slice(0, -1), userMessage],
         (token: string) => {
           setMessages(prev => 
             prev.map(msg => 
@@ -154,13 +138,12 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           );
         },
         (stats) => {
-          console.log('Real-time sovereign processing:', stats);
+          console.log('Real-time processing stats:', stats);
         }
       );
 
-      // Enhanced AI code generation with MCP integration
-      const finalMessage = messages.find(m => m.id === assistantMessageId);
-      if (finalMessage?.content && aiGenerator) {
+      // Enhanced AI code generation
+      if (aiGenerator) {
         try {
           const result = await aiGenerator.generateCode({
             prompt: inputValue,
@@ -169,34 +152,52 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           });
 
           if (result.success && result.files.length > 0) {
-            if ((window as any).applyFileChanges) {
-              console.log('Applying sovereign code changes:', result.files);
-              (window as any).applyFileChanges(result.files);
-              
-              toast({
-                title: "Sovereign AI Code Generated",
-                description: `Created/updated ${result.files.length} file(s) with deepseek-reasoner`,
-              });
+            // Update the assistant message with code changes
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { 
+                      ...msg, 
+                      codeChanges: result.files.map(file => ({
+                        path: file.path,
+                        operation: 'create' as const,
+                        content: file.content
+                      }))
+                    }
+                  : msg
+              )
+            );
+
+            if (onCodeGenerated) {
+              onCodeGenerated(result.files[0]?.content || '');
             }
+            
+            toast({
+              title: "Code Generated Successfully",
+              description: `Created ${result.files.length} file(s) with enhanced AI`,
+            });
           }
         } catch (codeGenError) {
-          console.log('Advanced code generation completed, streaming succeeded:', codeGenError);
+          console.log('Code generation completed with streaming:', codeGenError);
         }
       }
 
     } catch (error) {
-      console.error('Sovereign AI processing error:', error);
+      console.error('Enhanced AI processing error:', error);
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantMessageId 
-            ? { ...msg, content: `I encountered an error during processing: ${error instanceof Error ? error.message : 'Unknown error'}. Let me try a different approach.` }
+            ? { 
+                ...msg, 
+                content: `I encountered an error while processing your request: ${error instanceof Error ? error.message : 'Unknown error'}. Let me try a different approach.` 
+              }
             : msg
         )
       );
       
       toast({
         title: "Processing Error",
-        description: error instanceof Error ? error.message : 'Sovereign AI processing failed',
+        description: error instanceof Error ? error.message : 'AI processing failed',
         variant: "destructive"
       });
     } finally {
@@ -207,23 +208,27 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   const quickActions = [
     {
       label: 'Create Component',
-      prompt: 'Create a new React component with TypeScript, proper styling, and full functionality',
-      icon: Code
+      prompt: 'Create a modern React component with TypeScript, proper styling, and full functionality',
+      icon: Code,
+      gradient: 'from-blue-500 to-cyan-500'
     },
     {
-      label: 'Reasoning Task',
-      prompt: 'Analyze the codebase and suggest architectural improvements using deepseek-reasoner',
-      icon: Brain
+      label: 'Advanced Reasoning',
+      prompt: 'Analyze the current codebase and suggest architectural improvements with detailed explanations',
+      icon: Brain,
+      gradient: 'from-purple-500 to-pink-500'
     },
     {
-      label: 'RAG Query',
-      prompt: 'Search the knowledge base for relevant information and apply it to the current project',
-      icon: Database
+      label: 'Database Design',
+      prompt: 'Design a comprehensive database schema with relationships, indexes, and optimization',
+      icon: Database,
+      gradient: 'from-green-500 to-emerald-500'
     },
     {
-      label: 'MCP Integration',
-      prompt: 'Integrate with MCP servers and tools for enhanced functionality',
-      icon: Zap
+      label: 'Full-Stack App',
+      prompt: 'Create a complete full-stack application with authentication, database, and modern UI',
+      icon: Zap,
+      gradient: 'from-orange-500 to-red-500'
     }
   ];
 
@@ -231,8 +236,18 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
     <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-700 flex-shrink-0">
-        <h3 className="font-semibold text-white">Sovereign AI Assistant</h3>
-        <p className="text-sm text-slate-400">DeepSeek Reasoner • RAG 2.0 • MCP Integration</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-white flex items-center">
+              <Sparkles className="w-5 h-5 mr-2 text-purple-400" />
+              Enhanced AI Assistant
+            </h3>
+            <p className="text-sm text-slate-400">Advanced reasoning • Real-time streaming • Multi-file editing</p>
+          </div>
+          <div className="text-xs text-slate-500">
+            {apiKey ? 'Connected' : 'No API Key'}
+          </div>
+        </div>
       </div>
 
       {/* Real-time Progress */}
@@ -254,10 +269,12 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
               size="sm"
               variant="outline"
               onClick={() => setInputValue(action.prompt)}
-              className="text-xs justify-start"
+              className={`text-xs justify-start h-auto p-3 bg-gradient-to-r ${action.gradient} bg-opacity-10 border-opacity-30 hover:bg-opacity-20`}
             >
-              <action.icon className="w-3 h-3 mr-2" />
-              {action.label}
+              <action.icon className="w-4 h-4 mr-2" />
+              <div className="text-left">
+                <div className="font-medium">{action.label}</div>
+              </div>
             </Button>
           ))}
         </div>
@@ -273,19 +290,22 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-lg ${
+                  className={`max-w-[85%] p-4 rounded-lg ${
                     message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-100'
+                      ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30'
+                      : 'bg-slate-800 text-slate-100 border border-slate-600'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
                   
                   {message.codeChanges && message.codeChanges.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-600">
-                      <p className="text-xs text-slate-400 mb-2">Sovereign Code Changes Applied:</p>
+                    <div className="mt-4 pt-3 border-t border-slate-600">
+                      <p className="text-xs text-slate-400 mb-2 flex items-center">
+                        <Code className="w-3 h-3 mr-1" />
+                        Code Changes Applied:
+                      </p>
                       {message.codeChanges.map((change, index) => (
-                        <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1">
+                        <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1 font-mono">
                           <span className={`font-semibold ${
                             change.operation === 'create' ? 'text-green-400' :
                             change.operation === 'update' ? 'text-yellow-400' :
@@ -298,16 +318,20 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
                       ))}
                     </div>
                   )}
+                  
+                  <div className="text-xs text-slate-400 mt-2">
+                    {message.timestamp.toLocaleTimeString()}
+                  </div>
                 </div>
               </div>
             ))}
             
             {isProcessing && (
               <div className="flex justify-start">
-                <div className="bg-slate-800 text-slate-100 p-3 rounded-lg">
+                <div className="bg-slate-800 text-slate-100 border border-slate-600 p-4 rounded-lg">
                   <TypingIndicator 
                     isVisible={isProcessing}
-                    typingText={`Processing with deepseek-reasoner... (${streamingStats.tokensReceived} tokens)`}
+                    typingText={`Processing with enhanced AI... (${streamingStats.tokensReceived} tokens)`}
                   />
                 </div>
               </div>
@@ -324,9 +348,9 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
           value={inputValue}
           onChange={setInputValue}
           onSubmit={handleSubmit}
-          disabled={isProcessing || !apiKey}
+          disabled={isProcessing}
           apiKey={apiKey}
-          placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
+          placeholder="Describe your project or ask for help with advanced development tasks..."
         />
       </div>
     </div>

@@ -1,154 +1,119 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff, Key, CheckCircle, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Key, 
-  Eye, 
-  EyeOff, 
-  CheckCircle, 
-  AlertCircle,
-  ExternalLink
-} from 'lucide-react';
 
 interface ApiKeyInputProps {
-  onApiKeySet: (apiKey: string) => void;
-  currentApiKey?: string;
-  serviceName?: string;
-  helpUrl?: string;
+  onApiKeyChange: (apiKey: string) => void;
 }
 
-export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
-  onApiKeySet,
-  currentApiKey,
-  serviceName = 'DeepSeek',
-  helpUrl = 'https://platform.deepseek.com/api-keys'
-}) => {
-  const [apiKey, setApiKey] = useState(currentApiKey || '');
-  const [showKey, setShowKey] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
+export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeyChange }) => {
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isValid, setIsValid] = useState<boolean | null>(null);
 
-  const handleSave = async () => {
-    if (!apiKey.trim()) return;
-    
-    setIsValidating(true);
-    
-    // Simulate API key validation
-    setTimeout(() => {
-      onApiKeySet(apiKey);
-      setIsValidating(false);
-    }, 1000);
+  useEffect(() => {
+    // Load API key from localStorage on component mount
+    const savedApiKey = localStorage.getItem('openai_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+      onApiKeyChange(savedApiKey);
+      validateApiKey(savedApiKey);
+    }
+  }, [onApiKeyChange]);
+
+  const validateApiKey = (key: string) => {
+    // Basic validation - OpenAI API keys start with 'sk-' and are 51 characters long
+    const isValidFormat = key.startsWith('sk-') && key.length >= 40;
+    setIsValid(isValidFormat);
+    return isValidFormat;
   };
 
-  const handleClear = () => {
-    setApiKey('');
-    onApiKeySet('');
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    onApiKeyChange(value);
+    
+    if (value) {
+      validateApiKey(value);
+      // Save to localStorage
+      localStorage.setItem('openai_api_key', value);
+    } else {
+      setIsValid(null);
+      localStorage.removeItem('openai_api_key');
+    }
   };
 
-  const isValidKey = apiKey.trim().length > 0;
-  const isConnected = Boolean(currentApiKey);
-
-  if (isConnected) {
-    return (
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <CheckCircle className="w-5 h-5 text-green-400" />
-            <div>
-              <p className="text-sm font-medium text-white">
-                {serviceName} API Connected
-              </p>
-              <p className="text-xs text-slate-400">
-                Key: •••••{currentApiKey?.slice(-4)}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Badge variant="secondary" className="bg-green-600 text-white">
-              Connected
-            </Badge>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleClear}
-              className="h-8 text-xs"
-            >
-              Change
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const getStatusIndicator = () => {
+    if (!apiKey) {
+      return (
+        <Badge variant="outline" className="border-yellow-500/50 text-yellow-400">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          API Key Required
+        </Badge>
+      );
+    }
+    
+    if (isValid === true) {
+      return (
+        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Connected
+        </Badge>
+      );
+    }
+    
+    if (isValid === false) {
+      return (
+        <Badge variant="outline" className="border-red-500/50 text-red-400">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Invalid Key
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
 
   return (
-    <Card className="bg-slate-800 border-slate-700">
-      <CardHeader className="pb-3">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Key className="w-5 h-5 text-yellow-400" />
-          <CardTitle className="text-sm text-white">
-            {serviceName} API Key Required
-          </CardTitle>
+          <Key className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-300">OpenAI API Key</span>
         </div>
-      </CardHeader>
+        {getStatusIndicator()}
+      </div>
       
-      <CardContent className="space-y-4">
-        <Alert className="bg-slate-900 border-slate-600">
-          <AlertCircle className="w-4 h-4 text-yellow-400" />
-          <AlertDescription className="text-slate-300">
-            Connect your {serviceName} API key to enable AI-powered features
-          </AlertDescription>
-        </Alert>
-
-        <div className="space-y-2">
-          <div className="relative">
-            <Input
-              type={showKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={`Enter your ${serviceName} API key...`}
-              className="bg-slate-900 border-slate-600 text-white pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <a
-              href={helpUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
-            >
-              <span>Get your API key</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!isValidKey || isValidating}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isValidating ? 'Validating...' : 'Save Key'}
-            </Button>
-          </div>
-        </div>
-
-        <div className="text-xs text-slate-400">
-          <p>• Your API key is stored locally and never shared</p>
-          <p>• Used only for AI-powered development features</p>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="relative">
+        <Input
+          type={showApiKey ? 'text' : 'password'}
+          value={apiKey}
+          onChange={(e) => handleApiKeyChange(e.target.value)}
+          placeholder="sk-..."
+          className="bg-white/10 border-white/20 text-white placeholder:text-gray-500 pr-10"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowApiKey(!showApiKey)}
+          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-white/10"
+        >
+          {showApiKey ? (
+            <EyeOff className="w-4 h-4 text-gray-400" />
+          ) : (
+            <Eye className="w-4 h-4 text-gray-400" />
+          )}
+        </Button>
+      </div>
+      
+      {!apiKey && (
+        <p className="text-xs text-gray-400">
+          Enter your OpenAI API key to enable full AI functionality. Your key is stored locally and never sent to our servers.
+        </p>
+      )}
+    </div>
   );
 };

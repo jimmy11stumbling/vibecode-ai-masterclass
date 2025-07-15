@@ -14,8 +14,8 @@ const Index = () => {
       
       <Header />
       
-      <div className="container mx-auto px-4 py-6 h-[calc(100vh-80px)]">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 h-full">
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 h-[calc(100vh-120px)]">
           <LessonNavigation />
           <ChatInterface />
         </div>
