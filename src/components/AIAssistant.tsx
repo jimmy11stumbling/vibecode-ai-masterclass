@@ -1,20 +1,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { 
   Bot, 
   User, 
-  Send, 
   Loader2,
-  Code,
-  Zap,
   Key
 } from 'lucide-react';
 import { useDeepSeekAPI } from '@/hooks/useDeepSeekAPI';
 import { useToast } from '@/hooks/use-toast';
+import { ChatInput } from './ChatInput';
 
 interface Message {
   id: string;
@@ -249,49 +246,14 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="border-t border-slate-700 p-4">
-        <div className="flex space-x-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={apiKey ? "Ask AI to help you code..." : "Add API key first..."}
-            className="flex-1 bg-slate-800 border-slate-600 text-white min-h-[60px] resize-none"
-            disabled={!apiKey || isLoading}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!input.trim() || !apiKey || isLoading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
-        
-        <div className="flex items-center justify-between mt-2 text-xs text-slate-400">
-          <span>Press Shift + Enter for new line</span>
-          <div className="flex items-center space-x-2">
-            {streamingStats.status === 'streaming' && (
-              <span className="text-blue-400">
-                {streamingStats.tokensReceived} tokens received
-              </span>
-            )}
-            <div className={`w-2 h-2 rounded-full ${
-              apiKey ? 'bg-green-500' : 'bg-red-500'
-            }`} />
-          </div>
-        </div>
-      </form>
+      <ChatInput
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSubmit}
+        disabled={!apiKey || isLoading}
+        apiKey={apiKey}
+        placeholder="Ask me anything about your code..."
+      />
     </div>
   );
 };
