@@ -44,17 +44,8 @@ export const ChatInterface = () => {
   const [activeTab, setActiveTab] = useState('chat');
   const [showConsole, setShowConsole] = useState(false);
   const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
   const { logs, logInfo, logError, logWarn, clearLogs, exportLogs } = useConsoleLogger();
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Log real-time validation info
   useEffect(() => {
@@ -215,7 +206,6 @@ export const ChatInterface = () => {
             <MessageList 
               messages={messages} 
               isLoading={isLoading} 
-              messagesEndRef={messagesEndRef}
             />
             
             {/* Typing Indicator */}
