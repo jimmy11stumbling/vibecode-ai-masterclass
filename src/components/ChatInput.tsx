@@ -39,7 +39,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="min-h-[60px] max-h-[120px] bg-slate-800 border-slate-600 text-white pr-20 resize-none placeholder:text-slate-400"
+            className="min-h-[60px] max-h-[120px] bg-slate-800 border-slate-600 text-white pr-20 resize-none placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={disabled}
           />
           
@@ -82,7 +82,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             type="submit"
             size="sm"
             disabled={disabled || !value.trim() || !apiKey}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <Send className="w-4 h-4 mr-2" />
             Send

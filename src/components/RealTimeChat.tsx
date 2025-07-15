@@ -48,14 +48,14 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { apiKey, setApiKey, streamChatResponse, streamingStats } = useDeepSeekAPI();
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
@@ -186,9 +186,9 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
+    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
+      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3 flex-shrink-0">
         <div className="flex items-center space-x-3">
           <Bot className="w-5 h-5 text-blue-400" />
           <h3 className="text-sm font-semibold text-white">Real-Time Chat</h3>
@@ -211,7 +211,7 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
       </div>
 
       {!apiKey && (
-        <div className="p-3 border-b border-slate-700 bg-slate-800">
+        <div className="p-3 border-b border-slate-700 bg-slate-800 flex-shrink-0">
           <div className="flex items-center space-x-2 mb-2">
             <Key className="w-4 h-4 text-yellow-400" />
             <span className="text-sm text-white">API Key Required</span>
@@ -245,67 +245,72 @@ export const RealTimeChat: React.FC<RealTimeChatProps> = ({
       )}
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex items-start space-x-3 ${
-                message.type === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              {message.type !== 'user' && (
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                  {getMessageIcon(message)}
-                </div>
-              )}
-              
-              <div className={`max-w-[70%] ${
-                message.type === 'user' ? 'order-2' : 'order-1'
-              }`}>
-                <div className={`px-4 py-2 rounded-lg ${
-                  message.type === 'user' 
-                    ? 'bg-blue-600 text-white' 
-                    : message.type === 'system'
-                    ? 'bg-slate-700 text-slate-300'
-                    : 'bg-slate-800 text-slate-100'
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex items-start space-x-3 ${
+                  message.type === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {message.type !== 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    {getMessageIcon(message)}
+                  </div>
+                )}
+                
+                <div className={`max-w-[70%] ${
+                  message.type === 'user' ? 'order-2' : 'order-1'
                 }`}>
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  
-                  <div className="flex items-center justify-between mt-2 text-xs opacity-70">
-                    <span>{message.timestamp.toLocaleTimeString()}</span>
-                    <div className="flex items-center space-x-2">
-                      {message.processingTime && (
-                        <span>{message.processingTime}ms</span>
-                      )}
-                      {message.tokens && (
-                        <span>{message.tokens} tokens</span>
-                      )}
-                      {getStatusIcon(message.status)}
+                  <div className={`px-4 py-2 rounded-lg ${
+                    message.type === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : message.type === 'system'
+                      ? 'bg-slate-700 text-slate-300'
+                      : 'bg-slate-800 text-slate-100'
+                  }`}>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    
+                    <div className="flex items-center justify-between mt-2 text-xs opacity-70">
+                      <span>{message.timestamp.toLocaleTimeString()}</span>
+                      <div className="flex items-center space-x-2">
+                        {message.processingTime && (
+                          <span>{message.processingTime}ms</span>
+                        )}
+                        {message.tokens && (
+                          <span>{message.tokens} tokens</span>
+                        )}
+                        {getStatusIcon(message.status)}
+                      </div>
                     </div>
                   </div>
                 </div>
+                
+                {message.type === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    {getMessageIcon(message)}
+                  </div>
+                )}
               </div>
-              
-              {message.type === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  {getMessageIcon(message)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Chat Input */}
-      <ChatInput
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        disabled={!apiKey || isProcessing}
-        apiKey={apiKey}
-        placeholder="Type your message..."
-      />
+      <div className="flex-shrink-0">
+        <ChatInput
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          disabled={!apiKey || isProcessing}
+          apiKey={apiKey}
+          placeholder="Type your message..."
+        />
+      </div>
     </div>
   );
 };

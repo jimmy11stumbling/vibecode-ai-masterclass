@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Code, Database, Brain, Zap } from 'lucide-react';
@@ -54,10 +54,17 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { streamChatResponse, streamingStats } = useDeepSeekAPI();
   const aiGenerator = apiKey ? new AICodeGenerator(apiKey) : null;
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const flattenFiles = (files: ProjectFile[]): Array<{name: string; content: string; type: string}> => {
     const result: Array<{name: string; content: string; type: string}> = [];
@@ -221,23 +228,25 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700">
+    <div className="h-full flex flex-col bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-700">
+      <div className="p-4 border-b border-slate-700 flex-shrink-0">
         <h3 className="font-semibold text-white">Sovereign AI Assistant</h3>
         <p className="text-sm text-slate-400">DeepSeek Reasoner • RAG 2.0 • MCP Integration</p>
       </div>
 
       {/* Real-time Progress */}
-      <RealTimeProgress
-        isStreaming={streamingStats.status === 'streaming'}
-        tokensReceived={streamingStats.tokensReceived}
-        responseTime={streamingStats.responseTime}
-        status={streamingStats.status}
-      />
+      <div className="flex-shrink-0">
+        <RealTimeProgress
+          isStreaming={streamingStats.status === 'streaming'}
+          tokensReceived={streamingStats.tokensReceived}
+          responseTime={streamingStats.responseTime}
+          status={streamingStats.status}
+        />
+      </div>
 
       {/* Quick Actions */}
-      <div className="p-4 border-b border-slate-700">
+      <div className="p-4 border-b border-slate-700 flex-shrink-0">
         <div className="grid grid-cols-2 gap-2">
           {quickActions.map((action, index) => (
             <Button
@@ -255,65 +264,71 @@ export const EnhancedAIChatBot: React.FC<EnhancedAIChatBotProps> = ({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4">
+            {messages.map((message) => (
               <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-100'
-                }`}
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                
-                {message.codeChanges && message.codeChanges.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-600">
-                    <p className="text-xs text-slate-400 mb-2">Sovereign Code Changes Applied:</p>
-                    {message.codeChanges.map((change, index) => (
-                      <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1">
-                        <span className={`font-semibold ${
-                          change.operation === 'create' ? 'text-green-400' :
-                          change.operation === 'update' ? 'text-yellow-400' :
-                          'text-red-400'
-                        }`}>
-                          {change.operation.toUpperCase()}
-                        </span>
-                        {' '}{change.path}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div
+                  className={`max-w-[80%] p-3 rounded-lg ${
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 text-slate-100'
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                  
+                  {message.codeChanges && message.codeChanges.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-600">
+                      <p className="text-xs text-slate-400 mb-2">Sovereign Code Changes Applied:</p>
+                      {message.codeChanges.map((change, index) => (
+                        <div key={index} className="text-xs bg-slate-700 p-2 rounded mb-1">
+                          <span className={`font-semibold ${
+                            change.operation === 'create' ? 'text-green-400' :
+                            change.operation === 'update' ? 'text-yellow-400' :
+                            'text-red-400'
+                          }`}>
+                            {change.operation.toUpperCase()}
+                          </span>
+                          {' '}{change.path}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-          
-          {isProcessing && (
-            <div className="flex justify-start">
-              <div className="bg-slate-800 text-slate-100 p-3 rounded-lg">
-                <TypingIndicator 
-                  isVisible={isProcessing}
-                  typingText={`Processing with deepseek-reasoner... (${streamingStats.tokensReceived} tokens)`}
-                />
+            ))}
+            
+            {isProcessing && (
+              <div className="flex justify-start">
+                <div className="bg-slate-800 text-slate-100 p-3 rounded-lg">
+                  <TypingIndicator 
+                    isVisible={isProcessing}
+                    typingText={`Processing with deepseek-reasoner... (${streamingStats.tokensReceived} tokens)`}
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Chat Input */}
-      <ChatInput
-        value={inputValue}
-        onChange={setInputValue}
-        onSubmit={handleSubmit}
-        disabled={isProcessing || !apiKey}
-        apiKey={apiKey}
-        placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
-      />
+      <div className="flex-shrink-0">
+        <ChatInput
+          value={inputValue}
+          onChange={setInputValue}
+          onSubmit={handleSubmit}
+          disabled={isProcessing || !apiKey}
+          apiKey={apiKey}
+          placeholder="Describe what you want to build with sovereign AI capabilities... (e.g., 'Create a user dashboard with real-time data' or 'Analyze the codebase and suggest improvements')"
+        />
+      </div>
     </div>
   );
 };
