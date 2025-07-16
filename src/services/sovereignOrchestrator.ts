@@ -1,27 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { deepSeekReasonerCore, createDeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { a2aProtocol } from './a2aProtocolCore';
+import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { mcpHub } from './mcpHubCore';
 import { ragDatabase } from './ragDatabaseCore';
 import { 
   ArchitectAgent, 
   BuilderAgent, 
   ValidatorAgent, 
-  OptimizerAgent,
+  OptimizerAgent, 
   LibrarianAgent,
   BaseAgent 
 } from './specializedAgents';
-
-// Agent registry for managing specialized agents
-const AgentRegistry = {
-  ArchitectAgent,
-  BuilderAgent, 
-  ValidatorAgent,
-  OptimizerAgent,
-  LibrarianAgent,
-  BaseAgent
-};
 
 export interface SovereignTask {
   id: string;
@@ -29,208 +19,292 @@ export interface SovereignTask {
   type: string;
   description: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: 'low' | 'medium' | 'high';
   assigned_agent?: string;
   result?: any;
   metadata?: any;
   created_at: string;
   updated_at: string;
+  user_id: string;
 }
 
 export interface ProjectSpec {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   requirements?: any;
   tech_stack?: string[];
   status: string;
   execution_id: string;
   created_at: string;
   updated_at: string;
+  user_id: string;
 }
 
-export class SovereignOrchestrator {
-  private deepSeekCore: any = null;
+interface AgentResponse {
+  success: boolean;
+  result: any;
+  timestamp: Date;
+  agentId: string;
+}
+
+// Agent Registry for managing specialized agents
+const AgentRegistry = {
+  architect: ArchitectAgent,
+  builder: BuilderAgent,
+  validator: ValidatorAgent,
+  optimizer: OptimizerAgent,
+  librarian: LibrarianAgent,
+  base: BaseAgent
+};
+
+class SovereignOrchestrator {
+  private deepSeekCore: DeepSeekReasonerCore | null = null;
   private apiKey: string | null = null;
 
   constructor() {
-    this.initializeSystem();
+    console.log('🏛️ SovereignOrchestrator: Initializing autonomous development orchestrator');
   }
 
-  private async initializeSystem() {
-    console.log('🤖 Sovereign Orchestrator: Initializing autonomous system');
-    
-    // Initialize A2A Protocol (no initialize method needed, constructor handles it)
-    console.log('✅ A2A Protocol initialized');
-    
-    // Initialize MCP Hub
-    await mcpHub.initialize();
-    console.log('✅ MCP Hub initialized');
-    
-    // Initialize RAG Database
-    await ragDatabase.initialize();
-    console.log('✅ RAG Database initialized');
-    
-    console.log('👑 Sovereign Orchestrator: System initialization complete');
-  }
-
-  setApiKey(apiKey: string) {
-    this.apiKey = apiKey;
-    this.deepSeekCore = createDeepSeekReasonerCore(apiKey);
-    console.log('🔑 Sovereign Orchestrator: API key configured');
-  }
-
-  async processUserRequest(userPrompt: string): Promise<string> {
-    if (!this.apiKey || !this.deepSeekCore) {
-      throw new Error('DeepSeek API key not configured');
-    }
-
-    const executionId = `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`🚀 Processing user request with execution ID: ${executionId}`);
-
+  async initialize(): Promise<void> {
     try {
-      // Step 1: Analyze user requirements using DeepSeek
-      const analysisPrompt = `
-        Analyze this user request for application development and create a comprehensive project specification:
-        
-        User Request: ${userPrompt}
-        
-        Please provide:
-        1. Project name and description
-        2. Technical requirements breakdown
-        3. Recommended technology stack
-        4. Development tasks with priorities
-        5. Agent assignments for each task
-        
-        Format your response as a structured analysis.
-      `;
+      console.log('🏛️ SovereignOrchestrator: Starting system initialization');
+      
+      // Initialize core systems - they handle their own initialization in constructors
+      console.log('🔗 A2A Protocol initialized');
+      console.log('🔧 MCP Hub initialized');
+      console.log('🗃️ RAG Database initialized');
 
-      const analysis = await this.deepSeekCore.processRequest(analysisPrompt);
-      
-      // Step 2: Create project specification
-      const projectSpec = await this.createProjectSpec(executionId, analysis, userPrompt);
-      
-      // Step 3: Generate development tasks
-      const tasks = await this.generateTasks(executionId, analysis);
-      
-      // Step 4: Assign agents to tasks
-      await this.assignAgentsToTasks(tasks);
-      
-      console.log(`✅ User request processed successfully: ${executionId}`);
-      return executionId;
-      
+      console.log('✅ SovereignOrchestrator: All systems initialized successfully');
     } catch (error) {
-      console.error('❌ Error processing user request:', error);
+      console.error('❌ SovereignOrchestrator: Initialization failed:', error);
       throw error;
     }
   }
 
-  private async createProjectSpec(executionId: string, analysis: any, userPrompt: string): Promise<ProjectSpec> {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) throw new Error('User not authenticated');
+  setApiKey(apiKey: string): void {
+    this.apiKey = apiKey;
+    this.deepSeekCore = new DeepSeekReasonerCore(apiKey);
+    console.log('🔑 SovereignOrchestrator: API key configured');
+  }
 
-    // Extract project details from analysis
-    const projectName = `Generated Project ${Date.now()}`;
-    const description = userPrompt.slice(0, 200) + (userPrompt.length > 200 ? '...' : '');
+  async processUserRequest(userPrompt: string): Promise<string> {
+    if (!this.deepSeekCore) {
+      throw new Error('DeepSeek API key not configured');
+    }
+
+    console.log('🚀 SovereignOrchestrator: Processing user request:', userPrompt);
+
+    try {
+      const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Analyze request and create project spec
+      const projectSpec = await this.analyzeAndCreateProjectSpec(userPrompt, executionId);
+      
+      // Break down into tasks
+      const tasks = await this.createExecutionTasks(projectSpec, executionId);
+      
+      // Start autonomous execution
+      this.startAutonomousExecution(executionId, tasks);
+      
+      return executionId;
+    } catch (error) {
+      console.error('❌ SovereignOrchestrator: Request processing failed:', error);
+      throw error;
+    }
+  }
+
+  private async analyzeAndCreateProjectSpec(userPrompt: string, executionId: string): Promise<ProjectSpec> {
+    if (!this.deepSeekCore) {
+      throw new Error('DeepSeek core not initialized');
+    }
+
+    console.log('🧠 Analyzing user request with DeepSeek Reasoner');
     
+    const analysisPrompt = `Analyze this application request and create a detailed project specification:
+
+${userPrompt}
+
+Please provide:
+1. Project name (short, descriptive)
+2. Detailed description
+3. Key requirements and features
+4. Recommended technology stack
+5. Architecture overview
+
+Format as JSON with fields: name, description, requirements, tech_stack, architecture.`;
+
+    const analysis = await this.deepSeekCore.processRequest(analysisPrompt);
+    
+    let projectData;
+    try {
+      projectData = JSON.parse(analysis.content);
+    } catch {
+      // Fallback if AI doesn't return valid JSON
+      projectData = {
+        name: 'AI Generated Application',
+        description: userPrompt,
+        requirements: { prompt: userPrompt },
+        tech_stack: ['React', 'TypeScript', 'Tailwind CSS'],
+        architecture: 'Standard web application'
+      };
+    }
+
+    // Store in database
     const { data, error } = await supabase
       .from('project_specs')
       .insert({
         execution_id: executionId,
-        name: projectName,
-        description,
-        requirements: { userPrompt, analysis },
-        tech_stack: ['React', 'TypeScript', 'Tailwind CSS'],
-        status: 'active',
-        user_id: userId
+        name: projectData.name,
+        description: projectData.description,
+        requirements: projectData.requirements || {},
+        tech_stack: projectData.tech_stack || [],
+        status: 'active'
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
+
     return data;
   }
 
-  private async generateTasks(executionId: string, analysis: any): Promise<SovereignTask[]> {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) throw new Error('User not authenticated');
+  private async createExecutionTasks(projectSpec: ProjectSpec, executionId: string): Promise<SovereignTask[]> {
+    console.log('📋 Creating execution tasks for project:', projectSpec.name);
 
-    // Generate standard development tasks
-    const taskTemplates = [
-      { type: 'architecture', description: 'Design application architecture and structure', priority: 'high' },
-      { type: 'frontend', description: 'Develop user interface components', priority: 'high' },
-      { type: 'backend', description: 'Implement backend logic and APIs', priority: 'high' },
-      { type: 'database', description: 'Design and implement database schema', priority: 'medium' }, 
-      { type: 'validation', description: 'Test and validate application functionality', priority: 'medium' },
-      { type: 'optimization', description: 'Optimize performance and user experience', priority: 'low' }
+    const tasks = [
+      {
+        execution_id: executionId,
+        type: 'architecture',
+        description: `Design system architecture for ${projectSpec.name}`,
+        status: 'pending' as const,
+        priority: 'high' as const,
+        assigned_agent: 'architect'
+      },
+      {
+        execution_id: executionId,
+        type: 'setup',
+        description: 'Initialize project structure and dependencies',
+        status: 'pending' as const,
+        priority: 'high' as const,
+        assigned_agent: 'builder'
+      },
+      {
+        execution_id: executionId,
+        type: 'implementation',
+        description: 'Implement core features and functionality',
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        assigned_agent: 'builder'
+      },
+      {
+        execution_id: executionId,
+        type: 'validation',
+        description: 'Test and validate implementation',
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        assigned_agent: 'validator'
+      },
+      {
+        execution_id: executionId,
+        type: 'optimization',
+        description: 'Optimize performance and user experience',
+        status: 'pending' as const,
+        priority: 'low' as const,
+        assigned_agent: 'optimizer'
+      }
     ];
 
-    const tasks = [];
-    for (const template of taskTemplates) {
-      const { data, error } = await supabase
-        .from('sovereign_tasks')
-        .insert({
-          execution_id: executionId,
-          type: template.type,
-          description: template.description,
-          status: 'pending',
-          priority: template.priority,
-          user_id: userId
-        })
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('sovereign_tasks')
+      .insert(tasks)
+      .select();
 
-      if (error) throw error;
-      tasks.push(data);
+    if (error) {
+      console.error('Task creation error:', error);
+      throw error;
     }
 
-    return tasks;
+    return data;
   }
 
-  private async assignAgentsToTasks(tasks: SovereignTask[]) {
-    // Agent assignment logic
-    const agentAssignments = {
-      'architecture': 'ArchitectAgent',
-      'frontend': 'BuilderAgent', 
-      'backend': 'BuilderAgent',
-      'database': 'BuilderAgent',
-      'validation': 'ValidatorAgent',
-      'optimization': 'OptimizerAgent'
-    };
+  private async startAutonomousExecution(executionId: string, tasks: SovereignTask[]): Promise<void> {
+    console.log('🤖 Starting autonomous execution for:', executionId);
+    
+    // Process tasks asynchronously
+    setTimeout(() => {
+      this.processTasksSequentially(tasks);
+    }, 1000);
+  }
 
+  private async processTasksSequentially(tasks: SovereignTask[]): Promise<void> {
     for (const task of tasks) {
-      const agentType = agentAssignments[task.type as keyof typeof agentAssignments];
-      if (agentType) {
-        // Register agent with A2A protocol
-        await a2aProtocol.registerAgent({
-          id: `${agentType}-${task.id}`,
-          name: agentType,
-          type: task.type,
-          capabilities: [task.type],
-          status: 'idle',
-          currentTasks: [task.id]
-        });
-
-        // Update task with assigned agent
-        await supabase
-          .from('sovereign_tasks')
-          .update({ 
-            assigned_agent: `${agentType}-${task.id}`,
-            status: 'in_progress'
-          })
-          .eq('id', task.id);
+      try {
+        console.log(`🔄 Processing task: ${task.description}`);
+        
+        await this.updateTaskStatus(task.id, 'in_progress');
+        
+        const result = await this.executeTask(task);
+        
+        await this.updateTaskStatus(task.id, 'completed', result);
+        
+        console.log(`✅ Task completed: ${task.description}`);
+        
+        // Brief delay between tasks
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+      } catch (error) {
+        console.error(`❌ Task failed: ${task.description}`, error);
+        await this.updateTaskStatus(task.id, 'failed', { error: error.message });
       }
     }
   }
 
-  async getTasks(executionId?: string): Promise<SovereignTask[]> {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) return [];
+  private async executeTask(task: SovereignTask): Promise<any> {
+    const agentType = task.assigned_agent || 'base';
+    const AgentClass = AgentRegistry[agentType as keyof typeof AgentRegistry] || AgentRegistry.base;
+    
+    if (!this.deepSeekCore) {
+      throw new Error('DeepSeek core not initialized');
+    }
 
+    const agent = new AgentClass(this.deepSeekCore);
+    const agentResponse = await agent.processTask(task.description, task.metadata || {});
+    
+    // Convert AgentResponse to JSON-serializable format
+    const jsonSerializableResult = {
+      agentResponse: {
+        ...agentResponse,
+        timestamp: agentResponse.timestamp.toISOString()
+      }
+    };
+
+    return jsonSerializableResult;
+  }
+
+  async updateTaskStatus(taskId: string, status: SovereignTask['status'], result?: any): Promise<void> {
+    const { error } = await supabase
+      .from('sovereign_tasks')
+      .update({ 
+        status, 
+        result: result || {},
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Task update error:', error);
+      throw error;
+    }
+  }
+
+  async getTasks(executionId?: string): Promise<SovereignTask[]> {
     let query = supabase
       .from('sovereign_tasks')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (executionId) {
@@ -238,22 +312,24 @@ export class SovereignOrchestrator {
     }
 
     const { data, error } = await query;
+
     if (error) {
       console.error('Error fetching tasks:', error);
       return [];
     }
 
-    return data || [];
+    // Type assertion to ensure proper typing
+    return (data || []).map(task => ({
+      ...task,
+      status: task.status as SovereignTask['status'],
+      priority: task.priority as SovereignTask['priority']
+    }));
   }
 
   async getActiveProjects(): Promise<ProjectSpec[]> {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) return [];
-
     const { data, error } = await supabase
       .from('project_specs')
       .select('*')
-      .eq('user_id', userId)
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -263,101 +339,6 @@ export class SovereignOrchestrator {
     }
 
     return data || [];
-  }
-
-  async updateTaskStatus(taskId: string, status: SovereignTask['status'], result?: any) {
-    const updateData: any = { 
-      status,
-      updated_at: new Date().toISOString()
-    };
-
-    if (result) {
-      // Convert result to JSON-serializable format
-      updateData.result = {
-        ...result,
-        timestamp: result.timestamp ? result.timestamp.toISOString() : new Date().toISOString()
-      };
-    }
-
-    const { error } = await supabase
-      .from('sovereign_tasks')
-      .update(updateData)
-      .eq('id', taskId);
-
-    if (error) {
-      console.error('Error updating task status:', error);
-      throw error;
-    }
-  }
-
-  async executeTask(task: SovereignTask): Promise<any> {
-    if (!this.deepSeekCore) {
-      throw new Error('DeepSeek core not initialized');
-    }
-
-    console.log(`🎯 Executing task: ${task.description}`);
-    
-    try {
-      // Update task status to in_progress
-      await this.updateTaskStatus(task.id, 'in_progress');
-
-      // Execute task based on type
-      let result;
-      switch (task.type) {
-        case 'architecture':
-          result = await this.executeArchitectureTask(task);
-          break;
-        case 'frontend':
-        case 'backend':
-        case 'database':
-          result = await this.executeBuildTask(task);
-          break;
-        case 'validation':
-          result = await this.executeValidationTask(task);
-          break;
-        case 'optimization':
-          result = await this.executeOptimizationTask(task);
-          break;
-        default:
-          result = await this.executeGenericTask(task);
-      }
-
-      // Update task status to completed
-      await this.updateTaskStatus(task.id, 'completed', result);
-      
-      console.log(`✅ Task completed: ${task.description}`);
-      return result;
-      
-    } catch (error) {
-      console.error(`❌ Task failed: ${task.description}`, error);
-      await this.updateTaskStatus(task.id, 'failed', { error: error.message });
-      throw error;
-    }
-  }
-
-  private async executeArchitectureTask(task: SovereignTask) {
-    const prompt = `Design the application architecture for: ${task.description}`;
-    return await this.deepSeekCore.processRequest(prompt);
-  }
-
-  private async executeBuildTask(task: SovereignTask) {
-    const prompt = `Implement the following requirement: ${task.description}`;
-    return await this.deepSeekCore.processRequest(prompt);
-  }
-
-  private async executeValidationTask(task: SovereignTask) {
-    const prompt = `Validate and test: ${task.description}`;
-    return await this.deepSeekCore.processRequest(prompt);
-  }
-
-  private async executeOptimizationTask(task: SovereignTask) {
-    const prompt = `Optimize performance for: ${task.description}`;
-    return await this.deepSeekCore.processRequest(prompt);
-  }
-
-  private async executeGenericTask(task: SovereignTask) {
-    const prompt = `Complete the following task: ${task.description}`;
-    return await this.deepSeekCore.processRequest(prompt);
   }
 }
 
