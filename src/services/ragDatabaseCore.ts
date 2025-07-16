@@ -1,395 +1,201 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
-export interface RAGDocument {
+interface RAGDocument {
   id: string;
-  title: string;
   content: string;
-  category: string;
-  tags: string[];
-  metadata: any;
-  vectorEmbedding?: number[];
-  relevanceScore?: number;
+  metadata: Record<string, any>;
+  embeddings?: number[];
+  created_at: Date;
 }
 
-export interface RAGQuery {
-  query: string;
-  filters?: {
-    category?: string;
-    tags?: string[];
-    dateRange?: {
-      start: Date;
-      end: Date;
-    };
-  };
+interface SearchOptions {
   limit?: number;
+  includeMetadata?: boolean;
   threshold?: number;
 }
 
-export interface RAGResult {
-  documents: RAGDocument[];
-  totalResults: number;
-  queryTime: number;
-  contextSummary: string;
+interface SearchResult {
+  document: RAGDocument;
+  similarity: number;
 }
 
-export class RAGDatabaseCore {
-  private embeddingCache = new Map<string, number[]>();
-  private contextCache = new Map<string, RAGResult>();
+class RAGDatabaseCore {
+  private documents: Map<string, RAGDocument> = new Map();
+  private isInitialized = false;
 
-  async indexDocument(document: Omit<RAGDocument, 'id' | 'vectorEmbedding'>): Promise<string> {
-    console.log('📚 RAG Database: Indexing document:', document.title);
+  async initialize() {
+    if (this.isInitialized) return;
 
+    console.log('📊 RAG Database: Initializing Retrieval-Augmented Generation system');
+    
     try {
-      // Generate embedding for the document
-      const embedding = await this.generateEmbedding(document.content);
-
-      // Store in knowledge base
+      // Load existing knowledge base entries
       const { data, error } = await supabase
         .from('knowledge_base')
-        .insert({
-          title: document.title,
-          content: document.content,
-          category: document.category,
-          tags: document.tags,
-          user_id: (await supabase.auth.getUser()).data.user?.id
-        })
-        .select('id')
-        .single();
+        .select('*')
+        .eq('status', 'active')
+        .limit(100);
 
       if (error) throw error;
 
-      // Store embedding separately
-      await supabase
-        .from('knowledge_embeddings')
-        .insert({
-          document_id: data.id,
-          chunk_text: document.content,
-          chunk_index: 0,
-          vector_id: `embed_${data.id}`,
-          metadata: {
-            ...document.metadata,
-            embedding
-          }
-        });
+      // Convert to RAG documents
+      if (data) {
+        for (const entry of data) {
+          const document: RAGDocument = {
+            id: entry.id,
+            content: entry.content,
+            metadata: {
+              title: entry.title,
+              category: entry.category,
+              tags: entry.tags || [],
+              source_type: entry.source_type
+            },
+            created_at: new Date(entry.created_at)
+          };
+          
+          this.documents.set(document.id, document);
+        }
+      }
 
-      console.log('✅ RAG Database: Document indexed successfully');
-      return data.id;
-
+      this.isInitialized = true;
+      console.log(`📊 RAG Database: Initialized with ${this.documents.size} documents`);
     } catch (error) {
-      console.error('Failed to index document:', error);
+      console.error('📊 RAG Database: Initialization failed:', error);
       throw error;
     }
   }
 
-  async query(ragQuery: RAGQuery): Promise<RAGResult> {
-    const startTime = Date.now();
-    const cacheKey = JSON.stringify(ragQuery);
+  async addDocument(content: string, metadata: Record<string, any> = {}): Promise<string> {
+    await this.initialize();
 
-    // Check cache first
-    if (this.contextCache.has(cacheKey)) {
-      const cachedResult = this.contextCache.get(cacheKey)!;
-      console.log('🎯 RAG Database: Returning cached result');
-      return cachedResult;
-    }
-
-    console.log('🔍 RAG Database: Executing query:', ragQuery.query);
-
-    try {
-      // Generate query embedding
-      const queryEmbedding = await this.generateEmbedding(ragQuery.query);
-
-      // Build filters
-      let query = supabase.from('knowledge_base').select(`
-        id,
-        title,
-        content,
-        category,
-        tags,
-        created_at
-      `);
-
-      // Apply text search
-      query = query.textSearch('content', ragQuery.query);
-
-      // Apply filters
-      if (ragQuery.filters?.category) {
-        query = query.eq('category', ragQuery.filters.category);
-      }
-
-      if (ragQuery.filters?.tags && ragQuery.filters.tags.length > 0) {
-        query = query.overlaps('tags', ragQuery.filters.tags);
-      }
-
-      if (ragQuery.filters?.dateRange) {
-        query = query
-          .gte('created_at', ragQuery.filters.dateRange.start.toISOString())
-          .lte('created_at', ragQuery.filters.dateRange.end.toISOString());
-      }
-
-      // Execute query
-      const { data, error } = await query.limit(ragQuery.limit || 10);
-
-      if (error) throw error;
-
-      // Calculate semantic similarity scores
-      const documentsWithScores = await this.calculateRelevanceScores(
-        data || [],
-        queryEmbedding,
-        ragQuery.threshold || 0.7
-      );
-
-      // Generate context summary
-      const contextSummary = await this.generateContextSummary(
-        documentsWithScores,
-        ragQuery.query
-      );
-
-      const result: RAGResult = {
-        documents: documentsWithScores,
-        totalResults: documentsWithScores.length,
-        queryTime: Date.now() - startTime,
-        contextSummary
-      };
-
-      // Cache result
-      this.contextCache.set(cacheKey, result);
-      
-      console.log(`✅ RAG Database: Query completed in ${result.queryTime}ms, found ${result.totalResults} results`);
-      return result;
-
-    } catch (error) {
-      console.error('RAG query failed:', error);
-      throw error;
-    }
-  }
-
-  async enhanceContext(baseQuery: string, additionalContext: string[]): Promise<RAGResult> {
-    const enhancedQuery = [baseQuery, ...additionalContext].join(' ');
+    const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    return this.query({
-      query: enhancedQuery,
-      limit: 15,
-      threshold: 0.6
-    });
-  }
+    const document: RAGDocument = {
+      id: documentId,
+      content,
+      metadata,
+      created_at: new Date()
+    };
 
-  async createContextualResponse(
-    query: string,
-    ragResults: RAGResult,
-    responseTemplate?: string
-  ): Promise<string> {
-    const contextChunks = ragResults.documents
-      .slice(0, 5)
-      .map(doc => `${doc.title}: ${doc.content.substring(0, 300)}...`)
-      .join('\n\n');
+    this.documents.set(documentId, document);
 
-    const prompt = responseTemplate || `
-Based on the following context from the knowledge base, provide a comprehensive answer to the user's query:
-
-Query: ${query}
-
-Context:
-${contextChunks}
-
-Summary: ${ragResults.contextSummary}
-
-Please provide a detailed, accurate response that leverages the provided context while being clear and actionable.
-`;
-
-    // This would typically call an LLM service
-    // For now, return the structured context
-    return `Based on ${ragResults.totalResults} relevant documents from the knowledge base:\n\n${ragResults.contextSummary}\n\nKey information:\n${contextChunks}`;
-  }
-
-  private async generateEmbedding(text: string): Promise<number[]> {
-    // Check cache first
-    if (this.embeddingCache.has(text)) {
-      return this.embeddingCache.get(text)!;
-    }
-
+    // Store in Supabase knowledge base
     try {
-      // This would typically call an embedding service like OpenAI
-      // For now, generate a mock embedding
-      const mockEmbedding = new Array(1536).fill(0).map(() => Math.random() - 0.5);
-      
-      this.embeddingCache.set(text, mockEmbedding);
-      return mockEmbedding;
+      await supabase
+        .from('knowledge_base')
+        .insert({
+          id: documentId,
+          user_id: 'system',
+          title: metadata.title || 'Untitled',
+          content,
+          category: metadata.category || 'general',
+          tags: metadata.tags || [],
+          source_type: metadata.source_type || 'system'
+        });
     } catch (error) {
-      console.error('Embedding generation failed:', error);
-      // Return zero embedding as fallback
-      return new Array(1536).fill(0);
+      console.warn('📊 RAG Database: Failed to persist document:', error);
     }
+
+    console.log(`📊 RAG Database: Added document ${documentId}`);
+    return documentId;
   }
 
-  private async calculateRelevanceScores(
-    documents: any[],
-    queryEmbedding: number[],
-    threshold: number
-  ): Promise<RAGDocument[]> {
-    const scoredDocuments: RAGDocument[] = [];
+  async searchSimilar(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+    await this.initialize();
 
-    for (const doc of documents) {
-      // Get document embedding
-      const { data: embeddingData } = await supabase
-        .from('knowledge_embeddings')
-        .select('metadata')
-        .eq('document_id', doc.id)
-        .single();
+    const {
+      limit = 5,
+      includeMetadata = true,
+      threshold = 0.1
+    } = options;
 
-      // Type assertion for metadata
-      const metadata = embeddingData?.metadata as { embedding?: number[] } | null;
-      const docEmbedding = metadata?.embedding || new Array(1536).fill(0);
+    // Simple text-based similarity for now (in production, use vector embeddings)
+    const results: SearchResult[] = [];
+    const queryLower = query.toLowerCase();
+
+    for (const document of this.documents.values()) {
+      const contentLower = document.content.toLowerCase();
       
-      // Calculate cosine similarity
-      const similarity = this.cosineSimilarity(queryEmbedding, docEmbedding);
+      // Calculate simple similarity based on keyword matches
+      const queryWords = queryLower.split(/\s+/);
+      const contentWords = contentLower.split(/\s+/);
+      
+      let matches = 0;
+      for (const word of queryWords) {
+        if (contentWords.some(contentWord => contentWord.includes(word))) {
+          matches++;
+        }
+      }
+      
+      const similarity = matches / queryWords.length;
       
       if (similarity >= threshold) {
-        scoredDocuments.push({
-          id: doc.id,
-          title: doc.title,
-          content: doc.content,
-          category: doc.category,
-          tags: doc.tags || [],
-          metadata: {},
-          relevanceScore: similarity
+        results.push({
+          document: includeMetadata ? document : { ...document, metadata: {} },
+          similarity
         });
       }
     }
 
-    // Sort by relevance score
-    return scoredDocuments.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+    // Sort by similarity and limit results
+    results.sort((a, b) => b.similarity - a.similarity);
+    return results.slice(0, limit);
   }
 
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-    
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  async getDocument(documentId: string): Promise<RAGDocument | undefined> {
+    await this.initialize();
+    return this.documents.get(documentId);
   }
 
-  private async generateContextSummary(documents: RAGDocument[], query: string): Promise<string> {
-    if (documents.length === 0) {
-      return 'No relevant context found for the query.';
-    }
+  async updateDocument(documentId: string, content: string, metadata: Record<string, any> = {}): Promise<void> {
+    await this.initialize();
 
-    const topCategories = [...new Set(documents.map(d => d.category))].slice(0, 3);
-    const avgRelevance = documents.reduce((sum, d) => sum + (d.relevanceScore || 0), 0) / documents.length;
-    
-    return `Found ${documents.length} relevant documents across ${topCategories.length} categories (${topCategories.join(', ')}). Average relevance score: ${avgRelevance.toFixed(2)}. Most relevant: "${documents[0]?.title}" (${(documents[0]?.relevanceScore || 0).toFixed(2)}).`;
-  }
+    const document = this.documents.get(documentId);
+    if (document) {
+      document.content = content;
+      document.metadata = { ...document.metadata, ...metadata };
+      this.documents.set(documentId, document);
 
-  async batchIndex(documents: Omit<RAGDocument, 'id' | 'vectorEmbedding'>[]): Promise<string[]> {
-    console.log(`📚 RAG Database: Batch indexing ${documents.length} documents`);
-    
-    const results: string[] = [];
-    
-    for (const doc of documents) {
+      // Update in Supabase
       try {
-        const id = await this.indexDocument(doc);
-        results.push(id);
-      } catch (error) {
-        console.error(`Failed to index document ${doc.title}:`, error);
-      }
-    }
-    
-    console.log(`✅ RAG Database: Batch indexing complete. ${results.length}/${documents.length} successful`);
-    return results;
-  }
-
-  async getDocumentById(id: string): Promise<RAGDocument | null> {
-    const { data, error } = await supabase
-      .from('knowledge_base')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error || !data) return null;
-
-    return {
-      id: data.id,
-      title: data.title,
-      content: data.content,
-      category: data.category,
-      tags: data.tags || [],
-      metadata: {} // Use empty object since metadata is not in knowledge_base table
-    };
-  }
-
-  async updateDocument(id: string, updates: Partial<RAGDocument>): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('knowledge_base')
-        .update({
-          title: updates.title,
-          content: updates.content,
-          category: updates.category,
-          tags: updates.tags
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // If content changed, regenerate embedding
-      if (updates.content) {
-        const embedding = await this.generateEmbedding(updates.content);
         await supabase
-          .from('knowledge_embeddings')
+          .from('knowledge_base')
           .update({
-            chunk_text: updates.content,
-            metadata: { ...updates.metadata, embedding }
+            content,
+            title: metadata.title || document.metadata.title,
+            category: metadata.category || document.metadata.category,
+            tags: metadata.tags || document.metadata.tags
           })
-          .eq('document_id', id);
+          .eq('id', documentId);
+      } catch (error) {
+        console.warn('📊 RAG Database: Failed to update document:', error);
       }
-
-      // Clear cache
-      this.contextCache.clear();
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to update document:', error);
-      return false;
     }
   }
 
-  async deleteDocument(id: string): Promise<boolean> {
+  async deleteDocument(documentId: string): Promise<void> {
+    await this.initialize();
+    
+    this.documents.delete(documentId);
+    
+    // Delete from Supabase
     try {
-      // Delete embeddings first
       await supabase
-        .from('knowledge_embeddings')
-        .delete()
-        .eq('document_id', id);
-
-      // Delete main document
-      const { error } = await supabase
         .from('knowledge_base')
         .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Clear cache
-      this.contextCache.clear();
-      
-      return true;
+        .eq('id', documentId);
     } catch (error) {
-      console.error('Failed to delete document:', error);
-      return false;
+      console.warn('📊 RAG Database: Failed to delete document:', error);
     }
   }
 
-  clearCache() {
-    this.contextCache.clear();
-    this.embeddingCache.clear();
-    console.log('🧹 RAG Database: Cache cleared');
+  getDocumentCount(): number {
+    return this.documents.size;
+  }
+
+  async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+    return this.searchSimilar(query, options);
   }
 }
 

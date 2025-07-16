@@ -8,6 +8,9 @@ interface ProjectFile {
   content?: string;
   children?: ProjectFile[];
   parentId?: string;
+  path: string;
+  size?: number;
+  lastModified?: Date;
 }
 
 export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void) => {
@@ -65,7 +68,9 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
       type,
       content: type === 'file' ? '' : undefined,
       children: type === 'folder' ? [] : undefined,
-      parentId
+      parentId,
+      path: parentId ? `${parentId}/${type === 'folder' ? 'New Folder' : 'new-file.txt'}` : `/${type === 'folder' ? 'New Folder' : 'new-file.txt'}`,
+      lastModified: new Date()
     };
 
     if (parentId) {
@@ -89,7 +94,6 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
       updateFiles([...files, newFile]);
     }
 
-    // Start editing the new file
     setTimeout(() => startEditing(newFile), 0);
   }, [files, updateFiles, startEditing]);
 

@@ -74,12 +74,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     deleteFile,
     updateFiles
   } = useProjectFiles((updatedFiles) => {
-    // Ensure all files have the required path property
-    const filesWithPath = updatedFiles.map(file => ({
-      ...file,
-      path: file.path || `/${file.name}`
-    }));
-    onProjectChange?.(filesWithPath);
+    onProjectChange?.(updatedFiles);
   });
 
   // Initialize with default project structure
@@ -168,7 +163,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const { file, action } = clipboardItem;
     
     if (action === 'copy') {
-      // Create a copy of the file
       const newFile: ProjectFile = {
         ...file,
         id: `${file.id}_copy_${Date.now()}`,
@@ -180,12 +174,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       if (targetFolderId) {
         createNewFile(targetFolderId, file.type);
       } else {
-        const filesWithPath = [...files, newFile].map(f => ({ ...f, path: f.path || `/${f.name}` }));
-        updateFiles(filesWithPath);
+        updateFiles([...files, newFile]);
       }
-    } else if (action === 'cut') {
-      // Move the file
-      // Implementation for move operation would go here
     }
 
     setClipboardItem(null);
@@ -217,7 +207,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       );
     }
 
-    // File type icons based on extension
     const extension = file.name.split('.').pop()?.toLowerCase();
     switch (extension) {
       case 'tsx':
@@ -248,17 +237,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   const filterFiles = (files: ProjectFile[]): ProjectFile[] => {
     return files.filter(file => {
-      // Search filter
       if (searchTerm && !file.name.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
 
-      // Type filter
       if (filterType !== 'all' && file.type !== filterType.slice(0, -1)) {
         return false;
       }
 
-      // Hidden files filter
       if (!showHidden && file.name.startsWith('.')) {
         return false;
       }
@@ -373,7 +359,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-900">
-      {/* Header */}
       <div className="flex-shrink-0 p-3 border-b border-slate-700">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white flex items-center">
@@ -411,7 +396,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           )}
         </div>
         
-        {/* Search and Filter */}
         {showSearch && (
           <div className="space-y-2">
             <div className="relative">
@@ -456,7 +440,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         )}
       </div>
       
-      {/* File Tree */}
       <ScrollArea className="flex-1">
         <div className="p-2">
           {files.length === 0 ? (
@@ -475,7 +458,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         </div>
       </ScrollArea>
       
-      {/* Footer */}
       <div className="flex-shrink-0 p-2 border-t border-slate-700">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>{files.length} items</span>

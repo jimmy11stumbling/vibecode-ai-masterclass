@@ -77,7 +77,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
   const refreshStatus = async () => {
     try {
       const projectTasks = await sovereignOrchestrator.getTasks();
-      const activeAgents = a2aProtocol.getAllAgents();
+      const activeAgents = a2aProtocol.getAgents();
       const activeProjects = await sovereignOrchestrator.getActiveProjects();
 
       setTasks(projectTasks);

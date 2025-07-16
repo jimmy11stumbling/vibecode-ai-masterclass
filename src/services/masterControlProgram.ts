@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { a2aProtocol } from './a2aProtocolCore';
 import { mcpHub } from './mcpHubCore';
@@ -38,7 +37,6 @@ class MasterControlProgram {
     console.log('🧠 MCP: Initializing Master Control Program');
     
     try {
-      // Initialize all subsystems
       await Promise.all([
         a2aProtocol.initialize(),
         mcpHub.initialize(),
@@ -60,7 +58,6 @@ class MasterControlProgram {
     console.log('🧠 MCP: Processing user request with execution ID:', executionId);
 
     try {
-      // Store initial execution record
       await supabase
         .from('sovereign_tasks')
         .insert({
@@ -73,19 +70,13 @@ class MasterControlProgram {
             context: context as any,
             logs: []
           },
-          user_id: 'system' // Default for now
+          user_id: 'system'
         });
 
-      // 1. Analyze the request using RAG
       const analysis = await this.analyzeRequest(prompt, context);
-      
-      // 2. Create execution plan
       const plan = await this.createExecutionPlan(analysis, prompt);
-      
-      // 3. Execute the plan
       const result = await this.executePlan(plan, executionId);
       
-      // 4. Store final results
       await supabase
         .from('sovereign_tasks')
         .update({
@@ -111,7 +102,6 @@ class MasterControlProgram {
     } catch (error) {
       console.error('🧠 MCP: Request processing failed:', error);
       
-      // Update with error status
       await supabase
         .from('sovereign_tasks')
         .update({
@@ -131,8 +121,7 @@ class MasterControlProgram {
     console.log('🧠 MCP: Analyzing request with RAG system');
     
     try {
-      // Use RAG to understand the request
-      const ragResults = await ragDatabase.searchSimilar(prompt, {
+      const ragResults = await ragDatabase.search(prompt, {
         limit: 5,
         includeMetadata: true
       });
@@ -370,6 +359,21 @@ class MasterControlProgram {
       console.error('Failed to get active executions:', error);
       return [];
     }
+  }
+
+  getSystemStatus(): Record<string, any> {
+    return {
+      initialized: this.isInitialized,
+      totalExecutions: this.executionHistory.size,
+      agents: a2aProtocol.getAgents().length,
+      ragDocuments: ragDatabase.getDocumentCount()
+    };
+  }
+
+  async shutdownSystem(): Promise<void> {
+    console.log('🧠 MCP: Shutting down Master Control Program');
+    this.isInitialized = false;
+    this.executionHistory.clear();
   }
 }
 
