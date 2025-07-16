@@ -1,4 +1,5 @@
 
+
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -125,10 +126,10 @@ export interface MCPAuthentication {
 }
 
 export class AdvancedMCPIntegrationService {
-  private supabase: SupabaseClient<any>;
+  private supabase: SupabaseClient<any, any, any>;
   private mockTasks: A2ATask[] = [];
 
-  constructor(supabaseClient: SupabaseClient<any>) {
+  constructor(supabaseClient: SupabaseClient<any, any, any>) {
     this.supabase = supabaseClient;
   }
 
@@ -468,7 +469,7 @@ export class AdvancedMCPIntegrationService {
 let serviceInstance: AdvancedMCPIntegrationService | null = null;
 
 export const advancedMCPIntegration = {
-  init: (supabaseClient: SupabaseClient<any>) => {
+  init: (supabaseClient: SupabaseClient<any, any, any>) => {
     if (!serviceInstance) {
       serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
     }
@@ -476,3 +477,4 @@ export const advancedMCPIntegration = {
   },
   getInstance: () => serviceInstance
 };
+
