@@ -105,8 +105,7 @@ export class RAGDatabaseCore {
         content,
         category,
         tags,
-        created_at,
-        metadata
+        created_at
       `);
 
       // Apply text search
@@ -333,8 +332,7 @@ Please provide a detailed, accurate response that leverages the provided context
           title: updates.title,
           content: updates.content,
           category: updates.category,
-          tags: updates.tags,
-          metadata: updates.metadata
+          tags: updates.tags
         })
         .eq('id', id);
 
