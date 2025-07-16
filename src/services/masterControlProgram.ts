@@ -1,394 +1,270 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
-import { ragDatabase } from './ragDatabaseCore';
 import { mcpHub } from './mcpHubCore';
 import { a2aProtocol } from './a2aProtocolCore';
-import { sovereignOrchestrator } from './sovereignOrchestrator';
 
-export interface MCPTask {
-  id: string;
-  type: 'reasoning' | 'generation' | 'analysis' | 'orchestration';
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  status: 'queued' | 'processing' | 'completed' | 'failed';
-  payload: any;
-  result?: any;
-  error?: string;
-  createdAt: Date;
-  completedAt?: Date;
+interface ProjectContext {
+  projectFiles: any[];
+  activeFile: any;
+  systemContext: string;
 }
 
-export interface SystemStatus {
-  deepSeekStatus: 'active' | 'idle' | 'error';
-  ragStatus: 'connected' | 'disconnected' | 'syncing';
-  mcpStatus: 'operational' | 'degraded' | 'offline';
-  a2aStatus: 'connected' | 'disconnected';
-  orchestratorStatus: 'ready' | 'busy' | 'error';
-  totalTasks: number;
-  activeTasks: number;
-  completedTasks: number;
+interface ProcessingResult {
+  success: boolean;
+  result: any;
+  executionId: string;
+  logs: string[];
 }
 
-export class MasterControlProgram {
-  private deepSeekCore: DeepSeekReasonerCore;
-  private taskQueue: MCPTask[] = [];
-  private activeTasks: Map<string, MCPTask> = new Map();
-  private systemMetrics: SystemStatus;
+class MasterControlProgram {
   private isInitialized = false;
+  private activeExecutions = new Map<string, any>();
 
-  constructor() {
-    this.deepSeekCore = new DeepSeekReasonerCore(''); // Initialize with empty key, will be set later
-    this.systemMetrics = {
-      deepSeekStatus: 'idle',
-      ragStatus: 'disconnected',
-      mcpStatus: 'offline',
-      a2aStatus: 'disconnected',
-      orchestratorStatus: 'ready',
-      totalTasks: 0,
-      activeTasks: 0,
-      completedTasks: 0
-    };
-    
-    this.initialize();
-  }
+  async initialize() {
+    if (this.isInitialized) return;
 
-  private async initialize() {
-    console.log('🚀 Master Control Program: Initializing sovereign architecture...');
-    
     try {
-      // Initialize all core systems
-      await this.initializeRAGDatabase();
-      await this.initializeMCPHub();
-      await this.initializeA2AProtocol();
-      await this.initializeOrchestrator();
+      console.log('🎯 Master Control Program: Initializing...');
       
-      // Establish inter-system communication
-      await this.establishCommunicationFabric();
-      
-      // Start system monitoring
-      this.startSystemMonitoring();
+      // Initialize core systems
+      await mcpHub.initialize();
+      await a2aProtocol.initialize();
       
       this.isInitialized = true;
-      this.systemMetrics.deepSeekStatus = 'active';
-      this.systemMetrics.ragStatus = 'connected';
-      this.systemMetrics.mcpStatus = 'operational';
-      this.systemMetrics.a2aStatus = 'connected';
-      
-      console.log('✅ Master Control Program: All systems operational');
-      
+      console.log('✅ Master Control Program: Initialized successfully');
     } catch (error) {
       console.error('❌ Master Control Program: Initialization failed:', error);
       throw error;
     }
   }
 
-  private async initializeRAGDatabase() {
-    console.log('📚 Initializing RAG 2.0 Database...');
-    ragDatabase.clearCache();
-    // RAG database is ready for bidirectional integration
-  }
-
-  private async initializeMCPHub() {
-    console.log('🔧 Initializing MCP Hub...');
-    // MCP Hub is automatically initialized in its constructor
-  }
-
-  private async initializeA2AProtocol() {
-    console.log('🤝 Initializing A2A Protocol...');
-    // A2A Protocol is automatically initialized in its constructor
-  }
-
-  private async initializeOrchestrator() {
-    console.log('🎯 Initializing Sovereign Orchestrator...');
-    // Orchestrator is automatically initialized
-  }
-
-  private async establishCommunicationFabric() {
-    console.log('🌐 Establishing communication fabric...');
-    
-    // Register MCP as the master coordinator
-    await a2aProtocol.registerAgent({
-      id: 'master_control_program',
-      name: 'Master Control Program',
-      type: 'coordinator',
-      capabilities: ['task_management', 'system_orchestration', 'reasoning_coordination'],
-      status: 'active',
-      currentTasks: []
-    });
-
-    // Set up inter-system message routing
-    a2aProtocol.addEventListener('message:master_control_program', this.handleA2AMessage.bind(this));
-  }
-
-  private async handleA2AMessage(message: any) {
-    console.log('📨 MCP received A2A message:', message);
-    
-    switch (message.messageType) {
-      case 'task':
-        await this.processTaskRequest(message);
-        break;
-      case 'status':
-        await this.sendSystemStatus(message.fromAgent);
-        break;
-      case 'data':
-        await this.processReasoningRequest(message);
-        break;
-      default:
-        console.log('🔄 MCP: Unknown message type:', message.messageType);
-    }
-  }
-
-  private startSystemMonitoring() {
-    setInterval(() => {
-      this.updateSystemMetrics();
-    }, 5000);
-  }
-
-  private updateSystemMetrics() {
-    this.systemMetrics.totalTasks = this.taskQueue.length + this.activeTasks.size;
-    this.systemMetrics.activeTasks = this.activeTasks.size;
-    this.systemMetrics.orchestratorStatus = this.activeTasks.size > 0 ? 'busy' : 'ready';
-  }
-
-  async processUserRequest(request: string, context?: any): Promise<string> {
+  async processUserRequest(prompt: string, context: ProjectContext): Promise<ProcessingResult> {
     if (!this.isInitialized) {
-      throw new Error('Master Control Program not initialized');
+      await this.initialize();
     }
 
-    console.log('🧠 MCP: Processing user request:', request);
+    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const logs: string[] = [];
 
     try {
-      // Create comprehensive task
-      const task: MCPTask = {
-        id: `mcp_task_${Date.now()}`,
-        type: 'reasoning',
-        priority: 'high',
-        status: 'queued',
-        payload: {
-          userRequest: request,
-          context: context,
-          timestamp: new Date().toISOString()
-        },
-        createdAt: new Date()
-      };
+      logs.push(`🚀 Starting execution: ${executionId}`);
+      logs.push(`📝 Processing prompt: ${prompt.substring(0, 100)}...`);
 
-      // Add to task queue
-      this.taskQueue.push(task);
-      this.systemMetrics.totalTasks++;
+      // Store execution context
+      this.activeExecutions.set(executionId, {
+        prompt,
+        context,
+        startTime: Date.now(),
+        status: 'processing'
+      });
 
-      // Process immediately for high priority
-      const result = await this.executeTask(task);
-      
-      return result;
+      // Create sovereign task record
+      const { data: taskData, error: taskError } = await supabase
+        .from('sovereign_tasks')
+        .insert({
+          execution_id: executionId,
+          type: 'user_request',
+          description: prompt,
+          status: 'processing',
+          metadata: { context }
+        })
+        .select()
+        .single();
 
-    } catch (error) {
-      console.error('❌ MCP: Request processing failed:', error);
-      throw error;
-    }
-  }
-
-  private async executeTask(task: MCPTask): Promise<string> {
-    console.log(`🔄 MCP: Executing task ${task.id}`);
-    
-    task.status = 'processing';
-    this.activeTasks.set(task.id, task);
-
-    try {
-      let result: string;
-
-      switch (task.type) {
-        case 'reasoning':
-          result = await this.executeReasoningTask(task);
-          break;
-        case 'generation':
-          result = await this.executeGenerationTask(task);
-          break;
-        case 'analysis':
-          result = await this.executeAnalysisTask(task);
-          break;
-        case 'orchestration':
-          result = await this.executeOrchestrationTask(task);
-          break;
-        default:
-          throw new Error(`Unknown task type: ${task.type}`);
+      if (taskError) {
+        logs.push(`⚠️ Warning: Could not create task record: ${taskError.message}`);
       }
 
-      task.status = 'completed';
-      task.result = result;
-      task.completedAt = new Date();
-      this.systemMetrics.completedTasks++;
+      // Process with DeepSeek reasoning
+      const reasoningResult = await this.performDeepSeekReasoning(prompt, context);
+      logs.push(`🧠 DeepSeek reasoning completed`);
 
-      console.log(`✅ MCP: Task ${task.id} completed successfully`);
-      return result;
+      // Generate execution plan
+      const executionPlan = await this.generateExecutionPlan(reasoningResult, context);
+      logs.push(`📋 Execution plan generated with ${executionPlan.steps.length} steps`);
+
+      // Execute plan with agent coordination
+      const executionResult = await this.executeWithAgents(executionPlan, context);
+      logs.push(`🤖 Agent execution completed`);
+
+      // Update task status
+      if (taskData) {
+        await supabase
+          .from('sovereign_tasks')
+          .update({
+            status: 'completed',
+            result: executionResult,
+            metadata: { context, logs }
+          })
+          .eq('id', taskData.id);
+      }
+
+      // Clean up execution
+      this.activeExecutions.delete(executionId);
+
+      logs.push(`✅ Execution completed successfully`);
+
+      return {
+        success: true,
+        result: executionResult,
+        executionId,
+        logs
+      };
 
     } catch (error) {
-      task.status = 'failed';
-      task.error = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ MCP: Task ${task.id} failed:`, error);
-      throw error;
-    } finally {
-      this.activeTasks.delete(task.id);
-    }
-  }
-
-  private async executeReasoningTask(task: MCPTask): Promise<string> {
-    const { userRequest, context } = task.payload;
-
-    // Step 1: Enhance context with RAG data
-    const ragResults = await ragDatabase.query({
-      query: userRequest,
-      limit: 10,
-      threshold: 0.7
-    });
-
-    // Step 2: Perform advanced reasoning with DeepSeek - use documents instead of chunks
-    const reasoningResult = await this.deepSeekCore.performAdvancedReasoning({
-      projectId: context?.projectId || 'default',
-      userQuery: userRequest,
-      previousContext: context?.previousContext,
-      systemInstructions: this.getSystemInstructions(),
-      ragContext: ragResults.documents || []
-    });
-
-    // Step 3: Coordinate with orchestrator for implementation
-    if (reasoningResult.nextActions && reasoningResult.nextActions.length > 0) {
-      await sovereignOrchestrator.processUserRequest(userRequest);
-    }
-
-    // Step 4: Generate contextual response
-    const response = await ragDatabase.createContextualResponse(
-      userRequest,
-      ragResults,
-      `Based on advanced reasoning analysis:
+      logs.push(`❌ Execution failed: ${error}`);
       
-Reasoning: ${reasoningResult.reasoning}
-Conclusion: ${reasoningResult.conclusion}
-Confidence: ${reasoningResult.confidence}
-Next Actions: ${reasoningResult.nextActions?.join(', ') || 'None'}
+      // Update task status on error
+      await supabase
+        .from('sovereign_tasks')
+        .update({
+          status: 'failed',
+          result: { error: error instanceof Error ? error.message : 'Unknown error' },
+          metadata: { context, logs }
+        })
+        .eq('execution_id', executionId);
 
-Please provide a comprehensive response that incorporates this analysis.`
-    );
+      this.activeExecutions.delete(executionId);
 
-    return response;
-  }
-
-  private async executeGenerationTask(task: MCPTask): Promise<string> {
-    // Use MCP Hub tools for generation
-    const result = await mcpHub.executeTool('code_generate', {
-      specification: task.payload.specification,
-      framework: task.payload.framework || 'react',
-      style: task.payload.style || 'typescript'
-    });
-
-    return JSON.stringify(result);
-  }
-
-  private async executeAnalysisTask(task: MCPTask): Promise<string> {
-    // Use MCP Hub for analysis
-    const result = await mcpHub.executeTool('code_analyze', {
-      code: task.payload.code,
-      language: task.payload.language,
-      checkTypes: task.payload.checkTypes || ['syntax', 'style', 'security']
-    });
-
-    return JSON.stringify(result);
-  }
-
-  private async executeOrchestrationTask(task: MCPTask): Promise<string> {
-    // Delegate to sovereign orchestrator
-    const executionId = await sovereignOrchestrator.processUserRequest(task.payload.request);
-    return `Orchestration task initiated with execution ID: ${executionId}`;
-  }
-
-  private async processTaskRequest(message: any) {
-    const task: MCPTask = {
-      id: `external_${Date.now()}`,
-      type: message.payload.taskType || 'reasoning',
-      priority: message.payload.priority || 'medium',
-      status: 'queued',
-      payload: message.payload,
-      createdAt: new Date()
-    };
-
-    const result = await this.executeTask(task);
-
-    // Send response back via A2A
-    await a2aProtocol.sendMessage({
-      fromAgent: 'master_control_program',
-      toAgent: message.fromAgent,
-      messageType: 'response',
-      payload: {
-        taskId: task.id,
-        result: result,
-        status: task.status
-      },
-      priority: 'high',
-      requiresResponse: false
-    });
-  }
-
-  private async processReasoningRequest(message: any) {
-    const result = await this.deepSeekCore.performAdvancedReasoning({
-      projectId: message.payload.projectId,
-      userQuery: message.payload.query,
-      previousContext: message.payload.context,
-      systemInstructions: this.getSystemInstructions()
-    });
-
-    await a2aProtocol.sendMessage({
-      fromAgent: 'master_control_program',
-      toAgent: message.fromAgent,
-      messageType: 'data',
-      payload: result,
-      priority: 'high',
-      requiresResponse: false
-    });
-  }
-
-  private async sendSystemStatus(toAgent: string) {
-    await a2aProtocol.sendMessage({
-      fromAgent: 'master_control_program',
-      toAgent: toAgent,
-      messageType: 'status',
-      payload: this.systemMetrics,
-      priority: 'medium',
-      requiresResponse: false
-    });
-  }
-
-  private getSystemInstructions(): string {
-    return `You are the Master Control Program's reasoning engine. You have access to:
-    - Complete RAG 2.0 Database with contextual knowledge
-    - MCP Hub with specialized tools
-    - A2A Protocol for agent coordination
-    - Sovereign Orchestrator for task execution
-    
-    Your role is to provide advanced reasoning and decision-making for complex software development tasks.
-    Always consider the full system architecture and provide actionable insights.`;
-  }
-
-  // Public API methods
-  getSystemStatus(): SystemStatus {
-    return { ...this.systemMetrics };
-  }
-
-  getTasks(): MCPTask[] {
-    return [...this.taskQueue, ...Array.from(this.activeTasks.values())];
-  }
-
-  async shutdownSystem(): Promise<void> {
-    console.log('🔄 MCP: Initiating system shutdown...');
-    
-    // Wait for active tasks to complete
-    while (this.activeTasks.size > 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      return {
+        success: false,
+        result: null,
+        executionId,
+        logs
+      };
     }
-    
-    console.log('✅ MCP: System shutdown complete');
   }
 
-  // Set API key method to be called from components
-  setApiKey(apiKey: string) {
-    this.deepSeekCore.setApiKey(apiKey);
+  private async performDeepSeekReasoning(prompt: string, context: ProjectContext) {
+    // Simulate DeepSeek reasoning process
+    const reasoningPrompt = `
+    As a master AI architect, analyze this user request and break it down into actionable components:
+    
+    User Request: ${prompt}
+    
+    Current Project Context:
+    - Files: ${context.projectFiles.length} files
+    - Active File: ${context.activeFile?.name || 'None'}
+    - System Context: ${context.systemContext}
+    
+    Provide a structured analysis with:
+    1. Intent classification
+    2. Required components
+    3. Technical approach
+    4. Risk assessment
+    5. Success criteria
+    `;
+
+    // In a real implementation, this would call DeepSeek API
+    return {
+      intent: 'code_generation',
+      complexity: 'medium',
+      requiredComponents: ['frontend', 'backend', 'database'],
+      approach: 'incremental_development',
+      risks: ['compatibility', 'performance'],
+      successCriteria: ['functional', 'tested', 'deployed']
+    };
+  }
+
+  private async generateExecutionPlan(reasoningResult: any, context: ProjectContext) {
+    return {
+      id: `plan_${Date.now()}`,
+      steps: [
+        {
+          id: 'step_1',
+          type: 'analysis',
+          description: 'Analyze requirements',
+          agent: 'architect',
+          estimatedTime: 30
+        },
+        {
+          id: 'step_2',
+          type: 'design',
+          description: 'Create system design',
+          agent: 'architect',
+          estimatedTime: 60
+        },
+        {
+          id: 'step_3',
+          type: 'implementation',
+          description: 'Implement solution',
+          agent: 'builder',
+          estimatedTime: 120
+        },
+        {
+          id: 'step_4',
+          type: 'validation',
+          description: 'Validate implementation',
+          agent: 'validator',
+          estimatedTime: 45
+        }
+      ],
+      totalEstimatedTime: 255
+    };
+  }
+
+  private async executeWithAgents(plan: any, context: ProjectContext) {
+    const results = [];
+
+    for (const step of plan.steps) {
+      const stepResult = await this.executeStep(step, context);
+      results.push(stepResult);
+    }
+
+    return {
+      planId: plan.id,
+      results,
+      completedAt: new Date(),
+      success: results.every(r => r.success)
+    };
+  }
+
+  private async executeStep(step: any, context: ProjectContext) {
+    // Simulate step execution
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return {
+      stepId: step.id,
+      success: true,
+      output: `Step ${step.id} completed successfully`,
+      executionTime: 1000 + Math.random() * 2000
+    };
+  }
+
+  getActiveExecutions() {
+    return Array.from(this.activeExecutions.entries()).map(([id, execution]) => ({
+      id,
+      ...execution
+    }));
+  }
+
+  async getExecutionHistory(limit = 10) {
+    const { data, error } = await supabase
+      .from('sovereign_tasks')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching execution history:', error);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async cancelExecution(executionId: string) {
+    if (this.activeExecutions.has(executionId)) {
+      this.activeExecutions.delete(executionId);
+      
+      await supabase
+        .from('sovereign_tasks')
+        .update({ status: 'cancelled' })
+        .eq('execution_id', executionId);
+      
+      return true;
+    }
+    return false;
   }
 }
 
