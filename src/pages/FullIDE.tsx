@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -613,7 +614,8 @@ export default App;`,
                           </TabsTrigger>
                           <TabsTrigger value="a2a" className="data-[state=active]:bg-slate-700">
                             <Users className="w-3 h-3" />
-                          </TabsList>
+                          </TabsTrigger>
+                        </TabsList>
                       </div>
                       
                       <TabsContent value="rag" className="flex-1 m-0 overflow-hidden">
