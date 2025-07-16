@@ -20,6 +20,18 @@ interface SearchResult {
   similarity: number;
 }
 
+interface QueryOptions {
+  query: string;
+  limit?: number;
+  threshold?: number;
+}
+
+interface QueryResult {
+  documents: RAGDocument[];
+  chunks?: any[];
+  similarity?: number[];
+}
+
 class RAGDatabaseCore {
   private documents: Map<string, RAGDocument> = new Map();
   private isInitialized = false;
@@ -143,6 +155,20 @@ class RAGDatabaseCore {
     return results.slice(0, limit);
   }
 
+  async query(options: QueryOptions): Promise<QueryResult> {
+    await this.initialize();
+
+    const searchResults = await this.searchSimilar(options.query, {
+      limit: options.limit,
+      threshold: options.threshold
+    });
+
+    return {
+      documents: searchResults.map(result => result.document),
+      similarity: searchResults.map(result => result.similarity)
+    };
+  }
+
   async getDocument(documentId: string): Promise<RAGDocument | undefined> {
     await this.initialize();
     return this.documents.get(documentId);
@@ -188,6 +214,12 @@ class RAGDatabaseCore {
     } catch (error) {
       console.warn('📊 RAG Database: Failed to delete document:', error);
     }
+  }
+
+  async clearCache(): Promise<void> {
+    console.log('📊 RAG Database: Clearing cache');
+    this.documents.clear();
+    this.isInitialized = false;
   }
 
   getDocumentCount(): number {

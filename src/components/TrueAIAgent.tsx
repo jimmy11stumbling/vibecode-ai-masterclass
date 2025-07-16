@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,11 +50,29 @@ interface A2AMessage {
   priority?: 'low' | 'medium' | 'high';
 }
 
+interface ProjectFile {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  content?: string;
+  children?: ProjectFile[];
+  parentId?: string;
+  path: string;
+  size?: number;
+  lastModified?: Date;
+}
+
 interface TrueAIAgentProps {
+  projectFiles?: ProjectFile[];
+  onFilesChange?: (files: ProjectFile[]) => void;
+  onCodeGenerated?: (code: string) => void;
   onProjectGenerated?: (project: any) => void;
 }
 
 export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
+  projectFiles = [],
+  onFilesChange,
+  onCodeGenerated,
   onProjectGenerated
 }) => {
   const [agents, setAgents] = useState<A2AAgent[]>([]);
@@ -61,7 +80,7 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
   const [newAgent, setNewAgent] = useState({
     name: '',
     type: '',
-    capabilities: ''
+    capabilities: [] as string[]
   });
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [messageContent, setMessageContent] = useState('');
@@ -84,12 +103,11 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setNewAgent(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCapabilityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    setNewAgent(prev => ({ ...prev, capabilities: value.split(',').map(s => s.trim()) }));
+    if (name === 'capabilities') {
+      setNewAgent(prev => ({ ...prev, capabilities: value.split(',').map(s => s.trim()) }));
+    } else {
+      setNewAgent(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const registerNewAgent = async (agentData: { name: string; type: string; capabilities: string[] }) => {
@@ -110,6 +128,8 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
         lastActivity: new Date(),
         currentTasks: []
       }]);
+
+      setNewAgent({ name: '', type: '', capabilities: [] });
 
       toast({
         title: "Agent Registered",
@@ -282,8 +302,8 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
                       type="text"
                       name="capabilities"
                       placeholder="Capabilities (comma-separated, e.g., code_generation, testing)"
-                      value={newAgent.capabilities}
-                      onChange={handleCapabilityChange}
+                      value={newAgent.capabilities.join(', ')}
+                      onChange={handleInputChange}
                       className="bg-slate-700 border-slate-600 text-white"
                     />
                   </div>
@@ -292,8 +312,9 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
                     onClick={() => registerNewAgent({
                       name: newAgent.name,
                       type: newAgent.type,
-                      capabilities: Array.isArray(newAgent.capabilities) ? newAgent.capabilities : [newAgent.capabilities]
+                      capabilities: newAgent.capabilities
                     })}
+                    disabled={!newAgent.name || !newAgent.type}
                     className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
                   >
                     Register Agent
@@ -326,7 +347,7 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
                             <p className="text-sm text-white">
                               <span className="font-medium">{message.fromAgent}</span> to <span className="font-medium">{message.toAgent}</span>:
                             </p>
-                            <p className="text-sm text-slate-400">{message.content}</p>
+                            <p className="text-sm text-slate-400">{typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}</p>
                             <p className="text-xs text-slate-500">{message.timestamp.toLocaleTimeString()}</p>
                           </div>
                         ))
@@ -354,7 +375,7 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
                     <select
                       value={selectedAgent || ''}
                       onChange={(e) => setSelectedAgent(e.target.value)}
-                      className="w-full bg-slate-700 border-slate-600 text-white rounded"
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2"
                     >
                       <option value="" disabled>Select Agent</option>
                       {agents.map(agent => (
