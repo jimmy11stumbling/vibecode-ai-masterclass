@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ReasoningContext {
@@ -25,6 +24,38 @@ export class DeepSeekReasonerCore {
   
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+  }
+
+  setApiKey(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async generateResponse(prompt: string): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-reasoner',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
   }
 
   async performAdvancedReasoning(context: ReasoningContext): Promise<ReasoningResult> {

@@ -328,7 +328,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                           <h3 className="font-medium text-white">{currentProject.name}</h3>
                           <p className="text-sm text-slate-400">{currentProject.description}</p>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {currentProject.techStack.map(tech => (
+                            {currentProject.techStack && currentProject.techStack.map(tech => (
                               <Badge key={tech} variant="secondary" className="text-xs">
                                 {tech}
                               </Badge>
