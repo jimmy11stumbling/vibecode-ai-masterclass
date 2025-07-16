@@ -17,7 +17,9 @@ import {
   Zap,
   Smartphone,
   Layout,
-  Bot
+  Bot,
+  Crown,
+  Command
 } from 'lucide-react';
 
 // Import all components
@@ -39,7 +41,9 @@ import { A2AProtocolInterface } from '@/components/A2AProtocolInterface';
 import { DatabaseManager } from '@/components/DatabaseManager';
 import { DeploymentManager } from '@/components/DeploymentManager';
 import { AgentDashboard } from '@/components/AgentDashboard';
-import { agentManager } from '@/services/agentManager';
+import { SovereignDashboard } from '@/components/SovereignDashboard';
+import { SovereignCommandInterface } from '@/components/SovereignCommandInterface';
+import { masterControlProgram } from '@/services/masterControlProgram';
 
 interface ProjectFile {
   id: string;
@@ -63,9 +67,9 @@ const FullIDE = () => {
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [activeAITab, setActiveAITab] = useState('true-agent');
+  const [activeAITab, setActiveAITab] = useState('sovereign-control');
   const [activeToolTab, setActiveToolTab] = useState('database');
-  const [activeRightTab, setActiveRightTab] = useState('ai-agents');
+  const [activeRightTab, setActiveRightTab] = useState('sovereign-ai');
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
   const [agentStatus, setAgentStatus] = useState('ready');
 
@@ -100,50 +104,45 @@ const FullIDE = () => {
     setLogs(prev => [...prev, log]);
   };
 
-  const handleAgentRequest = async (prompt: string) => {
+  const handleSovereignRequest = async (prompt: string) => {
     try {
       setIsAgentProcessing(true);
       setAgentStatus('processing');
       
-      const projectContext = {
-        id: 'current-project',
-        name: 'Sovereign IDE Project',
-        description: 'AI-generated project',
-        techStack: ['react', 'typescript', 'tailwind', 'supabase'],
-        files: projectFiles.map(file => ({
-          path: file.name,
-          content: file.content || '',
-          type: file.type
-        }))
-      };
-
-      const executionId = await agentManager.processUserRequest(prompt, projectContext);
+      console.log('🧠 Sovereign AI: Processing request:', prompt);
       
-      console.log('Agent execution started:', executionId);
+      const result = await masterControlProgram.processUserRequest(prompt, {
+        projectFiles,
+        activeFile,
+        systemContext: 'production-ide'
+      });
+      
+      console.log('✅ Sovereign AI: Request completed:', result);
       setAgentStatus('success');
       
-      // Monitor execution progress
-      monitorExecution(executionId);
+      // Add log entry
+      handleLog({
+        id: `log_${Date.now()}`,
+        timestamp: new Date(),
+        level: 'info',
+        message: `Sovereign AI completed request: ${prompt.substring(0, 50)}...`,
+        context: 'Master Control Program'
+      });
       
     } catch (error) {
-      console.error('Agent request failed:', error);
+      console.error('❌ Sovereign AI: Request failed:', error);
       setAgentStatus('error');
+      
+      handleLog({
+        id: `log_${Date.now()}`,
+        timestamp: new Date(),
+        level: 'error',
+        message: `Sovereign AI request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        context: 'Master Control Program'
+      });
     } finally {
       setIsAgentProcessing(false);
     }
-  };
-
-  const monitorExecution = (executionId: string) => {
-    // Set up real-time monitoring
-    agentManager.addEventListener('executionCompleted', (data: any) => {
-      if (data.executionId === executionId) {
-        console.log('Execution completed:', data);
-        setAgentStatus(data.success ? 'success' : 'error');
-        
-        // Refresh project files if needed
-        // This would be implemented based on the actual file changes made by agents
-      }
-    });
   };
 
   // Create a CodeFile from ProjectFile for MonacoCodeEditor
@@ -159,19 +158,33 @@ const FullIDE = () => {
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col">
-      {/* Toolbar */}
-      <IDEToolbar 
-        onRun={() => console.log('Run project')}
-        onStop={() => console.log('Stop project')}
-        onSave={() => console.log('Save project')}
-        onExport={() => console.log('Export project')}
-        onImport={() => console.log('Import project')}
-        onSettings={() => console.log('Open settings')}
-        onToggleTerminal={() => console.log('Toggle terminal')}
-        isRunning={false}
-        hasUnsavedChanges={false}
-        isBuilding={isAgentProcessing}
-      />
+      {/* Enhanced Toolbar with Sovereign Badge */}
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Crown className="w-6 h-6 text-yellow-400" />
+            <span className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              Sovereign IDE
+            </span>
+            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+              Production Ready
+            </Badge>
+          </div>
+        </div>
+        
+        <IDEToolbar 
+          onRun={() => console.log('Run project')}
+          onStop={() => console.log('Stop project')}
+          onSave={() => console.log('Save project')}
+          onExport={() => console.log('Export project')}
+          onImport={() => console.log('Import project')}
+          onSettings={() => console.log('Open settings')}
+          onToggleTerminal={() => console.log('Toggle terminal')}
+          isRunning={false}
+          hasUnsavedChanges={false}
+          isBuilding={isAgentProcessing}
+        />
+      </div>
       
       {/* Main IDE Layout */}
       <div className="flex-1 overflow-hidden">
@@ -301,14 +314,14 @@ const FullIDE = () => {
 
           <ResizableHandle />
 
-          {/* Right Sidebar - AI & Advanced Features */}
+          {/* Right Sidebar - Sovereign AI & Advanced Features */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
             <div className="h-full bg-slate-900 border-l border-slate-700">
               <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="h-full flex flex-col">
                 <div className="border-b border-slate-700 px-2 py-1">
                   <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
-                    <TabsTrigger value="ai-agents" className="text-xs data-[state=active]:bg-slate-700">
-                      <Bot className="w-3 h-3 mr-1" />
+                    <TabsTrigger value="sovereign-ai" className="text-xs data-[state=active]:bg-slate-700">
+                      <Crown className="w-3 h-3 mr-1" />
                       AI
                     </TabsTrigger>
                     <TabsTrigger value="protocols" className="text-xs data-[state=active]:bg-slate-700">
@@ -317,58 +330,56 @@ const FullIDE = () => {
                     </TabsTrigger>
                     <TabsTrigger value="dashboard" className="text-xs data-[state=active]:bg-slate-700">
                       <Layout className="w-3 h-3 mr-1" />
-                      Dashboard
+                      Control
                     </TabsTrigger>
                   </TabsList>
                 </div>
                 
-                <TabsContent value="ai-agents" className="flex-1 m-0">
+                <TabsContent value="sovereign-ai" className="flex-1 m-0">
                   <div className="h-full">
-                    <Tabs defaultValue="true-agent" className="h-full flex flex-col">
+                    <Tabs value={activeAITab} onValueChange={setActiveAITab} className="h-full flex flex-col">
                       <div className="border-b border-slate-700 px-2 py-1">
                         <TabsList className="grid w-full grid-cols-4 bg-slate-800 h-8 text-xs">
-                          <TabsTrigger value="true-agent" className="data-[state=active]:bg-slate-700">
-                            <Bot className="w-3 h-3" />
+                          <TabsTrigger value="sovereign-control" className="data-[state=active]:bg-slate-700">
+                            <Crown className="w-3 h-3" />
                           </TabsTrigger>
-                          <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
-                            <Brain className="w-3 h-3" />
+                          <TabsTrigger value="command" className="data-[state=active]:bg-slate-700">
+                            <Command className="w-3 h-3" />
+                          </TabsTrigger>
+                          <TabsTrigger value="agents" className="data-[state=active]:bg-slate-700">
+                            <Bot className="w-3 h-3" />
                           </TabsTrigger>
                           <TabsTrigger value="integrations" className="data-[state=active]:bg-slate-700">
                             <Plug className="w-3 h-3" />
                           </TabsTrigger>
-                          <TabsTrigger value="templates" className="data-[state=active]:bg-slate-700">
-                            <Layout className="w-3 h-3" />
-                          </TabsTrigger>
                         </TabsList>
                       </div>
                       
-                      <TabsContent value="true-agent" className="flex-1 m-0">
+                      <TabsContent value="sovereign-control" className="flex-1 m-0">
                         <TrueAIAgent
                           projectFiles={projectFiles}
                           onFilesChange={setProjectFiles}
                           onCodeGenerated={(code) => {
-                            console.log('Code generated:', code);
-                            handleAgentRequest(code);
+                            console.log('Sovereign AI generated code:', code);
+                            handleSovereignRequest(code);
                           }}
                         />
                       </TabsContent>
                       
-                      <TabsContent value="chat" className="flex-1 m-0">
+                      <TabsContent value="command" className="flex-1 m-0">
+                        <SovereignCommandInterface />
+                      </TabsContent>
+                      
+                      <TabsContent value="agents" className="flex-1 m-0">
                         <EnhancedAIChatBot
                           projectFiles={projectFiles}
                           onFilesChange={setProjectFiles}
-                          onCodeGenerated={(code) => console.log('Chat code generated:', code)}
+                          onCodeGenerated={(code) => console.log('Agent code generated:', code)}
                         />
                       </TabsContent>
                       
                       <TabsContent value="integrations" className="flex-1 m-0">
                         <ServiceIntegrationHub onIntegrationAdd={() => {}} />
-                      </TabsContent>
-                      
-                      <TabsContent value="templates" className="flex-1 m-0">
-                        <TemplateSystem
-                          onTemplateSelect={(template) => console.log('Template selected:', template)}
-                        />
                       </TabsContent>
                     </Tabs>
                   </div>
@@ -407,16 +418,16 @@ const FullIDE = () => {
                       
                       <TabsContent value="a2a" className="flex-1 m-0">
                         <A2AProtocolInterface
-                          onTaskSelect={(task) => console.log('A2A task selected:', task)}
-                          onMessageSend={(taskId, message) => console.log('A2A message sent:', { taskId, message })}
+                          onMessageSend={(message) => console.log('A2A message sent:', message)}
+                          onAgentRegister={(agent) => console.log('A2A agent registered:', agent)}
                         />
                       </TabsContent>
                     </Tabs>
                   </div>
                 </TabsContent>
-
+                
                 <TabsContent value="dashboard" className="flex-1 m-0">
-                  <AgentDashboard />
+                  <SovereignDashboard />
                 </TabsContent>
               </Tabs>
             </div>
@@ -424,18 +435,30 @@ const FullIDE = () => {
         </ResizablePanelGroup>
       </div>
 
-      {/* Status Bar */}
-      <IDEStatusBar 
-        selectedFile={activeFile}
-        layout="horizontal"
-        isBuilding={isAgentProcessing}
-        hasUnsavedChanges={false}
-        projectStats={{
-          files: projectFiles.length,
-          components: projectFiles.filter(f => f.name.endsWith('.tsx')).length,
-          lines: projectFiles.reduce((total, file) => total + (file.content?.split('\n').length || 0), 0)
-        }}
-      />
+      {/* Enhanced Status Bar */}
+      <div className="bg-slate-900 border-t border-slate-700 px-4 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+              <Crown className="w-3 h-3 mr-1" />
+              Sovereign Mode
+            </Badge>
+            <span className="text-xs text-slate-400">
+              Master Control Program: {agentStatus}
+            </span>
+          </div>
+          
+          <div className="flex items-center space-x-2 text-xs text-slate-400">
+            <span>Files: {projectFiles.length}</span>
+            <span>•</span>
+            <span>Logs: {logs.length}</span>
+            <span>•</span>
+            <span className={isAgentProcessing ? 'text-yellow-400' : 'text-green-400'}>
+              {isAgentProcessing ? 'Processing...' : 'Ready'}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
