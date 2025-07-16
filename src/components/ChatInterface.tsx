@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
 import { ApiKeyInput } from '@/components/ApiKeyInput';
 import { ConsoleLogger } from '@/components/ConsoleLogger';
 import { useConsoleLogger } from '@/hooks/useConsoleLogger';
+import { ChatInterfaceExplainer } from '@/components/ChatInterfaceExplainer';
+import { EnhancedNotificationPanel } from '@/components/EnhancedNotificationPanel';
+import { RealTimeProgress } from '@/components/RealTimeProgress';
 
 interface Message {
   id: string;
@@ -39,7 +43,7 @@ export const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [apiKey, setApiKey] = useState('');
-  const [activeView, setActiveView] = useState<'chat' | 'console'>('chat');
+  const [activeView, setActiveView] = useState<'explainer' | 'chat' | 'notifications' | 'activity' | 'files'>('explainer');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { logs, logInfo, logError, clearLogs, exportLogs } = useConsoleLogger();
@@ -89,6 +93,11 @@ export const ChatInterface = () => {
     logInfo(`Project files updated: ${files.length} files`, undefined, 'File Manager');
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveView(tab as any);
+    logInfo(`Switched to ${tab} view`, undefined, 'Chat Interface');
+  };
+
   const quickActions = [
     {
       label: 'Create React App',
@@ -124,23 +133,8 @@ export const ChatInterface = () => {
             </Badge>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={activeView === 'chat' ? 'default' : 'ghost'}
-              onClick={() => setActiveView('chat')}
-              size="sm"
-              className={activeView === 'chat' ? 'bg-purple-500/20 text-purple-300' : 'text-gray-400'}
-            >
-              Chat
-            </Button>
-            <Button
-              variant={activeView === 'console' ? 'default' : 'ghost'}
-              onClick={() => setActiveView('console')}
-              size="sm"
-              className={activeView === 'console' ? 'bg-purple-500/20 text-purple-300' : 'text-gray-400'}
-            >
-              Console
-            </Button>
+          <div className="text-sm text-slate-400">
+            {messages.length - 1} messages • {projectFiles.length} files
           </div>
         </div>
 
@@ -148,125 +142,180 @@ export const ChatInterface = () => {
         <ApiKeyInput onApiKeyChange={setApiKey} />
       </div>
 
-      {/* Quick Actions */}
-      <div className="p-4 border-b border-white/10 flex-shrink-0">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {quickActions.map((action, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              onClick={() => setInputValue(action.prompt)}
-              className={`text-xs justify-start h-auto p-3 ${action.color}`}
-            >
-              <action.icon className="w-4 h-4 mr-2" />
-              <div className="text-left">
-                <div className="font-medium">{action.label}</div>
-              </div>
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Content */}
+      {/* Main Content with Tabs */}
       <div className="flex-1 overflow-hidden">
-        {activeView === 'chat' ? (
-          <>
-            {/* Messages */}
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-4 space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] p-4 rounded-lg ${
-                          message.role === 'user'
-                            ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30'
-                            : 'bg-white/10 text-gray-100 border border-white/20'
-                        }`}
+        <Tabs value={activeView} onValueChange={handleTabChange} className="h-full flex flex-col">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-800 border-b border-slate-700 rounded-none">
+            <TabsTrigger value="explainer" className="data-[state=active]:bg-slate-700">
+              Guide
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
+              Chat
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="data-[state=active]:bg-slate-700">
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="data-[state=active]:bg-slate-700">
+              Activity
+            </TabsTrigger>
+            <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
+              Files
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="explainer" className="h-full m-0">
+              <div className="h-full p-4">
+                <ChatInterfaceExplainer 
+                  activeTab={activeView} 
+                  onTabChange={handleTabChange}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="chat" className="h-full m-0">
+              <div className="h-full flex flex-col">
+                {/* Quick Actions */}
+                <div className="p-4 border-b border-white/10 flex-shrink-0">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {quickActions.map((action, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        onClick={() => setInputValue(action.prompt)}
+                        className={`text-xs justify-start h-auto p-3 ${action.color}`}
                       >
-                        <div className="flex items-start space-x-2">
-                          <div className="flex-shrink-0 mt-1">
-                            {message.role === 'user' ? (
-                              <User className="w-4 h-4" />
-                            ) : (
-                              <Bot className="w-4 h-4" />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                            <div className="text-xs opacity-70 mt-2">
-                              {message.timestamp.toLocaleTimeString()}
+                        <action.icon className="w-4 h-4 mr-2" />
+                        <div className="text-left">
+                          <div className="font-medium">{action.label}</div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <div className="p-4 space-y-4">
+                      {messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] p-4 rounded-lg ${
+                              message.role === 'user'
+                                ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30'
+                                : 'bg-white/10 text-gray-100 border border-white/20'
+                            }`}
+                          >
+                            <div className="flex items-start space-x-2">
+                              <div className="flex-shrink-0 mt-1">
+                                {message.role === 'user' ? (
+                                  <User className="w-4 h-4" />
+                                ) : (
+                                  <Bot className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                                <div className="text-xs opacity-70 mt-2">
+                                  {message.timestamp.toLocaleTimeString()}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white/10 text-gray-100 border border-white/20 p-4 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Bot className="w-4 h-4" />
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                      ))}
+                      
+                      {isLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-white/10 text-gray-100 border border-white/20 p-4 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <Bot className="w-4 h-4" />
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+                      
+                      <div ref={messagesEndRef} />
                     </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
+                  </ScrollArea>
                 </div>
-              </ScrollArea>
-            </div>
 
-            {/* Input Form */}
-            <div className="p-4 border-t border-white/10 flex-shrink-0">
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <Textarea
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Describe what you want to build... Be specific for better results!"
-                  className="min-h-[80px] bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e as any);
-                    }
-                  }}
-                />
-                <div className="flex justify-between items-center">
-                  <div className="text-xs text-gray-400">
-                    Press Enter to send, Shift+Enter for new line
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={!inputValue.trim() || isLoading}
-                    className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send
-                  </Button>
+                {/* Input Form */}
+                <div className="p-4 border-t border-white/10 flex-shrink-0">
+                  <form onSubmit={handleSubmit} className="space-y-3">
+                    <Textarea
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      placeholder="Describe what you want to build... Be specific for better results!"
+                      className="min-h-[80px] bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmit(e as any);
+                        }
+                      }}
+                    />
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs text-gray-400">
+                        Press Enter to send, Shift+Enter for new line
+                      </div>
+                      <Button
+                        type="submit"
+                        disabled={!inputValue.trim() || isLoading}
+                        className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Send
+                      </Button>
+                    </div>
+                  </form>
                 </div>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="h-full">
-            <ConsoleLogger 
-              logs={logs} 
-              onClear={clearLogs}
-              onExport={exportLogs}
-              title="Development Console"
-            />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="notifications" className="h-full m-0">
+              <EnhancedNotificationPanel />
+            </TabsContent>
+
+            <TabsContent value="activity" className="h-full m-0">
+              <div className="h-full p-4">
+                <div className="mb-4">
+                  <RealTimeProgress
+                    isStreaming={isLoading}
+                    tokensReceived={0}
+                    responseTime={0}
+                    status={isLoading ? 'streaming' : 'idle'}
+                  />
+                </div>
+                <ConsoleLogger 
+                  logs={logs} 
+                  onClear={clearLogs}
+                  onExport={exportLogs}
+                  title="Activity & Performance Monitor"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="files" className="h-full m-0">
+              <div className="h-full p-4">
+                <EnhancedAIChatBot
+                  projectFiles={projectFiles}
+                  onFilesChange={handleFilesChange}
+                  apiKey={apiKey}
+                />
+              </div>
+            </TabsContent>
           </div>
-        )}
+        </Tabs>
       </div>
     </div>
   );
