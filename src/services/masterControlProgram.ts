@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { ragDatabase } from './ragDatabaseCore';
@@ -124,13 +123,13 @@ export class MasterControlProgram {
     console.log('📨 MCP received A2A message:', message);
     
     switch (message.messageType) {
-      case 'task_request':
+      case 'task':
         await this.processTaskRequest(message);
         break;
-      case 'system_status_request':
+      case 'status':
         await this.sendSystemStatus(message.fromAgent);
         break;
-      case 'reasoning_request':
+      case 'data':
         await this.processReasoningRequest(message);
         break;
       default:
@@ -247,18 +246,12 @@ export class MasterControlProgram {
       userQuery: userRequest,
       previousContext: context?.previousContext,
       systemInstructions: this.getSystemInstructions(),
-      ragContext: ragResults.chunks
+      ragContext: ragResults.results || []
     });
 
     // Step 3: Coordinate with orchestrator for implementation
-    if (reasoningResult.nextActions.length > 0) {
-      await sovereignOrchestrator.processUserRequest(userRequest, {
-        id: context?.projectId || 'default',
-        name: 'MCP Generated Project',
-        description: reasoningResult.conclusion,
-        techStack: ['react', 'typescript', 'tailwind', 'supabase'],
-        files: []
-      });
+    if (reasoningResult.nextActions && reasoningResult.nextActions.length > 0) {
+      await sovereignOrchestrator.processUserRequest(userRequest);
     }
 
     // Step 4: Generate contextual response
@@ -270,7 +263,7 @@ export class MasterControlProgram {
 Reasoning: ${reasoningResult.reasoning}
 Conclusion: ${reasoningResult.conclusion}
 Confidence: ${reasoningResult.confidence}
-Next Actions: ${reasoningResult.nextActions.join(', ')}
+Next Actions: ${reasoningResult.nextActions?.join(', ') || 'None'}
 
 Please provide a comprehensive response that incorporates this analysis.`
     );
@@ -302,11 +295,7 @@ Please provide a comprehensive response that incorporates this analysis.`
 
   private async executeOrchestrationTask(task: MCPTask): Promise<string> {
     // Delegate to sovereign orchestrator
-    const executionId = await sovereignOrchestrator.processUserRequest(
-      task.payload.request,
-      task.payload.context
-    );
-
+    const executionId = await sovereignOrchestrator.processUserRequest(task.payload.request);
     return `Orchestration task initiated with execution ID: ${executionId}`;
   }
 
@@ -326,7 +315,7 @@ Please provide a comprehensive response that incorporates this analysis.`
     await a2aProtocol.sendMessage({
       fromAgent: 'master_control_program',
       toAgent: message.fromAgent,
-      messageType: 'task_response',
+      messageType: 'response',
       payload: {
         taskId: task.id,
         result: result,
@@ -348,7 +337,7 @@ Please provide a comprehensive response that incorporates this analysis.`
     await a2aProtocol.sendMessage({
       fromAgent: 'master_control_program',
       toAgent: message.fromAgent,
-      messageType: 'reasoning_response',
+      messageType: 'data',
       payload: result,
       priority: 'high',
       requiresResponse: false
@@ -359,7 +348,7 @@ Please provide a comprehensive response that incorporates this analysis.`
     await a2aProtocol.sendMessage({
       fromAgent: 'master_control_program',
       toAgent: toAgent,
-      messageType: 'system_status_response',
+      messageType: 'status',
       payload: this.systemMetrics,
       priority: 'medium',
       requiresResponse: false

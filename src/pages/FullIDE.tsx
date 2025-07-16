@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -419,7 +418,6 @@ const FullIDE = () => {
                       <TabsContent value="a2a" className="flex-1 m-0">
                         <A2AProtocolInterface
                           onMessageSend={(message) => console.log('A2A message sent:', message)}
-                          onAgentRegister={(agent) => console.log('A2A agent registered:', agent)}
                         />
                       </TabsContent>
                     </Tabs>

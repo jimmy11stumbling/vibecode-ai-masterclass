@@ -1,4 +1,3 @@
-
 import { DeepSeekReasonerCore, ReasoningContext, ReasoningResult } from './deepSeekReasonerCore';
 import { ragDatabase } from './ragDatabaseCore';
 import { supabase } from '@/integrations/supabase/client';
@@ -91,8 +90,8 @@ export class DeepSeekIntegrationService {
         threshold: 0.6
       });
 
-      // Update context with RAG data
-      session.context.ragContext = ragResults.chunks;
+      // Update context with RAG data - fix: use correct property name
+      session.context.ragContext = ragResults.results || [];
 
       // Perform streaming reasoning with progress updates
       const result = await this.reasonerCore.streamReasoningProcess(
@@ -209,7 +208,7 @@ export class DeepSeekIntegrationService {
       threshold: 0.7
     });
 
-    const ragContext = ragResults.chunks
+    const ragContext = (ragResults.results || [])
       .map(chunk => `[${chunk.category || 'General'}] ${chunk.content}`)
       .join('\n\n');
 
@@ -263,19 +262,22 @@ Please provide thorough, step-by-step analysis with actionable recommendations.`
 
   private async persistSession(session: DeepSeekSession): Promise<void> {
     try {
+      // Fix: Properly serialize data for Json fields
+      const sessionData = {
+        sessionId: session.id,
+        context: session.context,
+        results: session.results,
+        createdAt: session.createdAt.toISOString(),
+        updatedAt: session.updatedAt.toISOString()
+      };
+
       const { error } = await supabase
         .from('generation_history')
         .insert({
           task_id: session.id,
           user_id: session.userId,
           status: session.status,
-          project_spec: {
-            sessionId: session.id,
-            context: session.context,
-            results: session.results,
-            createdAt: session.createdAt.toISOString(),
-            updatedAt: session.updatedAt.toISOString()
-          },
+          project_spec: sessionData as any,
           result: session.results.length > 0 ? session.results[session.results.length - 1].conclusion : null,
           progress: session.status === 'completed' ? 100 : 0
         });
