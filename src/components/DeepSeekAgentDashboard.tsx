@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,11 +15,13 @@ import {
   AlertCircle,
   Sparkles,
   Cpu,
-  Layers
+  Layers,
+  FileText
 } from 'lucide-react';
 import { deepSeekAgentCore, AgentTask } from '@/services/deepSeekAgentCore';
 import { a2aProtocol } from '@/services/a2aProtocolCore';
 import { useToast } from '@/hooks/use-toast';
+import { GeneratedFilesViewer } from './GeneratedFilesViewer';
 
 interface DeepSeekAgentDashboardProps {
   onCodeGenerated?: (code: string) => void;
@@ -68,12 +69,12 @@ export const DeepSeekAgentDashboard: React.FC<DeepSeekAgentDashboardProps> = ({
       });
 
       toast({
-        title: "Application Creation Started",
-        description: "DeepSeek agents are working on your application",
+        title: "Application Created!",
+        description: "Your application has been generated successfully. Check the Files tab to view the code.",
       });
 
       if (onCodeGenerated) {
-        onCodeGenerated(`// Application generation session: ${sessionId}\n// Check the progress in the dashboard`);
+        onCodeGenerated(`// Application generated successfully!\n// Session ID: ${sessionId}\n// Check the Files tab to view your generated code.`);
       }
 
       setActivePrompt('');
@@ -158,10 +159,11 @@ export const DeepSeekAgentDashboard: React.FC<DeepSeekAgentDashboardProps> = ({
       </div>
 
       <Tabs defaultValue="create" className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-b border-slate-700">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800 border-b border-slate-700">
           <TabsTrigger value="create" className="data-[state=active]:bg-slate-700">Create App</TabsTrigger>
           <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700">Active Tasks</TabsTrigger>
           <TabsTrigger value="agents" className="data-[state=active]:bg-slate-700">Agent Status</TabsTrigger>
+          <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">Generated Files</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-hidden">
@@ -305,6 +307,10 @@ export const DeepSeekAgentDashboard: React.FC<DeepSeekAgentDashboardProps> = ({
                 ))}
               </div>
             </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="files" className="h-full m-0">
+            <GeneratedFilesViewer />
           </TabsContent>
         </div>
       </Tabs>

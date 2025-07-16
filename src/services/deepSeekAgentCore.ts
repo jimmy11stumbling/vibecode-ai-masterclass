@@ -77,11 +77,14 @@ export class DeepSeekAgentCore {
         }
       );
 
-      // Break down into agent tasks using the correct agent types
+      // Break down into agent tasks
       const tasks = await this.createAgentTasks(reasoningResult, prompt);
 
       // Execute tasks through specialized agents
       const results = await this.executeAgentTasks(tasks);
+
+      // Generate actual files from results
+      await this.generateProjectFiles(results, prompt);
 
       console.log('✅ Full-stack application creation completed');
       return sessionId;
@@ -95,59 +98,32 @@ export class DeepSeekAgentCore {
   private async createAgentTasks(reasoningResult: any, originalPrompt: string): Promise<AgentTask[]> {
     const tasks: AgentTask[] = [];
 
-    // Map to correct agent types from A2A Protocol
+    // Create architecture task
     tasks.push({
       id: `arch_${Date.now()}`,
       type: 'architecture',
-      description: 'Design system architecture and file structure',
+      description: 'Design system architecture and create main App component',
       context: {
         projectFiles: [],
-        requirements: [originalPrompt],
-        constraints: ['React', 'TypeScript', 'Tailwind CSS', 'Supabase']
+        requirements: [originalPrompt, 'Create clean architecture', 'Design component structure'],
+        constraints: ['React', 'TypeScript', 'Tailwind CSS', 'Modern patterns']
       },
-      assignedAgent: 'architect', // Use correct agent type
+      assignedAgent: 'architect',
       status: 'pending',
       createdAt: new Date()
     });
 
+    // Create frontend task
     tasks.push({
       id: `frontend_${Date.now()}`,
       type: 'code_generation',
-      description: 'Generate React components and pages',
+      description: 'Generate React components and user interface',
       context: {
         projectFiles: [],
-        requirements: [originalPrompt, 'Create responsive UI', 'Use modern React patterns'],
-        constraints: ['TypeScript', 'Tailwind CSS', 'Accessibility']
+        requirements: [originalPrompt, 'Create responsive UI', 'Modern React patterns', 'Accessible components'],
+        constraints: ['TypeScript', 'Tailwind CSS', 'React hooks', 'Component composition']
       },
-      assignedAgent: 'frontend_builder', // Use correct agent type
-      status: 'pending',
-      createdAt: new Date()
-    });
-
-    tasks.push({
-      id: `backend_${Date.now()}`,
-      type: 'code_generation',
-      description: 'Generate API endpoints and business logic',
-      context: {
-        projectFiles: [],
-        requirements: [originalPrompt, 'RESTful APIs', 'Database integration'],
-        constraints: ['Supabase Edge Functions', 'Type safety', 'Error handling']
-      },
-      assignedAgent: 'backend_builder', // Use correct agent type
-      status: 'pending',
-      createdAt: new Date()
-    });
-
-    tasks.push({
-      id: `validation_${Date.now()}`,
-      type: 'validation',
-      description: 'Validate code quality and functionality',
-      context: {
-        projectFiles: [],
-        requirements: ['Type checking', 'Code quality', 'Best practices'],
-        constraints: ['ESLint', 'TypeScript', 'Performance']
-      },
-      assignedAgent: 'validator', // Use correct agent type
+      assignedAgent: 'frontend_builder',
       status: 'pending',
       createdAt: new Date()
     });
@@ -179,7 +155,7 @@ export class DeepSeekAgentCore {
   }
 
   private async executeAgentTask(task: AgentTask): Promise<DeepSeekAgentResponse> {
-    // Get agents from A2A Protocol and find the right one
+    // Get agents from A2A Protocol
     const agents = a2aProtocol.getAgents();
     const agent = agents.find(a => 
       a.type === task.assignedAgent || 
@@ -187,13 +163,15 @@ export class DeepSeekAgentCore {
     );
 
     if (!agent) {
-      // Fallback: create a simulated agent response
-      console.warn(`No agent found for task type: ${task.assignedAgent}, using fallback`);
-      return this.createFallbackResponse(task);
+      console.warn(`No agent found for task type: ${task.assignedAgent}, using direct DeepSeek`);
+      return this.executeWithDeepSeek(task);
     }
 
-    // Use DeepSeek to generate response based on agent specialization
-    const prompt = this.buildAgentPrompt(task, agent);
+    return this.executeWithDeepSeek(task, agent);
+  }
+
+  private async executeWithDeepSeek(task: AgentTask, agent?: A2AAgent): Promise<DeepSeekAgentResponse> {
+    const prompt = this.buildTaskPrompt(task, agent);
     
     try {
       const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -207,7 +185,7 @@ export class DeepSeekAgentCore {
           messages: [
             {
               role: 'system',
-              content: `You are ${agent.role}, an expert AI agent. ${agent.description}`
+              content: agent ? `You are ${agent.role}, an expert AI agent. ${agent.description}` : 'You are an expert full-stack developer.'
             },
             {
               role: 'user',
@@ -234,78 +212,93 @@ export class DeepSeekAgentCore {
     }
   }
 
-  private createFallbackResponse(task: AgentTask): DeepSeekAgentResponse {
-    return {
-      explanation: `Task ${task.description} completed with fallback implementation.`,
-      nextSteps: ['Review implementation', 'Test functionality', 'Optimize if needed'],
-      confidence: 0.7,
-      files: [{
-        path: `src/generated/${task.type}.ts`,
-        content: `// Generated code for ${task.description}\n// This is a placeholder implementation\nexport default {};`,
-        operation: 'create'
-      }]
-    };
-  }
-
-  private buildAgentPrompt(task: AgentTask, agent: A2AAgent): string {
+  private buildTaskPrompt(task: AgentTask, agent?: A2AAgent): string {
+    const capabilities = agent ? agent.capabilities.join(', ') : 'full-stack development';
+    
     return `
 Task: ${task.description}
 
-Context:
-- Requirements: ${task.context.requirements.join(', ')}
-- Constraints: ${task.context.constraints.join(', ')}
-- Project Files: ${task.context.projectFiles.length} files available
-
-Agent Capabilities: ${agent.capabilities.join(', ')}
+Requirements: ${task.context.requirements.join(', ')}
+Constraints: ${task.context.constraints.join(', ')}
 
 Instructions:
-1. Analyze the task requirements thoroughly
-2. Generate appropriate code/files for this task
-3. Provide clear explanations for your decisions
-4. Suggest next steps or improvements
+1. Generate COMPLETE, WORKING code for this task
+2. Create actual React components with proper TypeScript types
+3. Use Tailwind CSS for styling
+4. Follow modern React patterns (hooks, functional components)
+5. Ensure code is production-ready
 
-Please provide a structured response with:
-- Generated code (if applicable)
-- File operations needed
-- Explanation of approach
-- Confidence level (0-1)
-- Recommended next steps
+Capabilities: ${capabilities}
 
-Focus on your specialization: ${agent.role}
+Please provide:
+- Complete TypeScript/React code
+- Proper component structure
+- Clear file organization
+- Working implementations
+
+Generate actual files with the following format in your response:
+
+\`\`\`typescript
+// filename: src/components/ExampleComponent.tsx
+import React from 'react';
+
+export const ExampleComponent = () => {
+  return (
+    <div className="p-4">
+      <h1>Working Component</h1>
+    </div>
+  );
+};
+\`\`\`
+
+Focus on: ${agent?.role || 'Full-stack development'}
     `.trim();
   }
 
   private parseAgentResponse(content: string, task: AgentTask): DeepSeekAgentResponse {
-    // Try to extract structured information from the response
     const codeBlocks = this.extractCodeBlocks(content);
     
     return {
       code: codeBlocks.length > 0 ? codeBlocks[0].code : undefined,
       files: codeBlocks.map((block, index) => ({
-        path: block.filename || `generated-${task.type}-${index}.tsx`,
+        path: block.filename || this.generateFileName(task.type, index),
         content: block.code,
         operation: 'create' as const
       })),
       explanation: content,
       nextSteps: this.extractNextSteps(content),
-      confidence: 0.85 // Default confidence
+      confidence: 0.85
     };
   }
 
   private extractCodeBlocks(content: string): Array<{filename?: string; code: string}> {
-    const codeBlockRegex = /```(?:(\w+))?\n([\s\S]*?)```/g;
+    const codeBlockRegex = /```(?:typescript|tsx|ts|javascript|jsx)?\n([\s\S]*?)```/g;
     const blocks = [];
     let match;
 
     while ((match = codeBlockRegex.exec(content)) !== null) {
-      const code = match[2];
-      const filenameMatch = code.match(/\/\*\s*filename:\s*([^\s]+)\s*\*\/|\/\/\s*filename:\s*([^\s]+)/);
-      const filename = filenameMatch ? (filenameMatch[1] || filenameMatch[2]) : undefined;
+      const code = match[1];
+      const filenameMatch = code.match(/\/\/\s*filename:\s*([^\n]+)/);
+      const filename = filenameMatch ? filenameMatch[1].trim() : undefined;
       
-      blocks.push({ filename, code });
+      // Remove filename comment from code
+      const cleanCode = code.replace(/\/\/\s*filename:\s*[^\n]+\n?/, '');
+      
+      blocks.push({ filename, code: cleanCode });
     }
 
     return blocks;
+  }
+
+  private generateFileName(taskType: string, index: number): string {
+    switch (taskType) {
+      case 'architecture':
+        return `src/components/GeneratedApp.tsx`;
+      case 'code_generation':
+        return `src/components/GeneratedComponent${index}.tsx`;
+      default:
+        return `src/generated/${taskType}-${index}.tsx`;
+    }
   }
 
   private extractNextSteps(content: string): string[] {
@@ -313,7 +306,100 @@ Focus on your specialization: ${agent.role}
     if (nextStepsMatch) {
       return nextStepsMatch[1].split(/[,;]\s*/).filter(step => step.trim().length > 0);
     }
-    return ['Continue with implementation', 'Test functionality', 'Review and optimize'];
+    return ['Review implementation', 'Test functionality', 'Deploy application'];
+  }
+
+  private createFallbackResponse(task: AgentTask): DeepSeekAgentResponse {
+    const fallbackCode = this.generateFallbackCode(task);
+    
+    return {
+      explanation: `Task ${task.description} completed with fallback implementation.`,
+      nextSteps: ['Review implementation', 'Test functionality', 'Customize as needed'],
+      confidence: 0.7,
+      files: [{
+        path: this.generateFileName(task.type, 0),
+        content: fallbackCode,
+        operation: 'create'
+      }]
+    };
+  }
+
+  private generateFallbackCode(task: AgentTask): string {
+    if (task.type === 'architecture') {
+      return `import React from 'react';
+
+export const GeneratedApp = () => {
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">
+          Generated Application
+        </h1>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <p className="text-gray-600">
+            Your application has been generated! This is a starting point that you can customize.
+          </p>
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-500">Features to implement:</p>
+            <ul className="list-disc list-inside text-sm text-gray-500">
+              ${task.context.requirements.map(req => `<li>${req}</li>`).join('\n              ')}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};`;
+    }
+
+    return `import React from 'react';
+
+export const GeneratedComponent = () => {
+  return (
+    <div className="p-4 bg-white rounded-lg shadow">
+      <h2 className="text-xl font-semibold mb-2">Generated Component</h2>
+      <p className="text-gray-600">Component generated for: ${task.description}</p>
+    </div>
+  );
+};`;
+  }
+
+  private async generateProjectFiles(results: DeepSeekAgentResponse[], originalPrompt: string): Promise<void> {
+    console.log('📁 Generating project files from agent results');
+    
+    const allFiles = results.flatMap(result => result.files || []);
+    
+    if (allFiles.length === 0) {
+      console.warn('No files generated from agent results');
+      return;
+    }
+
+    // Log the generated files for now (in a real implementation, these would be written to the file system)
+    allFiles.forEach(file => {
+      console.log(`Generated file: ${file.path}`);
+      console.log('Content preview:', file.content.substring(0, 200) + '...');
+    });
+
+    // Store file information for retrieval
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('generation_history').insert({
+          task_id: `files_${Date.now()}`,
+          user_id: user.id,
+          status: 'completed',
+          project_spec: {
+            originalPrompt,
+            generatedFiles: allFiles,
+            timestamp: new Date().toISOString()
+          } as any,
+          result: `Generated ${allFiles.length} files`,
+          progress: 100
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to store file information:', error);
+    }
   }
 
   async getActiveTasks(): Promise<AgentTask[]> {
@@ -322,6 +408,28 @@ Focus on your specialization: ${agent.role}
 
   async getTaskById(taskId: string): Promise<AgentTask | undefined> {
     return this.activeTasks.get(taskId);
+  }
+
+  async getGeneratedFiles(): Promise<any[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('generation_history')
+        .select('project_spec')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      
+      const latestGeneration = data?.[0];
+      return latestGeneration?.project_spec?.generatedFiles || [];
+    } catch (error) {
+      console.error('Failed to get generated files:', error);
+      return [];
+    }
   }
 }
 
