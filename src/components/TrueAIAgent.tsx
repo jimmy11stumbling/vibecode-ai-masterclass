@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,12 +56,30 @@ interface A2AMessage {
   priority?: 'low' | 'medium' | 'high';
 }
 
+interface ProjectFile {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  content?: string;
+  language?: string;
+  children?: ProjectFile[];
+  path: string;
+  size?: number;
+  lastModified?: Date;
+}
+
 interface TrueAIAgentProps {
+  projectFiles: ProjectFile[];
+  onFilesChange: (files: ProjectFile[]) => void;
+  onCodeGenerated: (code: any) => void;
   onAgentSelect?: (agent: A2AAgent) => void;
   onTaskAssign?: (agentId: string, task: string) => void;
 }
 
 export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
+  projectFiles,
+  onFilesChange,
+  onCodeGenerated,
   onAgentSelect,
   onTaskAssign
 }) => {
@@ -137,6 +154,7 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
       }]);
 
       onTaskAssign?.(selectedAgent, messageContent);
+      onCodeGenerated?.(messageContent);
       setMessageContent('');
 
       toast({
@@ -208,6 +226,9 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
           <div className="flex items-center space-x-2">
             <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
               {agents.length} Agents Active
+            </Badge>
+            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+              {projectFiles.length} Files
             </Badge>
             <Button 
               variant="ghost" 

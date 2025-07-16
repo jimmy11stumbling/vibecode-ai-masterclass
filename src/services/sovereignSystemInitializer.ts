@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { ragDatabase } from './ragDatabaseCore';
 import { a2aProtocol } from './a2aProtocolCore';
@@ -101,46 +100,58 @@ class SovereignSystemInitializer {
 
   private async initializeAgentNetwork(): Promise<void> {
     try {
-      // Register specialized agents
+      // Register specialized agents with complete agent data
       const agents = [
         {
           name: 'Code Generator Agent',
           type: 'code_generation',
+          role: '💻 Code Generator',
+          description: 'Generates high-quality code based on specifications and requirements',
           capabilities: ['typescript', 'react', 'nodejs', 'api_design'],
-          status: 'active'
+          status: 'active' as const
         },
         {
           name: 'Database Manager Agent',
           type: 'database',
+          role: '🗄️ Database Manager',
+          description: 'Manages database operations, schema design, and data optimization',
           capabilities: ['sql', 'schema_design', 'migrations', 'optimization'],
-          status: 'active'
+          status: 'active' as const
         },
         {
           name: 'Security Analyst Agent',
           type: 'security',
+          role: '🔒 Security Analyst',
+          description: 'Analyzes code for security vulnerabilities and implements security best practices',
           capabilities: ['vulnerability_scanning', 'code_analysis', 'penetration_testing'],
-          status: 'active'
+          status: 'active' as const
         },
         {
           name: 'UI/UX Designer Agent',
           type: 'design',
+          role: '🎨 UI/UX Designer',
+          description: 'Creates intuitive user interfaces and optimizes user experience',
           capabilities: ['interface_design', 'user_experience', 'accessibility'],
-          status: 'active'
+          status: 'active' as const
         },
         {
           name: 'DevOps Engineer Agent',
           type: 'deployment',
+          role: '🚀 DevOps Engineer',
+          description: 'Handles deployment, containerization, and infrastructure management',
           capabilities: ['ci_cd', 'containerization', 'monitoring', 'scaling'],
-          status: 'active'
+          status: 'active' as const
         }
       ];
 
       for (const agentConfig of agents) {
         await a2aProtocol.registerAgent({
           name: agentConfig.name,
-          type: agentConfig.type as any,
+          type: agentConfig.type,
+          role: agentConfig.role,
+          description: agentConfig.description,
           capabilities: agentConfig.capabilities,
-          status: agentConfig.status as any
+          status: agentConfig.status
         });
       }
 
