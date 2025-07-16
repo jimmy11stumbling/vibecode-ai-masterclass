@@ -77,11 +77,10 @@ export class SovereignOrchestrator {
     const executionId = `exec-${Date.now()}`;
     
     // Step 1: Use DeepSeek reasoning to analyze the request
-    const reasoning = await this.deepSeekReasoner.performAdvancedReasoning({
-      projectId: executionId,
-      userQuery: userPrompt,
-      systemInstructions: 'You are a sovereign AI orchestrator capable of autonomous application development.'
-    });
+    const reasoning = await this.deepSeekReasoner.generateResponse(
+      `Analyze this request and create a project plan: ${userPrompt}`,
+      { projectId: executionId }
+    );
 
     // Step 2: Create project specification
     const projectSpec: ProjectSpec = {
@@ -90,7 +89,7 @@ export class SovereignOrchestrator {
       description: userPrompt,
       status: 'planning',
       techStack: this.suggestTechStack(userPrompt),
-      requirements: reasoning.conclusion,
+      requirements: reasoning,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -248,13 +247,12 @@ export class SovereignOrchestrator {
         try {
           // Use DeepSeek for task-specific reasoning if available
           if (this.deepSeekReasoner) {
-            const taskReasoning = await this.deepSeekReasoner.performAdvancedReasoning({
-              projectId: task.id,
-              userQuery: `Execute ${task.type} task: ${task.description}`,
-              systemInstructions: `You are executing a ${task.type} task in an autonomous development process.`
-            });
+            const taskReasoning = await this.deepSeekReasoner.generateResponse(
+              `Execute ${task.type} task: ${task.description}`,
+              { projectId: task.id }
+            );
             
-            task.result = taskReasoning.conclusion;
+            task.result = taskReasoning;
           } else {
             task.result = `Completed ${task.type} task successfully`;
           }
@@ -302,7 +300,7 @@ export class SovereignOrchestrator {
       
       if (update.progress !== undefined) {
         // Store progress in result for now
-        task.result = { ...task.result, progress: update.progress };
+        task.result = { progress: update.progress, ...(typeof task.result === 'object' && task.result !== null ? task.result : {}) };
       }
       
       if (update.result !== undefined) {
@@ -395,7 +393,13 @@ export class SovereignOrchestrator {
           
           if (this.isValidProjectSpec(projectData)) {
             const project: ProjectSpec = {
-              ...projectData,
+              id: projectData.id,
+              name: projectData.name,
+              description: projectData.description,
+              status: projectData.status,
+              techStack: projectData.techStack,
+              requirements: projectData.requirements,
+              architecture: projectData.architecture,
               createdAt: new Date(projectData.createdAt),
               updatedAt: new Date(projectData.updatedAt)
             };
