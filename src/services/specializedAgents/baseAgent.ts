@@ -28,7 +28,8 @@ export abstract class BaseAgent {
     return this.agentData.status;
   }
 
-  abstract async processTask(task: any): Promise<any>;
+  // Remove async from abstract method - implementations can be async
+  abstract processTask(task: any): Promise<any>;
 
   async updateStatus(status: A2AAgent['status']): Promise<void> {
     this.agentData.status = status;
