@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +28,14 @@ import { enhancedAgentManager } from '@/services/enhancedAgentManager';
 import { sovereignOrchestrator } from '@/services/sovereignOrchestrator';
 import { a2aProtocol } from '@/services/a2aProtocolCore';
 
+interface SystemMetrics {
+  active_sessions: number;
+  active_workflows: number;
+  coordination_events: number;
+  average_response_time: number;
+  system_load: number;
+}
+
 interface MultiAgentWorkflowVisualizerProps {
   onNodeClick?: (nodeId: string) => void;
   onWorkflowControl?: (action: 'play' | 'pause' | 'reset') => void;
@@ -44,7 +51,13 @@ export const MultiAgentWorkflowVisualizer: React.FC<MultiAgentWorkflowVisualizer
   const [workflowExecutions, setWorkflowExecutions] = useState([]);
   const [coordinationEvents, setCoordinationEvents] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
-  const [systemMetrics, setSystemMetrics] = useState({});
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
+    active_sessions: 0,
+    active_workflows: 0,
+    coordination_events: 0,
+    average_response_time: 0,
+    system_load: 0
+  });
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -122,7 +135,7 @@ export const MultiAgentWorkflowVisualizer: React.FC<MultiAgentWorkflowVisualizer
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-400">System Load</p>
-                <p className="text-2xl font-bold text-white">{Math.round(systemMetrics.system_load || 0)}%</p>
+                <p className="text-2xl font-bold text-white">{Math.round(systemMetrics.system_load)}%</p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-400" />
             </div>
@@ -225,7 +238,7 @@ export const MultiAgentWorkflowVisualizer: React.FC<MultiAgentWorkflowVisualizer
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-400">Avg Response</p>
-                <p className="text-2xl font-bold text-white">{Math.round(systemMetrics.average_response_time || 0)}ms</p>
+                <p className="text-2xl font-bold text-white">{Math.round(systemMetrics.average_response_time)}ms</p>
               </div>
               <Activity className="w-6 h-6 text-green-400" />
             </div>
@@ -249,7 +262,7 @@ export const MultiAgentWorkflowVisualizer: React.FC<MultiAgentWorkflowVisualizer
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-400">Workflows</p>
-                <p className="text-2xl font-bold text-white">{systemMetrics.active_workflows || 0}</p>
+                <p className="text-2xl font-bold text-white">{systemMetrics.active_workflows}</p>
               </div>
               <Network className="w-6 h-6 text-orange-400" />
             </div>
