@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -25,6 +24,7 @@ import {
   Settings
 } from 'lucide-react';
 import { advancedMCPIntegration } from '@/services/advancedMCPIntegration';
+import { supabase } from '@/integrations/supabase/client';
 import type { A2ATask, A2AAgent, A2AMessage } from '@/services/advancedMCPIntegration';
 
 interface A2AProtocolInterfaceProps {
@@ -50,6 +50,9 @@ export const A2AProtocolInterface: React.FC<A2AProtocolInterfaceProps> = ({
   ]);
   const [messageInput, setMessageInput] = useState('');
 
+  // Initialize service
+  const service = advancedMCPIntegration.init(supabase);
+
   useEffect(() => {
     loadTasks();
     const interval = setInterval(loadTasks, 5000); // Refresh every 5 seconds
@@ -58,7 +61,7 @@ export const A2AProtocolInterface: React.FC<A2AProtocolInterfaceProps> = ({
 
   const loadTasks = async () => {
     try {
-      const allTasks = advancedMCPIntegration.getAllTasks();
+      const allTasks = await service.getAllTasks();
       setTasks(allTasks);
     } catch (error) {
       console.error('Failed to load A2A tasks:', error);
@@ -69,7 +72,7 @@ export const A2AProtocolInterface: React.FC<A2AProtocolInterfaceProps> = ({
     if (!newTask.title.trim() || !newTask.description.trim()) return;
 
     try {
-      const task = await advancedMCPIntegration.createTask(
+      const task = await service.createTask(
         newTask.title,
         newTask.description,
         newTask.capabilities
@@ -93,7 +96,7 @@ export const A2AProtocolInterface: React.FC<A2AProtocolInterfaceProps> = ({
     if (!selectedTask || !messageInput.trim()) return;
 
     try {
-      await advancedMCPIntegration.sendA2AMessage(
+      await service.sendA2AMessage(
         selectedTask.id,
         'user',
         'coordinator-agent',
@@ -151,7 +154,7 @@ export const A2AProtocolInterface: React.FC<A2AProtocolInterfaceProps> = ({
 
   const calculateTaskProgress = (task: A2ATask) => {
     const completedSteps = task.workflow.steps.filter(s => s.status === 'completed').length;
-    return (completedSteps / task.workflow.steps.length) * 100;
+    return task.workflow.steps.length > 0 ? (completedSteps / task.workflow.steps.length) * 100 : 0;
   };
 
   return (

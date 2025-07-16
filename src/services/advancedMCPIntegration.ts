@@ -1,4 +1,3 @@
-
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Define data structures for RAG
@@ -12,6 +11,7 @@ export interface RAGDocument {
   title?: string;
   source?: string;
   processedAt?: Date;
+  [key: string]: any;
 }
 
 export interface RAGChunk {
@@ -22,6 +22,7 @@ export interface RAGChunk {
   metadata: Record<string, any>;
   position: number;
   hierarchyLevel: number;
+  [key: string]: any;
 }
 
 export interface RAGResult {
@@ -30,6 +31,10 @@ export interface RAGResult {
   score: number;
   metadata: Record<string, any>;
   source: string;
+  chunk: RAGChunk;
+  relevanceScore: number;
+  diversityScore: number;
+  [key: string]: any;
 }
 
 // Define data structures for A2A
@@ -212,13 +217,13 @@ export class AdvancedMCPIntegrationService {
     }
   }
 
-  async sendA2AMessage(taskId: string, from: string, to: string, message: string): Promise<void> {
+  async sendA2AMessage(taskId: string, from: string, to: string, message: string, type?: string): Promise<void> {
     const a2aMessage: A2AMessage = {
       id: `msg_${Date.now()}`,
       timestamp: new Date(),
       from: from,
       to: to,
-      type: 'task_update',
+      type: type || 'task_update',
       content: message,
       parts: []
     };
@@ -248,13 +253,13 @@ export class AdvancedMCPIntegrationService {
   }
 
   // RAG Methods
-  async searchKnowledge(query: string): Promise<RAGResult[]> {
+  async searchKnowledge(query: string, options?: { topK?: number; hybridSearch?: boolean }): Promise<RAGResult[]> {
     try {
       const { data, error } = await this.supabase
         .from('knowledge_base')
         .select('*')
         .textSearch('content', query)
-        .limit(10);
+        .limit(options?.topK || 10);
 
       if (error) {
         console.error('Failed to search knowledge:', error);
@@ -266,7 +271,18 @@ export class AdvancedMCPIntegrationService {
         content: item.content,
         score: 0.8, // Mock score
         metadata: item.metadata || {},
-        source: item.title
+        source: item.title,
+        chunk: {
+          id: `chunk_${item.id}`,
+          documentId: item.id,
+          content: item.content,
+          embedding: [],
+          metadata: item.metadata || {},
+          position: 0,
+          hierarchyLevel: 0
+        },
+        relevanceScore: 0.8,
+        diversityScore: 0.6
       }));
     } catch (error) {
       console.error('Error searching knowledge:', error);
@@ -274,15 +290,15 @@ export class AdvancedMCPIntegrationService {
     }
   }
 
-  async processDocument(content: string, metadata: Record<string, any> = {}): Promise<RAGDocument> {
+  async processDocument(docData: { title: string; content: string; source: string; metadata: Record<string, any> }): Promise<RAGDocument> {
     try {
-      const docData = {
-        filename: metadata.filename || 'document.txt',
-        original_filename: metadata.original_filename || metadata.filename || 'document.txt',
-        mime_type: metadata.mime_type || 'text/plain',
-        file_size: content.length,
-        extracted_text: content,
-        metadata: JSON.parse(JSON.stringify(metadata)),
+      const processedDocData = {
+        filename: docData.metadata.filename || 'document.txt',
+        original_filename: docData.metadata.original_filename || docData.metadata.filename || 'document.txt',
+        mime_type: docData.metadata.mime_type || 'text/plain',
+        file_size: docData.content.length,
+        extracted_text: docData.content,
+        metadata: JSON.parse(JSON.stringify(docData.metadata)),
         processing_status: 'completed',
         processed_at: new Date().toISOString(),
         user_id: 'system'
@@ -290,7 +306,7 @@ export class AdvancedMCPIntegrationService {
 
       const { data, error } = await this.supabase
         .from('documents')
-        .insert(docData)
+        .insert(processedDocData)
         .select()
         .single();
 
@@ -301,13 +317,13 @@ export class AdvancedMCPIntegrationService {
 
       return {
         id: data.id,
-        content,
-        metadata: metadata,
+        content: docData.content,
+        metadata: docData.metadata,
         chunks: [],
         embeddings: [],
         processed: true,
-        title: metadata.title || 'Untitled',
-        source: metadata.source || 'upload',
+        title: docData.title || 'Untitled',
+        source: docData.source || 'upload',
         processedAt: new Date()
       };
     } catch (error) {
@@ -446,6 +462,15 @@ export class AdvancedMCPIntegrationService {
   }
 }
 
-export const advancedMCPIntegration = (supabaseClient: SupabaseClient) => {
-  return new AdvancedMCPIntegrationService(supabaseClient);
+// Create a singleton instance
+let serviceInstance: AdvancedMCPIntegrationService | null = null;
+
+export const advancedMCPIntegration = {
+  init: (supabaseClient: SupabaseClient) => {
+    if (!serviceInstance) {
+      serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
+    }
+    return serviceInstance;
+  },
+  getInstance: () => serviceInstance
 };

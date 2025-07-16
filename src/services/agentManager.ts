@@ -36,6 +36,14 @@ interface AgentMetrics {
   completedTasks: number;
   failedTasks: number;
   avgExecutionTime: number;
+  totalTasksCompleted: number;
+  successRate: number;
+  averageTaskDuration: number;
+  currentStats: {
+    activeAgents: number;
+    queuedTasks: number;
+  };
+  agentUtilization: number;
 }
 
 interface ActiveExecution {
@@ -119,16 +127,31 @@ class AgentManager {
     return executionId;
   }
 
-  getAgentStatus(agentId: string): AgentStatus | null {
-    return this.agentStatuses.get(agentId) || null;
+  getAgentStatus(agentId?: string): AgentStatus | AgentStatus[] {
+    if (agentId) {
+      return this.agentStatuses.get(agentId) || null;
+    }
+    return Array.from(this.agentStatuses.values());
   }
 
   getMetrics(): AgentMetrics {
+    const completedTasks = this.activeExecutions.filter(e => e.status === 'completed').length;
+    const failedTasks = this.activeExecutions.filter(e => e.status === 'failed').length;
+    const totalTasks = this.activeExecutions.length;
+    
     return {
-      totalTasks: this.activeExecutions.length,
-      completedTasks: this.activeExecutions.filter(e => e.status === 'completed').length,
-      failedTasks: this.activeExecutions.filter(e => e.status === 'failed').length,
-      avgExecutionTime: 5000 // Mock average
+      totalTasks,
+      completedTasks,
+      failedTasks,
+      avgExecutionTime: 5000, // Mock average
+      totalTasksCompleted: completedTasks,
+      successRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+      averageTaskDuration: 5000,
+      currentStats: {
+        activeAgents: this.agentStatuses.size,
+        queuedTasks: this.activeExecutions.filter(e => e.status === 'running').length
+      },
+      agentUtilization: 75 // Mock utilization percentage
     };
   }
 

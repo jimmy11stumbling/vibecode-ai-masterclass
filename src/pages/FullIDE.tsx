@@ -85,7 +85,8 @@ const FullIDE = () => {
 
     const fileWithLanguage = {
       ...file,
-      language: languageMap[extension] || 'plaintext'
+      language: languageMap[extension] || 'plaintext',
+      content: file.content || '' // Ensure content is always a string
     };
 
     setActiveFile(fileWithLanguage);
@@ -143,6 +144,17 @@ const FullIDE = () => {
         // This would be implemented based on the actual file changes made by agents
       }
     });
+  };
+
+  // Create a CodeFile from ProjectFile for MonacoCodeEditor
+  const createCodeFile = (file: ProjectFile | null) => {
+    if (!file) return null;
+    return {
+      id: file.id,
+      name: file.name,
+      content: file.content || '',
+      language: file.language || 'plaintext'
+    };
   };
 
   return (
@@ -232,7 +244,7 @@ const FullIDE = () => {
               <ResizablePanel defaultSize={60} minSize={30}>
                 <div className="h-full bg-slate-900 border-b border-slate-700">
                   <MonacoCodeEditor
-                    file={activeFile}
+                    file={createCodeFile(activeFile)}
                     onContentChange={(fileId, content) => {
                       if (activeFile) {
                         setProjectFiles(prev => 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { advancedMCPIntegration } from '@/services/advancedMCPIntegration';
+import { supabase } from '@/integrations/supabase/client';
 import type { RAGResult, RAGDocument } from '@/services/advancedMCPIntegration';
 
 interface AdvancedRAGInterfaceProps {
@@ -46,6 +46,9 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
   const [activeTab, setActiveTab] = useState<'search' | 'documents' | 'config'>('search');
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Initialize service
+  const service = advancedMCPIntegration.init(supabase);
+
   useEffect(() => {
     loadDocuments();
   }, []);
@@ -65,7 +68,7 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
 
     setIsSearching(true);
     try {
-      const searchResults = await advancedMCPIntegration.searchKnowledge(query, {
+      const searchResults = await service.searchKnowledge(query, {
         topK: searchConfig.topK,
         hybridSearch: searchConfig.hybridSearch
       });
@@ -86,7 +89,7 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
       const content = e.target?.result as string;
       
       try {
-        const processedDoc = await advancedMCPIntegration.processDocument({
+        const processedDoc = await service.processDocument({
           title: file.name,
           content,
           source: 'upload',
@@ -202,7 +205,7 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
               <div className="space-y-3">
                 {results.map((result, index) => (
                   <Card 
-                    key={result.chunk.id}
+                    key={result.id}
                     className="bg-slate-800 border-slate-600 hover:border-slate-500 transition-colors cursor-pointer"
                     onClick={() => onResultSelect?.(result)}
                   >
@@ -219,7 +222,7 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
                             <div className={`w-2 h-2 rounded-full ${getRelevanceColor(result.relevanceScore)}`} />
                           </div>
                           <CardTitle className="text-white text-sm">
-                            Chunk {result.chunk.position} (Level {result.chunk.hierarchyLevel})
+                            {result.source} - Chunk {result.chunk.position}
                           </CardTitle>
                         </div>
                       </div>
@@ -227,14 +230,14 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
                     
                     <CardContent className="pt-0">
                       <p className="text-slate-300 text-sm mb-3 line-clamp-3">
-                        {result.chunk.content}
+                        {result.content}
                       </p>
                       
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4 text-xs text-slate-400">
                           <span>Score: {result.score.toFixed(3)}</span>
                           <span>•</span>
-                          <span>Chars: {result.chunk.content.length}</span>
+                          <span>Chars: {result.content.length}</span>
                           {result.diversityScore > 0 && (
                             <>
                               <span>•</span>
@@ -318,7 +321,7 @@ export const AdvancedRAGInterface: React.FC<AdvancedRAGInterfaceProps> = ({
                             <Database className="w-3 h-3" />
                             <span>{doc.source}</span>
                             <span>•</span>
-                            <span>{doc.processedAt.toLocaleDateString()}</span>
+                            <span>{doc.processedAt?.toLocaleDateString()}</span>
                             <span>•</span>
                             <span>{doc.chunks.length} chunks</span>
                           </div>

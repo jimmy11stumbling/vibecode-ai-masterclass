@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { advancedMCPIntegration } from '@/services/advancedMCPIntegration';
+import { supabase } from '@/integrations/supabase/client';
 import type { MCPAgentCard, MCPCapability } from '@/services/advancedMCPIntegration';
 
 interface MCPProtocolInterfaceProps {
@@ -40,13 +40,16 @@ export const MCPProtocolInterface: React.FC<MCPProtocolInterfaceProps> = ({
   const [connectionStatus, setConnectionStatus] = useState<Record<string, 'connected' | 'disconnected' | 'error'>>({});
   const [activeTab, setActiveTab] = useState<'agents' | 'tools' | 'monitor'>('agents');
 
+  // Initialize service
+  const service = advancedMCPIntegration.init(supabase);
+
   useEffect(() => {
     loadAgents();
   }, []);
 
   const loadAgents = async () => {
     try {
-      const discoveredAgents = await advancedMCPIntegration.discoverMCPAgents();
+      const discoveredAgents = await service.discoverMCPAgents();
       setAgents(discoveredAgents);
       
       // Initialize connection status
@@ -79,7 +82,7 @@ export const MCPProtocolInterface: React.FC<MCPProtocolInterfaceProps> = ({
     if (!selectedAgent) return;
 
     try {
-      const result = await advancedMCPIntegration.invokeMCPTool(
+      const result = await service.invokeMCPTool(
         selectedAgent.id, 
         capability.name, 
         capability.parameters
