@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 // Define data structures for RAG
 export interface RAGDocument {
@@ -123,10 +124,10 @@ export interface MCPAuthentication {
 }
 
 export class AdvancedMCPIntegrationService {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient<Database>;
   private mockTasks: A2ATask[] = [];
 
-  constructor(supabaseClient: SupabaseClient) {
+  constructor(supabaseClient: SupabaseClient<Database>) {
     this.supabase = supabaseClient;
   }
 
@@ -466,7 +467,7 @@ export class AdvancedMCPIntegrationService {
 let serviceInstance: AdvancedMCPIntegrationService | null = null;
 
 export const advancedMCPIntegration = {
-  init: (supabaseClient: SupabaseClient) => {
+  init: (supabaseClient: SupabaseClient<Database>) => {
     if (!serviceInstance) {
       serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
     }
