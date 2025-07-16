@@ -425,7 +425,12 @@ export const GeneratedComponent = () => {
       if (error) throw error;
       
       const latestGeneration = data?.[0];
-      return latestGeneration?.project_spec?.generatedFiles || [];
+      if (latestGeneration?.project_spec && typeof latestGeneration.project_spec === 'object') {
+        const spec = latestGeneration.project_spec as any;
+        return spec.generatedFiles || [];
+      }
+      
+      return [];
     } catch (error) {
       console.error('Failed to get generated files:', error);
       return [];
