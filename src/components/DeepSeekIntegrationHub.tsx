@@ -66,9 +66,13 @@ export const DeepSeekIntegrationHub: React.FC<DeepSeekIntegrationHubProps> = ({
     }
   ];
 
-  const handleMessage = (message: string, response: string) => {
-    console.log('DeepSeek conversation:', { message, response });
-    // Handle conversation logging or processing
+  // Handle different component callback signatures
+  const handleSeamlessMessage = (message: string, response: string) => {
+    console.log('DeepSeek seamless conversation:', { message, response });
+  };
+
+  const handleRealTimeMessage = (message: string) => {
+    console.log('DeepSeek real-time message:', { message });
   };
 
   return (
@@ -137,14 +141,14 @@ export const DeepSeekIntegrationHub: React.FC<DeepSeekIntegrationHubProps> = ({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <TabsContent value="seamless" className="flex-1 m-0">
             <SeamlessDeepSeekChat
-              onMessage={handleMessage}
+              onMessage={handleSeamlessMessage}
               className="h-full rounded-none border-0"
             />
           </TabsContent>
 
           <TabsContent value="realtime" className="flex-1 m-0">
             <RealTimeChat
-              onMessage={handleMessage}
+              onMessage={handleRealTimeMessage}
               isConnected={apiKeyStatus === 'connected'}
               aiModel="DeepSeek Reasoner"
             />
