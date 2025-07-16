@@ -37,6 +37,8 @@ import { MCPProtocolInterface } from '@/components/MCPProtocolInterface';
 import { A2AProtocolInterface } from '@/components/A2AProtocolInterface';
 import { DatabaseManager } from '@/components/DatabaseManager';
 import { DeploymentManager } from '@/components/DeploymentManager';
+import { AgentDashboard } from '@/components/AgentDashboard';
+import { agentManager } from '@/services/agentManager';
 
 interface ProjectFile {
   id: string;
@@ -61,6 +63,9 @@ export const FullIDE = () => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [activeAITab, setActiveAITab] = useState('true-agent');
   const [activeToolTab, setActiveToolTab] = useState('database');
+  const [activeRightTab, setActiveRightTab] = useState('true-agent');
+  const [isAgentProcessing, setIsAgentProcessing] = useState(false);
+  const [agentStatus, setAgentStatus] = useState('ready');
 
   const handleFileSelect = (file: ProjectFile) => {
     setActiveFile(file);
@@ -74,10 +79,67 @@ export const FullIDE = () => {
     setLogs(prev => [...prev, log]);
   };
 
+  const handleAgentRequest = async (prompt: string) => {
+    try {
+      setIsAgentProcessing(true);
+      setAgentStatus('processing');
+      
+      const projectContext = {
+        id: 'current-project',
+        name: 'Sovereign IDE Project',
+        description: 'AI-generated project',
+        techStack: ['react', 'typescript', 'tailwind', 'supabase'],
+        files: projectFiles.map(file => ({
+          path: file.name,
+          content: file.content || '',
+          type: file.type
+        }))
+      };
+
+      const executionId = await agentManager.processUserRequest(prompt, projectContext);
+      
+      console.log('Agent execution started:', executionId);
+      setAgentStatus('success');
+      
+      // Monitor execution progress
+      monitorExecution(executionId);
+      
+    } catch (error) {
+      console.error('Agent request failed:', error);
+      setAgentStatus('error');
+    } finally {
+      setIsAgentProcessing(false);
+    }
+  };
+
+  const monitorExecution = (executionId: string) => {
+    // Set up real-time monitoring
+    agentManager.addEventListener('executionCompleted', (data: any) => {
+      if (data.executionId === executionId) {
+        console.log('Execution completed:', data);
+        setAgentStatus(data.success ? 'success' : 'error');
+        
+        // Refresh project files if needed
+        // This would be implemented based on the actual file changes made by agents
+      }
+    });
+  };
+
   return (
     <div className="h-screen bg-slate-950 flex flex-col">
       {/* Toolbar */}
-      <IDEToolbar />
+      <IDEToolbar 
+        onRun={() => console.log('Run project')}
+        onStop={() => console.log('Stop project')}
+        onSave={() => console.log('Save project')}
+        onExport={() => console.log('Export project')}
+        onImport={() => console.log('Import project')}
+        onSettings={() => console.log('Open settings')}
+        onToggleTerminal={() => console.log('Toggle terminal')}
+        isRunning={false}
+        hasUnsavedChanges={false}
+        isBuilding={isAgentProcessing}
+      />
       
       {/* Main IDE Layout */}
       <div className="flex-1 overflow-hidden">
@@ -189,7 +251,7 @@ export const FullIDE = () => {
                   </div>
                   
                   <TabsContent value="preview" className="flex-1 m-0">
-                    <LivePreview url={previewUrl} />
+                    <LivePreview code={activeFile?.content || ''} />
                   </TabsContent>
                   
                   <TabsContent value="terminal" className="flex-1 m-0">
@@ -214,9 +276,9 @@ export const FullIDE = () => {
           {/* Right Sidebar - AI & Advanced Features */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
             <div className="h-full bg-slate-900 border-l border-slate-700">
-              <Tabs value={activeAITab} onValueChange={setActiveAITab} className="h-full flex flex-col">
+              <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="h-full flex flex-col">
                 <div className="border-b border-slate-700 px-2 py-1">
-                  <TabsList className="grid w-full grid-cols-2 bg-slate-800 h-8">
+                  <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
                     <TabsTrigger value="ai-agents" className="text-xs data-[state=active]:bg-slate-700">
                       <Bot className="w-3 h-3 mr-1" />
                       AI
@@ -224,6 +286,10 @@ export const FullIDE = () => {
                     <TabsTrigger value="protocols" className="text-xs data-[state=active]:bg-slate-700">
                       <Zap className="w-3 h-3 mr-1" />
                       Protocols
+                    </TabsTrigger>
+                    <TabsTrigger value="dashboard" className="text-xs data-[state=active]:bg-slate-700">
+                      <Layout className="w-3 h-3 mr-1" />
+                      Dashboard
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -252,13 +318,17 @@ export const FullIDE = () => {
                         <TrueAIAgent
                           projectFiles={projectFiles}
                           onFilesChange={setProjectFiles}
-                          onCodeGenerated={(code) => console.log('Code generated:', code)}
+                          onCodeGenerated={(code) => {
+                            console.log('Code generated:', code);
+                            handleAgentRequest(code);
+                          }}
                         />
                       </TabsContent>
                       
                       <TabsContent value="chat" className="flex-1 m-0">
                         <EnhancedAIChatBot
-                          context="Full-stack development environment"
+                          projectFiles={projectFiles}
+                          onFilesChange={setProjectFiles}
                           onCodeGenerated={(code) => console.log('Chat code generated:', code)}
                         />
                       </TabsContent>
@@ -320,6 +390,10 @@ export const FullIDE = () => {
                     </Tabs>
                   </div>
                 </TabsContent>
+
+                <TabsContent value="dashboard" className="flex-1 m-0">
+                  <AgentDashboard />
+                </TabsContent>
               </Tabs>
             </div>
           </ResizablePanel>
@@ -328,10 +402,15 @@ export const FullIDE = () => {
 
       {/* Status Bar */}
       <IDEStatusBar 
-        activeFile={activeFile?.name}
-        linesOfCode={projectFiles.reduce((total, file) => total + (file.content?.split('\n').length || 0), 0)}
-        errors={0}
-        warnings={0}
+        selectedFile={activeFile}
+        layout="horizontal"
+        isBuilding={isAgentProcessing}
+        hasUnsavedChanges={false}
+        projectStats={{
+          files: projectFiles.length,
+          components: projectFiles.filter(f => f.name.endsWith('.tsx')).length,
+          lines: projectFiles.reduce((total, file) => total + (file.content?.split('\n').length || 0), 0)
+        }}
       />
     </div>
   );
