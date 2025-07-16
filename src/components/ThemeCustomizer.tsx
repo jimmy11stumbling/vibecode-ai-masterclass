@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -305,15 +304,29 @@ export const ThemeCustomizer: React.FC = () => {
   };
 
   const handleTypographyChange = (section: string, key: string, value: string) => {
-    setCurrentTheme(prev => ({
-      ...prev,
-      typography: {
-        ...prev.typography,
-        [section]: typeof prev.typography[section as keyof typeof prev.typography] === 'object'
-          ? { ...prev.typography[section as keyof typeof prev.typography] as Record<string, string>, [key]: value }
-          : value
+    setCurrentTheme(prev => {
+      const newTheme = { ...prev };
+      
+      if (section === 'fontFamily') {
+        newTheme.typography = {
+          ...newTheme.typography,
+          fontFamily: value
+        };
+      } else {
+        const typographySection = newTheme.typography[section as keyof typeof newTheme.typography];
+        if (typeof typographySection === 'object' && typographySection !== null) {
+          newTheme.typography = {
+            ...newTheme.typography,
+            [section]: {
+              ...(typographySection as Record<string, string>),
+              [key]: value
+            }
+          };
+        }
       }
-    }));
+      
+      return newTheme;
+    });
   };
 
   const handleSpacingChange = (key: string, value: string) => {

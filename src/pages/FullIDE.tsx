@@ -27,6 +27,7 @@ import { ProductionDeploymentManager } from '@/components/ProductionDeploymentMa
 import { VisualComponentEditor } from '@/components/VisualComponentEditor';
 import { ThemeCustomizer } from '@/components/ThemeCustomizer';
 import { ProjectTemplateManager } from '@/components/ProjectTemplateManager';
+import { DatabaseTools } from '@/components/DatabaseTools';
 
 export default function FullIDE() {
   const [selectedFile, setSelectedFile] = useState<any>(null);
@@ -163,19 +164,7 @@ export default function FullIDE() {
                 )}
                 
                 {activeTab === 'database' && (
-                  <div className="h-full bg-slate-900 flex items-center justify-center">
-                    <div className="text-center">
-                      <Database className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-white mb-2">Database Tools</h3>
-                      <p className="text-slate-400 max-w-md">
-                        Database schema generator, query builder, and backend service scaffolding tools.
-                      </p>
-                      <Button className="mt-4 bg-blue-600 hover:bg-blue-700">
-                        <Database className="w-4 h-4 mr-2" />
-                        Open Database Tools
-                      </Button>
-                    </div>
-                  </div>
+                  <DatabaseTools />
                 )}
               </div>
             </div>
