@@ -1,91 +1,95 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { createDeepSeekReasonerCore, DeepSeekReasonerCore } from './deepSeekReasonerCore';
-import { a2aProtocol } from './a2aProtocolCore';
-import { mcpHub } from './mcpHubCore';
-import { ragDatabase } from './ragDatabaseCore';
+import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
+import { SpecializedAgents } from './specializedAgents';
+import type { ProjectSpec, SovereignTask, AgentCapability } from '@/integrations/supabase/types';
 
-export interface SovereignTask {
-  id: string;
-  type: 'architecture' | 'frontend' | 'backend' | 'integration' | 'validation' | 'deployment';
-  description: string;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
-  priority: 'high' | 'medium' | 'low';
-  assignedAgent?: string;
-  dependencies: string[];
-  result?: any;
-  error?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  startedAt?: Date;
+interface ProjectFile {
+  path: string;
+  content: string;
+  type: 'file' | 'folder';
 }
 
-export interface ProjectSpec {
+interface ProjectContext {
   id: string;
-  name: string;  
+  name: string;
   description: string;
-  status: 'planning' | 'active' | 'completed' | 'paused';
   techStack: string[];
-  requirements: any;
-  architecture?: any;
-  createdAt: Date;
-  updatedAt: Date;
+  files: ProjectFile[];
 }
 
-export interface TaskUpdate {
-  taskId: string;
-  status: SovereignTask['status'];
-  progress?: number;
-  result?: any;
-  error?: string;
-  startedAt?: Date;
+interface TaskResult {
+  success: boolean;
+  message: string;
+  details?: any;
 }
 
 export class SovereignOrchestrator {
-  private deepSeekReasoner: DeepSeekReasonerCore | null = null;
-  private tasks: Map<string, SovereignTask> = new Map();
-  private projects: Map<string, ProjectSpec> = new Map();
-  private eventListeners: Map<string, Function[]> = new Map();
+  private deepSeekReasoner: DeepSeekReasonerCore;
+  private specializedAgents: SpecializedAgents;
+  private availableCapabilities: AgentCapability[] = [];
 
   constructor() {
-    this.initializeSystem();
+    this.deepSeekReasoner = new DeepSeekReasonerCore();
+    this.specializedAgents = new SpecializedAgents();
+    this.loadCapabilities();
   }
 
-  private async initializeSystem() {
-    console.log('🚀 Sovereign Orchestrator: Initializing system');
-    
-    // Initialize DeepSeek reasoner if API key is available
-    const apiKey = localStorage.getItem('deepseek_api_key');
-    if (apiKey) {
-      this.deepSeekReasoner = createDeepSeekReasonerCore(apiKey);
+  private async loadCapabilities(): Promise<void> {
+    try {
+      const { data, error } = await supabase
+        .from('agent_capabilities')
+        .select('*');
+
+      if (error) {
+        console.error('Error loading agent capabilities:', error);
+        return;
+      }
+
+      this.availableCapabilities = data;
+      console.log('Agent capabilities loaded successfully.');
+    } catch (err) {
+      console.error('Unexpected error loading agent capabilities:', err);
     }
   }
 
-  setApiKey(apiKey: string) {
-    localStorage.setItem('deepseek_api_key', apiKey);
-    this.deepSeekReasoner = createDeepSeekReasonerCore(apiKey);
-  }
+  private suggestTechStack(userPrompt: string): string[] {
+    const prompt = userPrompt.toLowerCase();
+    const suggestedStack: string[] = [];
 
-  async processUserRequest(userPrompt: string): Promise<string> {
-    console.log('🧠 Sovereign Orchestrator: Processing user request:', userPrompt);
-    
-    if (!this.deepSeekReasoner) {
-      throw new Error('DeepSeek API key not configured');
+    if (prompt.includes('react') || prompt.includes('frontend')) {
+      suggestedStack.push('react');
+    }
+    if (prompt.includes('typescript')) {
+      suggestedStack.push('typescript');
+    }
+    if (prompt.includes('node') || prompt.includes('backend')) {
+      suggestedStack.push('node.js');
+    }
+    if (prompt.includes('python')) {
+      suggestedStack.push('python');
+    }
+    if (prompt.includes('database')) {
+      suggestedStack.push('postgresql');
+    }
+    if (prompt.includes('mobile')) {
+      suggestedStack.push('react-native');
     }
 
-    // Create execution ID
+    return suggestedStack;
+  }
+
+  public async processUserRequest(userPrompt: string, projectContext?: any): Promise<string> {
     const executionId = `exec-${Date.now()}`;
     
     // Step 1: Use DeepSeek reasoning to analyze the request
     const reasoning = await this.deepSeekReasoner.generateResponse(
-      `Analyze this request and create a project plan: ${userPrompt}`,
-      { projectId: executionId }
+      `Analyze this request and create a project plan: ${userPrompt}`
     );
 
     // Step 2: Create project specification
     const projectSpec: ProjectSpec = {
       id: executionId,
-      name: this.extractProjectName(userPrompt),
+      name: `Project-${Date.now()}`,
       description: userPrompt,
       status: 'planning',
       techStack: this.suggestTechStack(userPrompt),
@@ -94,162 +98,141 @@ export class SovereignOrchestrator {
       updatedAt: new Date()
     };
 
-    this.projects.set(executionId, projectSpec);
+    // Step 3: Store project specification in the database
+    const { error: specError } = await supabase
+      .from('project_specs')
+      .insert([projectSpec]);
 
-    // Step 3: Generate task breakdown
-    const tasks = this.generateTaskBreakdown(reasoning, projectSpec);
-    
-    // Store tasks
-    tasks.forEach(task => this.tasks.set(task.id, task));
+    if (specError) {
+      console.error('Error saving project spec:', specError);
+      throw new Error('Failed to save project specification');
+    }
 
-    // Step 4: Start autonomous execution
-    this.startAutonomousExecution(executionId);
+    // Step 4: Break down the project into smaller tasks
+    const tasks = [
+      {
+        id: `task-${Date.now()}-1`,
+        projectId: executionId,
+        type: 'analysis',
+        description: 'Analyze user requirements',
+        status: 'pending',
+        priority: 1,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: `task-${Date.now()}-2`,
+        projectId: executionId,
+        type: 'design',
+        description: 'Design the application architecture',
+        status: 'pending',
+        priority: 2,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: `task-${Date.now()}-3`,
+        projectId: executionId,
+        type: 'implementation',
+        description: 'Implement the core features',
+        status: 'pending',
+        priority: 3,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: `task-${Date.now()}-4`,
+        projectId: executionId,
+        type: 'testing',
+        description: 'Test the implemented features',
+        status: 'pending',
+        priority: 4,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: `task-${Date.now()}-5`,
+        projectId: executionId,
+        type: 'deployment',
+        description: 'Deploy the application',
+        status: 'pending',
+        priority: 5,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    // Step 5: Store tasks in the database
+    const { error: taskError } = await supabase
+      .from('sovereign_tasks')
+      .insert(tasks);
+
+    if (taskError) {
+      console.error('Error saving tasks:', taskError);
+      throw new Error('Failed to save tasks');
+    }
+
+    // Step 6: Orchestrate task execution
+    tasks.forEach(task => {
+      this.executeTask(task);
+    });
 
     return executionId;
   }
 
-  private extractProjectName(prompt: string): string {
-    // Simple extraction - could be enhanced with AI
-    const words = prompt.split(' ').slice(0, 4);
-    return words.join(' ').replace(/[^a-zA-Z0-9\s]/g, '').trim() || 'Generated Project';
-  }
+  private async notifyTaskCompletion(task: SovereignTask): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('sovereign_tasks')
+        .update(task)
+        .eq('id', task.id);
 
-  private suggestTechStack(prompt: string): string[] {
-    const stack = ['React', 'TypeScript', 'Tailwind CSS'];
-    
-    if (prompt.toLowerCase().includes('database') || prompt.toLowerCase().includes('data')) {
-      stack.push('Supabase');
-    }
-    if (prompt.toLowerCase().includes('auth') || prompt.toLowerCase().includes('login')) {
-      stack.push('Authentication');
-    }
-    if (prompt.toLowerCase().includes('ai') || prompt.toLowerCase().includes('chat')) {
-      stack.push('AI Integration');
-    }
-    
-    return stack;
-  }
-
-  private generateTaskBreakdown(reasoning: any, project: ProjectSpec): SovereignTask[] {
-    const tasks: SovereignTask[] = [];
-    const baseId = project.id;
-
-    // Architecture task
-    tasks.push({
-      id: `${baseId}-arch`,
-      type: 'architecture',
-      description: 'Design system architecture and data flow',
-      status: 'pending',
-      priority: 'high',
-      dependencies: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Frontend task
-    tasks.push({
-      id: `${baseId}-frontend`,
-      type: 'frontend',
-      description: 'Build user interface components',
-      status: 'pending',
-      priority: 'medium',
-      dependencies: [`${baseId}-arch`],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Backend task
-    tasks.push({
-      id: `${baseId}-backend`,
-      type: 'backend',
-      description: 'Implement server-side logic and APIs',
-      status: 'pending',
-      priority: 'medium',
-      dependencies: [`${baseId}-arch`],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Integration task
-    tasks.push({
-      id: `${baseId}-integration`,
-      type: 'integration',
-      description: 'Connect frontend and backend systems',
-      status: 'pending',
-      priority: 'medium',
-      dependencies: [`${baseId}-frontend`, `${baseId}-backend`],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Validation task
-    tasks.push({
-      id: `${baseId}-validation`,
-      type: 'validation',
-      description: 'Test and validate application functionality',
-      status: 'pending',
-      priority: 'high',
-      dependencies: [`${baseId}-integration`],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    return tasks;
-  }
-
-  private async startAutonomousExecution(executionId: string) {
-    console.log('🤖 Starting autonomous execution for:', executionId);
-    
-    // Simulate autonomous task processing
-    setTimeout(() => {
-      this.processNextReadyTask(executionId);
-    }, 1000);
-  }
-
-  private async processNextReadyTask(executionId: string) {
-    const projectTasks = Array.from(this.tasks.values())
-      .filter(task => task.id.startsWith(executionId));
-    
-    const readyTask = projectTasks.find(task => 
-      task.status === 'pending' && 
-      task.dependencies.every(depId => {
-        const depTask = this.tasks.get(depId);
-        return depTask?.status === 'completed';
-      })
-    );
-
-    if (readyTask) {
-      await this.executeTask(readyTask);
-      
-      // Continue with next task
-      setTimeout(() => {
-        this.processNextReadyTask(executionId);
-      }, 2000);
+      if (error) {
+        console.error(`Error updating task ${task.id}:`, error);
+      } else {
+        console.log(`Task ${task.id} updated successfully.`);
+      }
+    } catch (err) {
+      console.error(`Unexpected error updating task ${task.id}:`, err);
     }
   }
 
-  private async executeTask(task: SovereignTask) {
-    console.log('🔨 Executing task:', task.id);
+  private async executeTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing task: ${task.type} - ${task.description}`);
     
-    // Update task status
-    task.status = 'assigned';
-    task.assignedAgent = `Agent-${task.type}`;
-    task.startedAt = new Date();
+    // Update task status to in progress
+    task.status = 'in_progress';
     task.updatedAt = new Date();
-
-    // Simulate agent assignment and processing
+    
+    // Simulate task execution based on type
     setTimeout(async () => {
-      task.status = 'in_progress';
-      task.updatedAt = new Date();
-
-      // Simulate work completion
-      setTimeout(async () => {
+      try {
+        switch (task.type) {
+          case 'analysis':
+            await this.executeAnalysisTask(task);
+            break;
+          case 'design':
+            await this.executeDesignTask(task);
+            break;
+          case 'implementation':
+            await this.executeImplementationTask(task);
+            break;
+          case 'testing':
+            await this.executeTestingTask(task);
+            break;
+          case 'deployment':
+            await this.executeDeploymentTask(task);
+            break;
+          default:
+            console.warn(`Unknown task type: ${task.type}`);
+        }
+        
+        // Try to use specialized agents if available
         try {
           // Use DeepSeek for task-specific reasoning if available
           if (this.deepSeekReasoner) {
             const taskReasoning = await this.deepSeekReasoner.generateResponse(
-              `Execute ${task.type} task: ${task.description}`,
-              { projectId: task.id }
+              `Execute ${task.type} task: ${task.description}`
             );
             
             task.result = taskReasoning;
@@ -258,163 +241,44 @@ export class SovereignOrchestrator {
           }
           
           task.status = 'completed';
-          task.updatedAt = new Date();
-          
-          console.log('✅ Task completed:', task.id);
-          this.emitEvent('taskCompleted', { task });
-          
         } catch (error) {
+          console.error(`Error in specialized execution for task ${task.id}:`, error);
           task.status = 'failed';
-          task.error = error instanceof Error ? error.message : 'Task execution failed';
-          task.updatedAt = new Date();
-          
-          console.log('❌ Task failed:', task.id, task.error);
-          this.emitEvent('taskFailed', { task });
+          task.result = `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
         }
-      }, 3000 + Math.random() * 2000);
-    }, 1000);
-  }
-
-  // Public API methods
-  getTasks(): SovereignTask[] {
-    return Array.from(this.tasks.values());
-  }
-
-  getActiveProjects(): ProjectSpec[] {
-    return Array.from(this.projects.values()).filter(p => p.status === 'active' || p.status === 'planning');
-  }
-
-  getTask(taskId: string): SovereignTask | undefined {
-    return this.tasks.get(taskId);
-  }
-
-  getProject(projectId: string): ProjectSpec | undefined {
-    return this.projects.get(projectId);
-  }
-
-  updateTask(update: TaskUpdate) {
-    const task = this.tasks.get(update.taskId);
-    if (task) {
-      task.status = update.status;
-      task.updatedAt = new Date();
-      
-      if (update.progress !== undefined) {
-        // Store progress in result for now
-        task.result = { progress: update.progress, ...(typeof task.result === 'object' && task.result !== null ? task.result : {}) };
+      } catch (error) {
+        console.error(`Error executing task ${task.id}:`, error);
+        task.status = 'failed';
+        task.result = `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      } finally {
+        task.updatedAt = new Date();
+        this.notifyTaskCompletion(task);
       }
-      
-      if (update.result !== undefined) {
-        task.result = update.result;
-      }
-      
-      if (update.error !== undefined) {
-        task.error = update.error;
-      }
-
-      if (update.startedAt !== undefined) {
-        task.startedAt = update.startedAt;
-      }
-
-      this.emitEvent('taskUpdated', { task });
-    }
+    }, Math.random() * 2000 + 1000); // Random delay 1-3 seconds
   }
 
-  // Event system
-  addEventListener(event: string, callback: Function) {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, []);
-    }
-    this.eventListeners.get(event)!.push(callback);
+  private async executeAnalysisTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing analysis task: ${task.description}`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
 
-  private emitEvent(event: string, data: any) {
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
-      listeners.forEach(callback => callback(data));
-    }
+  private async executeDesignTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing design task: ${task.description}`);
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
-  async storeProjectInDatabase(project: ProjectSpec): Promise<void> {
-    try {
-      // Convert to a safe JSON format for database storage
-      const safeProjectData = {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        status: project.status,
-        techStack: project.techStack,
-        requirements: project.requirements,
-        architecture: project.architecture,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString()
-      };
-
-      const { error } = await supabase
-        .from('generation_history')
-        .insert({
-          task_id: project.id,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          status: project.status,
-          project_spec: safeProjectData,
-          result: 'Project created',
-          progress: 0
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Failed to store project in database:', error);
-    }
+  private async executeImplementationTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing implementation task: ${task.description}`);
+    await new Promise(resolve => setTimeout(resolve, 2500));
   }
 
-  private isValidProjectSpec(data: any): data is ProjectSpec {
-    return (
-      data &&
-      typeof data === 'object' &&
-      typeof data.id === 'string' &&
-      typeof data.name === 'string' &&
-      typeof data.description === 'string' &&
-      ['planning', 'active', 'completed', 'paused'].includes(data.status) &&
-      Array.isArray(data.techStack)
-    );
+  private async executeTestingTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing testing task: ${task.description}`);
+    await new Promise(resolve => setTimeout(resolve, 1800));
   }
 
-  async loadProjectsFromDatabase(): Promise<void> {
-    try {
-      const { data: generationHistory, error } = await supabase
-        .from('generation_history')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      generationHistory?.forEach(record => {
-        try {
-          const projectData = record.project_spec;
-          
-          if (this.isValidProjectSpec(projectData)) {
-            const project: ProjectSpec = {
-              id: projectData.id,
-              name: projectData.name,
-              description: projectData.description,
-              status: projectData.status,
-              techStack: projectData.techStack,
-              requirements: projectData.requirements,
-              architecture: projectData.architecture,
-              createdAt: new Date(projectData.createdAt),
-              updatedAt: new Date(projectData.updatedAt)
-            };
-            
-            this.projects.set(project.id, project);
-          }
-        } catch (error) {
-          console.warn('Failed to parse project from database:', error);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to load projects from database:', error);
-    }
+  private async executeDeploymentTask(task: SovereignTask): Promise<void> {
+    console.log(`Executing deployment task: ${task.description}`);
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
 }
-
-// Global orchestrator instance
-export const sovereignOrchestrator = new SovereignOrchestrator();
