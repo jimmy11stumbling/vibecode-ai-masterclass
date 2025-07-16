@@ -24,10 +24,14 @@ import {
   Activity,
   BarChart3,
   Shield,
-  Cpu
+  Cpu,
+  TestTube,
+  Rocket,
+  Eye,
+  GitBranch
 } from 'lucide-react';
 
-// Import all components
+// Import all production components
 import { MonacoCodeEditor } from '@/components/MonacoCodeEditor';
 import { LivePreview } from '@/components/LivePreview';
 import { FileExplorer } from '@/components/FileExplorer';
@@ -48,7 +52,20 @@ import { DeploymentManager } from '@/components/DeploymentManager';
 import { AgentDashboard } from '@/components/AgentDashboard';
 import { SovereignDashboard } from '@/components/SovereignDashboard';
 import { SovereignCommandInterface } from '@/components/SovereignCommandInterface';
+import { SovereignIDE } from '@/components/SovereignIDE';
+
+// Import new production components
+import { PredictiveCodeCompletion } from '@/components/PredictiveCodeCompletion';
+import { RealTimeCollaboration } from '@/components/RealTimeCollaboration';
+import { AdvancedProjectAnalytics } from '@/components/AdvancedProjectAnalytics';
+import { AutomatedTestingSuite } from '@/components/AutomatedTestingSuite';
+
+// Import services
 import { masterControlProgram } from '@/services/masterControlProgram';
+import { realAICodeGenerator } from '@/services/realAICodeGenerator';
+import { intelligentDebugger } from '@/services/intelligentDebugger';
+import { productionRAGSystem } from '@/services/productionRAGSystem';
+import { deploymentOrchestrator } from '@/services/deploymentOrchestrator';
 
 interface ProjectFile {
   id: string;
@@ -72,17 +89,79 @@ interface LogEntry {
 
 const FullIDE = () => {
   const [activeFile, setActiveFile] = useState<ProjectFile | null>(null);
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([
+    {
+      id: '1',
+      name: 'src',
+      type: 'folder',
+      path: 'src',
+      children: [
+        {
+          id: '2',
+          name: 'App.tsx',
+          type: 'file',
+          path: 'src/App.tsx',
+          language: 'typescript',
+          content: `import React, { useState } from 'react';
+
+const App = () => {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
+      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+          Sovereign AI IDE
+        </h1>
+        <div className="text-center">
+          <div className="text-6xl font-bold text-indigo-600 mb-6">
+            {count}
+          </div>
+          <div className="space-x-4">
+            <button
+              onClick={() => setCount(count - 1)}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Decrease
+            </button>
+            <button
+              onClick={() => setCount(count + 1)}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Increase
+            </button>
+          </div>
+          <button
+            onClick={() => setCount(0)}
+            className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;`,
+          lastModified: new Date()
+        }
+      ]
+    }
+  ]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
   const [activeAITab, setActiveAITab] = useState('sovereign-control');
   const [activeToolTab, setActiveToolTab] = useState('database');
   const [activeRightTab, setActiveRightTab] = useState('sovereign-ai');
+  const [activeBottomTab, setActiveBottomTab] = useState('preview');
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
   const [agentStatus, setAgentStatus] = useState('ready');
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [showCollaboration, setShowCollaboration] = useState(true);
+  const [showCodeCompletion, setShowCodeCompletion] = useState(true);
 
   const handleFileSelect = (file: ProjectFile) => {
-    // Add language detection based on file extension
     const extension = file.name.split('.').pop() || '';
     const languageMap: { [key: string]: string } = {
       'tsx': 'typescript',
@@ -129,7 +208,6 @@ const FullIDE = () => {
       console.log('✅ Sovereign AI: Request completed:', result);
       setAgentStatus('success');
       
-      // Add log entry
       handleLog({
         id: `log_${Date.now()}`,
         timestamp: new Date(),
@@ -154,7 +232,39 @@ const FullIDE = () => {
     }
   };
 
-  // Create a CodeFile from ProjectFile for MonacoCodeEditor
+  const handleCodeSuggestionApply = async (suggestion: any) => {
+    if (!activeFile) return;
+
+    try {
+      // Apply the suggestion to the current file
+      const updatedContent = suggestion.code;
+      
+      setProjectFiles(prev => {
+        const updateFile = (files: ProjectFile[]): ProjectFile[] => {
+          return files.map(f => {
+            if (f.id === activeFile.id) {
+              return { ...f, content: updatedContent, lastModified: new Date() };
+            } else if (f.type === 'folder' && f.children) {
+              return { ...f, children: updateFile(f.children) };
+            }
+            return f;
+          });
+        };
+        return updateFile(prev);
+      });
+
+      handleLog({
+        id: `log_${Date.now()}`,
+        timestamp: new Date(),
+        level: 'info',
+        message: `Applied AI suggestion: ${suggestion.description}`,
+        context: 'Code Completion'
+      });
+    } catch (error) {
+      console.error('Failed to apply suggestion:', error);
+    }
+  };
+
   const createCodeFile = (file: ProjectFile | null) => {
     if (!file) return null;
     return {
@@ -165,9 +275,20 @@ const FullIDE = () => {
     };
   };
 
+  const handleProjectGenerated = (project: any) => {
+    console.log('Project generated:', project);
+    handleLog({
+      id: `log_${Date.now()}`,
+      timestamp: new Date(),
+      level: 'info',
+      message: `New project generated: ${project.executionId}`,
+      context: 'Sovereign IDE'
+    });
+  };
+
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
-      {/* Enhanced Toolbar with Sovereign Badge */}
+      {/* Enhanced Production Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
@@ -176,8 +297,21 @@ const FullIDE = () => {
               Sovereign IDE
             </span>
             <Badge variant="outline" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
-              Production Ready
+              Production v2.0
             </Badge>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="flex items-center space-x-2">
+            <Button size="sm" variant="ghost" onClick={() => setShowCollaboration(!showCollaboration)}>
+              <Users className="w-4 h-4" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowCodeCompletion(!showCodeCompletion)}>
+              <Brain className="w-4 h-4" />
+            </Button>
+            <Button size="sm" variant="ghost">
+              <GitBranch className="w-4 h-4" />
+            </Button>
           </div>
         </div>
         
@@ -195,15 +329,15 @@ const FullIDE = () => {
         />
       </div>
       
-      {/* Main IDE Layout */}
+      {/* Main Production IDE Layout */}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Sidebar - File Explorer & Tools */}
+          {/* Left Sidebar - Enhanced File Explorer & Tools */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
             <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
               <Tabs defaultValue="files" className="h-full flex flex-col">
                 <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
-                  <TabsList className="grid w-full grid-cols-2 bg-slate-800 h-8">
+                  <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
                     <TabsTrigger value="files" className="text-xs data-[state=active]:bg-slate-700">
                       <FileText className="w-3 h-3 mr-1" />
                       Files
@@ -211,6 +345,10 @@ const FullIDE = () => {
                     <TabsTrigger value="tools" className="text-xs data-[state=active]:bg-slate-700">
                       <Settings className="w-3 h-3 mr-1" />
                       Tools
+                    </TabsTrigger>
+                    <TabsTrigger value="sovereign" className="text-xs data-[state=active]:bg-slate-700">
+                      <Crown className="w-3 h-3 mr-1" />
+                      AI
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -225,15 +363,18 @@ const FullIDE = () => {
                   <div className="h-full">
                     <Tabs value={activeToolTab} onValueChange={setActiveToolTab} className="h-full flex flex-col">
                       <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
-                        <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
-                          <TabsTrigger value="database" className="text-xs data-[state=active]:bg-slate-700">
+                        <TabsList className="grid w-full grid-cols-4 bg-slate-800 h-8 text-xs">
+                          <TabsTrigger value="database" className="data-[state=active]:bg-slate-700">
                             <Database className="w-3 h-3" />
                           </TabsTrigger>
-                          <TabsTrigger value="deploy" className="text-xs data-[state=active]:bg-slate-700">
-                            <Globe className="w-3 h-3" />
+                          <TabsTrigger value="deploy" className="data-[state=active]:bg-slate-700">
+                            <Rocket className="w-3 h-3" />
                           </TabsTrigger>
-                          <TabsTrigger value="mobile" className="text-xs data-[state=active]:bg-slate-700">
+                          <TabsTrigger value="mobile" className="data-[state=active]:bg-slate-700">
                             <Smartphone className="w-3 h-3" />
+                          </TabsTrigger>
+                          <TabsTrigger value="test" className="data-[state=active]:bg-slate-700">
+                            <TestTube className="w-3 h-3" />
                           </TabsTrigger>
                         </TabsList>
                       </div>
@@ -258,8 +399,22 @@ const FullIDE = () => {
                           />
                         </ScrollArea>
                       </TabsContent>
+
+                      <TabsContent value="test" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <div className="p-2">
+                            <AutomatedTestingSuite />
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
                     </Tabs>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="sovereign" className="flex-1 m-0 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <SovereignIDE onProjectGenerated={handleProjectGenerated} />
+                  </ScrollArea>
                 </TabsContent>
               </Tabs>
             </div>
@@ -267,12 +422,12 @@ const FullIDE = () => {
 
           <ResizableHandle />
 
-          {/* Center Panel - Code Editor & Preview */}
+          {/* Center Panel - Enhanced Code Editor & Preview */}
           <ResizablePanel defaultSize={50} minSize={30}>
             <ResizablePanelGroup direction="vertical">
-              {/* Code Editor */}
+              {/* Code Editor with AI Features */}
               <ResizablePanel defaultSize={60} minSize={30}>
-                <div className="h-full bg-slate-900 border-b border-slate-700">
+                <div className="h-full bg-slate-900 border-b border-slate-700 relative">
                   <MonacoCodeEditor
                     file={createCodeFile(activeFile)}
                     onContentChange={(fileId, content) => {
@@ -292,15 +447,30 @@ const FullIDE = () => {
                         });
                       }
                     }}
+                    onCursorPositionChange={setCursorPosition}
                   />
+                  
+                  {/* AI Code Completion Overlay */}
+                  {showCodeCompletion && activeFile && (
+                    <PredictiveCodeCompletion
+                      currentCode={activeFile.content || ''}
+                      fileName={activeFile.name}
+                      cursorPosition={cursorPosition}
+                      onApplySuggestion={handleCodeSuggestionApply}
+                      projectContext={{
+                        files: projectFiles.map(f => ({ name: f.name, content: f.content || '' })),
+                        framework: 'React'
+                      }}
+                    />
+                  )}
                 </div>
               </ResizablePanel>
 
               <ResizableHandle />
 
-              {/* Preview & Terminal */}
+              {/* Enhanced Preview & Tools Panel */}
               <ResizablePanel defaultSize={40} minSize={20}>
-                <Tabs defaultValue="preview" className="h-full flex flex-col">
+                <Tabs value={activeBottomTab} onValueChange={setActiveBottomTab} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 px-4 py-2 flex-shrink-0">
                     <TabsList className="bg-slate-800">
                       <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
@@ -314,6 +484,10 @@ const FullIDE = () => {
                       <TabsTrigger value="console" className="data-[state=active]:bg-slate-700">
                         <Code2 className="w-4 h-4 mr-2" />
                         Console
+                      </TabsTrigger>
+                      <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Analytics
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -334,6 +508,10 @@ const FullIDE = () => {
                       title="Application Console"
                     />
                   </TabsContent>
+
+                  <TabsContent value="analytics" className="flex-1 m-0 overflow-hidden">
+                    <AdvancedProjectAnalytics />
+                  </TabsContent>
                 </Tabs>
               </ResizablePanel>
             </ResizablePanelGroup>
@@ -341,21 +519,25 @@ const FullIDE = () => {
 
           <ResizableHandle />
 
-          {/* Right Sidebar - Sovereign AI & Advanced Features */}
+          {/* Right Sidebar - Advanced AI & Collaboration */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
             <div className="h-full bg-slate-900 border-l border-slate-700 flex flex-col">
               <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="h-full flex flex-col">
                 <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
-                  <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
-                    <TabsTrigger value="sovereign-ai" className="text-xs data-[state=active]:bg-slate-700">
+                  <TabsList className="grid w-full grid-cols-4 bg-slate-800 h-8 text-xs">
+                    <TabsTrigger value="sovereign-ai" className="data-[state=active]:bg-slate-700">
                       <Crown className="w-3 h-3 mr-1" />
                       AI
                     </TabsTrigger>
-                    <TabsTrigger value="protocols" className="text-xs data-[state=active]:bg-slate-700">
+                    <TabsTrigger value="protocols" className="data-[state=active]:bg-slate-700">
                       <Zap className="w-3 h-3 mr-1" />
-                      Protocols
+                      Proto
                     </TabsTrigger>
-                    <TabsTrigger value="dashboard" className="text-xs data-[state=active]:bg-slate-700">
+                    <TabsTrigger value="collab" className="data-[state=active]:bg-slate-700">
+                      <Users className="w-3 h-3 mr-1" />
+                      Team
+                    </TabsTrigger>
+                    <TabsTrigger value="control" className="data-[state=active]:bg-slate-700">
                       <Layout className="w-3 h-3 mr-1" />
                       Control
                     </TabsTrigger>
@@ -463,8 +645,19 @@ const FullIDE = () => {
                     </Tabs>
                   </div>
                 </TabsContent>
+
+                <TabsContent value="collab" className="flex-1 m-0 overflow-hidden">
+                  <div className="h-full p-4">
+                    {/* Real-time collaboration will be rendered as overlay */}
+                    <div className="text-center text-slate-400 mt-8">
+                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Real-time collaboration active</p>
+                      <p className="text-xs">See overlay for team activity</p>
+                    </div>
+                  </div>
+                </TabsContent>
                 
-                <TabsContent value="dashboard" className="flex-1 m-0 overflow-hidden">
+                <TabsContent value="control" className="flex-1 m-0 overflow-hidden">
                   <ScrollArea className="h-full">
                     <SovereignDashboard />
                   </ScrollArea>
@@ -475,7 +668,18 @@ const FullIDE = () => {
         </ResizablePanelGroup>
       </div>
 
-      {/* Enhanced Status Bar */}
+      {/* Real-time Collaboration Overlay */}
+      {showCollaboration && (
+        <RealTimeCollaboration
+          projectId="sovereign-ide-project"
+          currentFile={activeFile?.name}
+          onUserJoin={(user) => console.log('User joined:', user)}
+          onUserLeave={(userId) => console.log('User left:', userId)}
+          onActivity={(activity) => console.log('Collaboration activity:', activity)}
+        />
+      )}
+
+      {/* Enhanced Production Status Bar */}
       <div className="bg-slate-900 border-t border-slate-700 px-4 py-2 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -483,15 +687,25 @@ const FullIDE = () => {
               <Crown className="w-3 h-3 mr-1" />
               Sovereign Mode
             </Badge>
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+              <Brain className="w-3 h-3 mr-1" />
+              AI Active
+            </Badge>
+            <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
+              <Users className="w-3 h-3 mr-1" />
+              Collaborative
+            </Badge>
             <span className="text-xs text-slate-400">
-              Master Control Program: {agentStatus}
+              Master Control: {agentStatus}
             </span>
           </div>
           
-          <div className="flex items-center space-x-2 text-xs text-slate-400">
+          <div className="flex items-center space-x-4 text-xs text-slate-400">
             <span>Files: {projectFiles.length}</span>
             <span>•</span>
             <span>Logs: {logs.length}</span>
+            <span>•</span>
+            <span>Line: {cursorPosition.line}, Col: {cursorPosition.column}</span>
             <span>•</span>
             <span className={isAgentProcessing ? 'text-yellow-400' : 'text-green-400'}>
               {isAgentProcessing ? 'Processing...' : 'Ready'}
