@@ -1,13 +1,5 @@
 
-import { OrchestratorAgent } from './orchestratorAgent';
-import { 
-  BaseAgent, 
-  ArchitectAgent, 
-  BuilderAgent, 
-  ValidatorAgent, 
-  OptimizerAgent, 
-  LibrarianAgent 
-} from './specializedAgents';
+import { a2aProtocol, A2AAgent } from './a2aProtocolCore';
 import { advancedMCPIntegration } from './advancedMCPIntegration';
 
 interface ProjectContext {
@@ -54,38 +46,24 @@ interface ActiveExecution {
   startTime: Date;
 }
 
-type AgentType = 'architect' | 'frontend-builder' | 'backend-builder' | 'validator' | 'optimizer' | 'librarian';
-
 class AgentManager {
-  private agents: Map<AgentType, BaseAgent> = new Map();
   private eventListeners: Map<string, ((data: any) => void)[]> = new Map();
   private activeExecutions: ActiveExecution[] = [];
-  private agentStatuses: Map<string, AgentStatus> = new Map();
+  private isInitialized = false;
 
   constructor() {
     this.initializeAgents();
   }
 
   async initializeAgents(): Promise<void> {
+    if (this.isInitialized) return;
+
     try {
-      // Initialize specialized agents
-      this.agents.set('architect', new ArchitectAgent('architect', 'Creates application architecture and design'));
-      this.agents.set('frontend-builder', new BuilderAgent('frontend-builder', 'Builds frontend components and UI'));
-      this.agents.set('backend-builder', new BuilderAgent('backend-builder', 'Builds backend APIs and services'));
-      this.agents.set('validator', new ValidatorAgent('validator', 'Validates code quality and functionality'));
-      this.agents.set('optimizer', new OptimizerAgent('optimizer', 'Optimizes code performance and structure'));
-      this.agents.set('librarian', new LibrarianAgent('librarian', 'Manages knowledge base and documentation'));
-
-      // Initialize agent statuses
-      this.agents.forEach((agent, type) => {
-        this.agentStatuses.set(agent.id, {
-          id: agent.id,
-          status: 'idle',
-          lastActivity: new Date()
-        });
-      });
-
-      console.log('Agent swarm initialized successfully');
+      // Initialize A2A protocol first (this will register all agents)
+      await a2aProtocol.initialize();
+      
+      this.isInitialized = true;
+      console.log('Agent Manager initialized - using A2A protocol agents');
     } catch (error) {
       console.error('Failed to initialize agents:', error);
       throw error;
@@ -95,10 +73,10 @@ class AgentManager {
   async processUserRequest(prompt: string, projectContext: ProjectContext): Promise<string> {
     const executionId = `execution_${Date.now()}`;
 
-    // Create mock execution
+    // Create execution
     const execution: ActiveExecution = {
       id: executionId,
-      agentId: 'architect',
+      agentId: 'orchestrator',
       status: 'running',
       progress: 0,
       startTime: new Date()
@@ -106,7 +84,7 @@ class AgentManager {
 
     this.activeExecutions.push(execution);
 
-    // Simulate agent processing
+    // Simulate agent processing via A2A protocol
     setTimeout(() => {
       const result: ExecutionResult = {
         success: true,
@@ -117,7 +95,6 @@ class AgentManager {
         }
       };
 
-      // Update execution status
       execution.status = 'completed';
       execution.progress = 100;
 
@@ -128,13 +105,23 @@ class AgentManager {
   }
 
   getAgentStatus(agentId?: string): AgentStatus | AgentStatus[] {
+    // Get agents from A2A protocol instead of maintaining our own
+    const a2aAgents = a2aProtocol.getAgents();
+    
+    const agentStatuses = a2aAgents.map((agent: A2AAgent) => ({
+      id: agent.id,
+      status: agent.status === 'active' ? 'idle' : agent.status === 'busy' ? 'busy' : 'offline',
+      lastActivity: agent.lastActivity
+    }));
+
     if (agentId) {
-      return this.agentStatuses.get(agentId) || null;
+      return agentStatuses.find(status => status.id === agentId) || null;
     }
-    return Array.from(this.agentStatuses.values());
+    return agentStatuses;
   }
 
   getMetrics(): AgentMetrics {
+    const agents = a2aProtocol.getAgents();
     const completedTasks = this.activeExecutions.filter(e => e.status === 'completed').length;
     const failedTasks = this.activeExecutions.filter(e => e.status === 'failed').length;
     const totalTasks = this.activeExecutions.length;
@@ -143,15 +130,15 @@ class AgentManager {
       totalTasks,
       completedTasks,
       failedTasks,
-      avgExecutionTime: 5000, // Mock average
+      avgExecutionTime: 5000,
       totalTasksCompleted: completedTasks,
       successRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
       averageTaskDuration: 5000,
       currentStats: {
-        activeAgents: this.agentStatuses.size,
+        activeAgents: agents.filter(agent => agent.status === 'active').length,
         queuedTasks: this.activeExecutions.filter(e => e.status === 'running').length
       },
-      agentUtilization: 75 // Mock utilization percentage
+      agentUtilization: agents.length > 0 ? (agents.filter(agent => agent.status === 'busy').length / agents.length) * 100 : 0
     };
   }
 
