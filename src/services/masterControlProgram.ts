@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { ragDatabase } from './ragDatabaseCore';
@@ -36,7 +37,7 @@ export class MasterControlProgram {
   private isInitialized = false;
 
   constructor() {
-    this.deepSeekCore = new DeepSeekReasonerCore(this.getDeepSeekApiKey());
+    this.deepSeekCore = new DeepSeekReasonerCore(''); // Initialize with empty key, will be set later
     this.systemMetrics = {
       deepSeekStatus: 'idle',
       ragStatus: 'disconnected',
@@ -246,7 +247,7 @@ export class MasterControlProgram {
       userQuery: userRequest,
       previousContext: context?.previousContext,
       systemInstructions: this.getSystemInstructions(),
-      ragContext: ragResults.results || []
+      ragContext: ragResults.chunks || []
     });
 
     // Step 3: Coordinate with orchestrator for implementation
@@ -355,11 +356,6 @@ Please provide a comprehensive response that incorporates this analysis.`
     });
   }
 
-  private getDeepSeekApiKey(): string {
-    // In production, this would be retrieved from secure storage
-    return process.env.DEEPSEEK_API_KEY || '';
-  }
-
   private getSystemInstructions(): string {
     return `You are the Master Control Program's reasoning engine. You have access to:
     - Complete RAG 2.0 Database with contextual knowledge
@@ -389,6 +385,11 @@ Please provide a comprehensive response that incorporates this analysis.`
     }
     
     console.log('✅ MCP: System shutdown complete');
+  }
+
+  // Set API key method to be called from components
+  setApiKey(apiKey: string) {
+    this.deepSeekCore.setApiKey(apiKey);
   }
 }
 
