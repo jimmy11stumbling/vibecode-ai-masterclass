@@ -320,7 +320,7 @@ Please provide a detailed, accurate response that leverages the provided context
       content: data.content,
       category: data.category,
       tags: data.tags || [],
-      metadata: data.metadata || {}
+      metadata: {} // Use empty object since metadata is not in knowledge_base table
     };
   }
 

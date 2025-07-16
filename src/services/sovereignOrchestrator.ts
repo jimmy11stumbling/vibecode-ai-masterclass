@@ -1,300 +1,222 @@
-
-import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { deepSeekReasoner } from './deepSeekReasonerCore';
-import { a2aProtocol } from './a2aProtocolCore';
-import { mcpHub } from './mcpHubCore';
 import { ragDatabase } from './ragDatabaseCore';
-
-export interface SovereignTask {
-  id: string;
-  type: 'analysis' | 'design' | 'development' | 'testing' | 'deployment';
-  description: string;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  assignedAgent?: string;
-  dependencies: string[];
-  metadata: any;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { a2aProtocol } from './a2aProtocolCore';
+import { createDeepSeekReasonerCore } from './deepSeekReasonerCore';
+import { mcpHub } from './mcpHubCore';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface ProjectSpec {
   id: string;
   name: string;
   description: string;
-  techStack: string[];
-  features: string[];
-  architecture: any;
-  requirements: string[];
-  timeline: string;
-  metadata: any;
+  status: 'active' | 'paused' | 'completed';
+  createdAt: Date;
+  updatedAt: Date;
+  ownerId: string;
+  configuration?: any;
 }
 
-export interface ExecutionContext {
+export interface SovereignTask {
   id: string;
-  projectSpec: ProjectSpec;
-  tasks: SovereignTask[];
-  status: 'initializing' | 'planning' | 'executing' | 'completed' | 'failed';
+  projectId: string;
+  name: string;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  createdAt: Date;
+  updatedAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  ownerId: string;
+  priority: number;
+  taskSpec?: any;
+  result?: any;
   progress: number;
-  startTime: Date;
-  endTime?: Date;
+}
+
+export interface TaskUpdate {
+  status?: 'pending' | 'running' | 'completed' | 'failed';
+  progress?: number;
+  result?: any;
 }
 
 export class SovereignOrchestrator {
-  private contexts = new Map<string, ExecutionContext>();
-  private apiKey: string | null = null;
+  private deepSeekReasoner: any = null;
+  private apiKey: string = '';
+  private activeTasks = new Map<string, SovereignTask>();
+  private activeProjects = new Map<string, ProjectSpec>();
+  private taskQueue: SovereignTask[] = [];
+  private isProcessing = false;
 
-  setApiKey(key: string) {
-    this.apiKey = key;
-    deepSeekReasoner.setApiKey(key);
+  constructor() {
+    console.log('🏛️ Sovereign Orchestrator: Initializing command center');
   }
 
-  async processUserRequest(userPrompt: string): Promise<string> {
-    const executionId = uuidv4();
-    console.log(`🎯 Sovereign Orchestrator: Processing request - ${executionId}`);
-
-    try {
-      // Enhance context with RAG
-      const ragContext = await ragDatabase.query({
-        query: userPrompt,
-        limit: 10,
-        threshold: 0.7
-      });
-
-      // Generate project specification using DeepSeek
-      const projectSpec = await this.generateProjectSpecification(userPrompt, ragContext.contextSummary);
-      
-      // Create execution context
-      const context: ExecutionContext = {
-        id: executionId,
-        projectSpec,
-        tasks: [],
-        status: 'initializing',
-        progress: 0,
-        startTime: new Date()
-      };
-
-      this.contexts.set(executionId, context);
-
-      // Decompose into tasks
-      const tasks = await this.decomposeIntoTasks(projectSpec);
-      context.tasks = tasks;
-      context.status = 'planning';
-
-      // Start execution
-      this.executeTasksPipeline(executionId);
-
-      return executionId;
-
-    } catch (error) {
-      console.error('Sovereign Orchestrator failed:', error);
-      throw error;
+  setApiKey(apiKey: string) {
+    this.apiKey = apiKey;
+    if (apiKey) {
+      this.deepSeekReasoner = createDeepSeekReasonerCore(apiKey);
+      console.log('🔑 Sovereign Orchestrator: DeepSeek API key configured');
     }
   }
 
-  getTasks(): SovereignTask[] {
-    const allTasks: SovereignTask[] = [];
-    this.contexts.forEach(context => {
-      allTasks.push(...context.tasks);
-    });
-    return allTasks;
-  }
-
-  getActiveProjects(): ProjectSpec[] {
-    return Array.from(this.contexts.values())
-      .filter(context => context.status !== 'completed' && context.status !== 'failed')
-      .map(context => context.projectSpec);
-  }
-
-  getTask(taskId: string): SovereignTask | undefined {
-    for (const context of this.contexts.values()) {
-      const task = context.tasks.find(t => t.id === taskId);
-      if (task) return task;
-    }
-    return undefined;
-  }
-
-  private async generateProjectSpecification(userPrompt: string, ragContext: string): Promise<ProjectSpec> {
-    const prompt = `
-Based on the user request and available context, generate a comprehensive project specification.
-
-User Request: ${userPrompt}
-
-Context from Knowledge Base: ${ragContext}
-
-Provide a detailed project specification including:
-1. Project name and description
-2. Recommended technology stack
-3. Core features and requirements
-4. System architecture overview
-5. Development timeline estimate
-
-Respond with a structured JSON format.
-`;
-
-    const response = await deepSeekReasoner.processRequest(prompt, [], 'project_analysis');
-    
-    // Parse the response and create ProjectSpec
+  async createProject(projectSpec: Omit<ProjectSpec, 'id' | 'createdAt' | 'updatedAt'>): Promise<ProjectSpec> {
     const projectId = uuidv4();
-    
-    return {
+    const newProject: ProjectSpec = {
       id: projectId,
-      name: `Generated Project ${projectId.slice(0, 8)}`,
-      description: userPrompt,
-      techStack: ['React', 'TypeScript', 'Tailwind CSS', 'Supabase'],
-      features: this.extractFeatures(userPrompt),
-      architecture: { type: 'full-stack', pattern: 'MVC' },
-      requirements: [userPrompt],
-      timeline: '2-4 weeks',
-      metadata: { generatedAt: new Date().toISOString(), source: 'user_prompt' }
+      ...projectSpec,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
+
+    this.activeProjects.set(projectId, newProject);
+    console.log(`✨ Sovereign Orchestrator: Project created - ${newProject.name} (${projectId})`);
+    return newProject;
   }
 
-  private extractFeatures(userPrompt: string): string[] {
-    const features = [];
+  async getProject(projectId: string): Promise<ProjectSpec | undefined> {
+    return this.activeProjects.get(projectId);
+  }
+
+  async updateProject(projectId: string, updates: Partial<ProjectSpec>): Promise<ProjectSpec | undefined> {
+    const project = this.activeProjects.get(projectId);
+    if (!project) {
+      console.warn(`Sovereign Orchestrator: Project not found - ${projectId}`);
+      return undefined;
+    }
+
+    const updatedProject: ProjectSpec = {
+      ...project,
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    this.activeProjects.set(projectId, updatedProject);
+    console.log(`🔄 Sovereign Orchestrator: Project updated - ${updatedProject.name} (${projectId})`);
+    return updatedProject;
+  }
+
+  async createTask(taskSpec: Omit<SovereignTask, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'progress' | 'result' | 'startedAt' | 'completedAt'>): Promise<SovereignTask> {
+    const taskId = uuidv4();
+    const newTask: SovereignTask = {
+      id: taskId,
+      status: 'pending',
+      progress: 0,
+      result: null,
+      startedAt: null,
+      completedAt: null,
+      ...taskSpec,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.taskQueue.push(newTask);
+    this.activeTasks.set(taskId, newTask);
+    console.log(`🚀 Sovereign Orchestrator: Task created - ${newTask.name} (${taskId})`);
     
-    if (userPrompt.toLowerCase().includes('auth')) features.push('Authentication');
-    if (userPrompt.toLowerCase().includes('database')) features.push('Database Integration');
-    if (userPrompt.toLowerCase().includes('api')) features.push('API Integration');
-    if (userPrompt.toLowerCase().includes('dashboard')) features.push('Dashboard');
-    if (userPrompt.toLowerCase().includes('mobile')) features.push('Mobile Responsive');
-    if (userPrompt.toLowerCase().includes('chat')) features.push('Real-time Chat');
-    if (userPrompt.toLowerCase().includes('payment')) features.push('Payment Processing');
-    
-    return features.length > 0 ? features : ['Core Functionality', 'User Interface'];
+    this.processTaskQueue();
+    return newTask;
   }
 
-  private async decomposeIntoTasks(projectSpec: ProjectSpec): Promise<SovereignTask[]> {
-    const tasks: SovereignTask[] = [];
-
-    // Analysis phase
-    tasks.push({
-      id: uuidv4(),
-      type: 'analysis',
-      description: 'Analyze project requirements and create detailed specifications',
-      status: 'pending',
-      priority: 'high',
-      dependencies: [],
-      metadata: { phase: 'analysis' },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Design phase
-    tasks.push({
-      id: uuidv4(),
-      type: 'design',
-      description: 'Create system architecture and database design',
-      status: 'pending',
-      priority: 'high',
-      dependencies: [],
-      metadata: { phase: 'design' },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Development tasks for each feature
-    projectSpec.features.forEach(feature => {
-      tasks.push({
-        id: uuidv4(),
-        type: 'development',
-        description: `Implement ${feature}`,
-        status: 'pending',
-        priority: 'medium',
-        dependencies: [],
-        metadata: { feature, phase: 'development' },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-    });
-
-    // Testing phase
-    tasks.push({
-      id: uuidv4(),
-      type: 'testing',
-      description: 'Comprehensive testing and quality assurance',
-      status: 'pending',
-      priority: 'medium',
-      dependencies: [],
-      metadata: { phase: 'testing' },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    return tasks;
+  async getTask(taskId: string): Promise<SovereignTask | undefined> {
+    return this.activeTasks.get(taskId);
   }
 
-  private async executeTasksPipeline(executionId: string) {
-    const context = this.contexts.get(executionId);
-    if (!context) return;
+  async updateTask(taskId: string, updates: TaskUpdate): Promise<SovereignTask | undefined> {
+    const task = this.activeTasks.get(taskId);
+    if (!task) {
+      console.warn(`Sovereign Orchestrator: Task not found - ${taskId}`);
+      return undefined;
+    }
 
-    context.status = 'executing';
+    const updatedTask: SovereignTask = {
+      ...task,
+      ...updates,
+      updatedAt: new Date(),
+    };
 
-    try {
-      // Simulate task execution
-      for (const task of context.tasks) {
-        task.status = 'in_progress';
-        
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        task.status = 'completed';
-        task.updatedAt = new Date();
-        
-        context.progress = (context.tasks.filter(t => t.status === 'completed').length / context.tasks.length) * 100;
+    this.activeTasks.set(taskId, updatedTask);
+    console.log(`🔄 Sovereign Orchestrator: Task updated - ${updatedTask.name} (${taskId})`);
+    return updatedTask;
+  }
+
+  private async processTaskQueue(): Promise<void> {
+    if (this.isProcessing) {
+      console.log('🚦 Sovereign Orchestrator: Task queue processing already in progress');
+      return;
+    }
+
+    if (this.taskQueue.length === 0) {
+      console.log('📭 Sovereign Orchestrator: Task queue is empty');
+      return;
+    }
+
+    this.isProcessing = true;
+    console.log('⚙️ Sovereign Orchestrator: Starting task queue processing');
+
+    while (this.taskQueue.length > 0) {
+      const task = this.taskQueue.shift();
+      if (!task) continue;
+
+      try {
+        console.log(`▶️ Sovereign Orchestrator: Starting task - ${task.name} (${task.id})`);
+        await this.runTask(task);
+        console.log(`✅ Sovereign Orchestrator: Task completed - ${task.name} (${task.id})`);
+      } catch (error) {
+        console.error(`🔥 Sovereign Orchestrator: Task failed - ${task.name} (${task.id})`, error);
+        await this.updateTask(task.id, { status: 'failed', progress: 100, result: { error: error.message } });
+      }
+    }
+
+    this.isProcessing = false;
+    console.log('⏹️ Sovereign Orchestrator: Task queue processing complete');
+  }
+
+  private async runTask(task: SovereignTask): Promise<void> {
+    await this.updateTask(task.id, { status: 'running', startedAt: new Date() });
+
+    // Example task execution - replace with actual logic
+    if (task.taskSpec?.type === 'generate-content') {
+      const userQuery = task.taskSpec.query;
+
+      if (!this.deepSeekReasoner) {
+        throw new Error('DeepSeek API key not configured');
       }
 
-      context.status = 'completed';
-      context.endTime = new Date();
+      const reasoningResult = await this.deepSeekReasoner.performAdvancedReasoning({
+        projectId: task.projectId,
+        userQuery: userQuery,
+        systemInstructions: 'You are an expert software architect and developer with deep knowledge of modern web technologies.',
+      });
 
-      // Save to database
-      await this.saveProjectSpecification(context.projectSpec);
+      const generatedContent = `
+        ## Reasoning
+        ${reasoningResult.reasoning}
 
-    } catch (error) {
-      context.status = 'failed';
-      console.error('Task execution failed:', error);
+        ## Conclusion
+        ${reasoningResult.conclusion}
+
+        ## Next Actions
+        ${reasoningResult.nextActions.join('\n')}
+      `;
+
+      await this.updateTask(task.id, { status: 'completed', progress: 100, result: { content: generatedContent } });
+    } else if (task.taskSpec?.type === 'analyze-code') {
+      // Placeholder for code analysis task
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      await this.updateTask(task.id, { status: 'completed', progress: 100, result: { analysis: 'Code analysis complete' } });
+    } else if (task.taskSpec?.type === 'rag-query') {
+      const query = task.taskSpec.query;
+      const ragResults = await ragDatabase.query({ query: query });
+
+      const response = await ragDatabase.createContextualResponse(query, ragResults);
+      await this.updateTask(task.id, { status: 'completed', progress: 100, result: { response: response } });
+    } else {
+      // Default task completion
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.updateTask(task.id, { status: 'completed', progress: 100, result: { message: 'Task completed successfully' } });
     }
-  }
 
-  private async saveProjectSpecification(spec: ProjectSpec): Promise<void> {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) return;
-
-      await supabase
-        .from('saved_project_specs')
-        .insert({
-          name: spec.name,
-          description: spec.description,
-          spec_data: spec as any,
-          user_id: user.data.user.id
-        });
-
-    } catch (error) {
-      console.error('Failed to save project specification:', error);
-    }
-  }
-
-  getExecutionContext(executionId: string): ExecutionContext | undefined {
-    return this.contexts.get(executionId);
-  }
-
-  getAllContexts(): ExecutionContext[] {
-    return Array.from(this.contexts.values());
-  }
-
-  clearContext(executionId: string): boolean {
-    return this.contexts.delete(executionId);
-  }
-
-  getSystemStatus() {
-    return {
-      activeContexts: this.contexts.size,
-      totalTasks: this.getTasks().length,
-      completedTasks: this.getTasks().filter(t => t.status === 'completed').length,
-      failedTasks: this.getTasks().filter(t => t.status === 'failed').length
-    };
+    task.completedAt = new Date();
   }
 }
 
