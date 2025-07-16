@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -174,42 +173,83 @@ const defaultTheme: ThemeConfig = {
 };
 
 const darkTheme: ThemeConfig = {
-  ...defaultTheme,
   colors: {
-    ...defaultTheme.colors,
     primary: 'hsl(210, 40%, 98%)',
+    secondary: 'hsl(210, 40%, 96%)',
+    accent: 'hsl(210, 40%, 94%)',
     background: 'hsl(222.2, 84%, 4.9%)',
     foreground: 'hsl(210, 40%, 98%)',
     muted: 'hsl(217.2, 32.6%, 17.5%)',
     border: 'hsl(217.2, 32.6%, 17.5%)',
+    destructive: 'hsl(0, 84.2%, 60.2%)',
+    warning: 'hsl(38, 92%, 50%)',
+    success: 'hsl(142, 76%, 36%)',
   },
+  typography: defaultTheme.typography,
+  spacing: defaultTheme.spacing,
+  borderRadius: defaultTheme.borderRadius,
+  shadows: defaultTheme.shadows,
+  animations: defaultTheme.animations,
 };
 
 const blueTheme: ThemeConfig = {
-  ...defaultTheme,
   colors: {
-    ...defaultTheme.colors,
     primary: 'hsl(221.2, 83.2%, 53.3%)',
+    secondary: 'hsl(210, 40%, 96%)',
     accent: 'hsl(221.2, 83.2%, 93%)',
+    background: 'hsl(0, 0%, 100%)',
+    foreground: 'hsl(222.2, 84%, 4.9%)',
+    muted: 'hsl(210, 40%, 96%)',
+    border: 'hsl(214.3, 31.8%, 91.4%)',
+    destructive: 'hsl(0, 84.2%, 60.2%)',
+    warning: 'hsl(38, 92%, 50%)',
+    success: 'hsl(142, 76%, 36%)',
   },
+  typography: defaultTheme.typography,
+  spacing: defaultTheme.spacing,
+  borderRadius: defaultTheme.borderRadius,
+  shadows: defaultTheme.shadows,
+  animations: defaultTheme.animations,
 };
 
 const greenTheme: ThemeConfig = {
-  ...defaultTheme,
   colors: {
-    ...defaultTheme.colors,
     primary: 'hsl(142, 76%, 36%)',
+    secondary: 'hsl(210, 40%, 96%)',
     accent: 'hsl(142, 76%, 93%)',
+    background: 'hsl(0, 0%, 100%)',
+    foreground: 'hsl(222.2, 84%, 4.9%)',
+    muted: 'hsl(210, 40%, 96%)',
+    border: 'hsl(214.3, 31.8%, 91.4%)',
+    destructive: 'hsl(0, 84.2%, 60.2%)',
+    warning: 'hsl(38, 92%, 50%)',
+    success: 'hsl(142, 76%, 36%)',
   },
+  typography: defaultTheme.typography,
+  spacing: defaultTheme.spacing,
+  borderRadius: defaultTheme.borderRadius,
+  shadows: defaultTheme.shadows,
+  animations: defaultTheme.animations,
 };
 
 const purpleTheme: ThemeConfig = {
-  ...defaultTheme,
   colors: {
-    ...defaultTheme.colors,
     primary: 'hsl(262.1, 83.3%, 57.8%)',
+    secondary: 'hsl(210, 40%, 96%)',
     accent: 'hsl(262.1, 83.3%, 93%)',
+    background: 'hsl(0, 0%, 100%)',
+    foreground: 'hsl(222.2, 84%, 4.9%)',
+    muted: 'hsl(210, 40%, 96%)',
+    border: 'hsl(214.3, 31.8%, 91.4%)',
+    destructive: 'hsl(0, 84.2%, 60.2%)',
+    warning: 'hsl(38, 92%, 50%)',
+    success: 'hsl(142, 76%, 36%)',
   },
+  typography: defaultTheme.typography,
+  spacing: defaultTheme.spacing,
+  borderRadius: defaultTheme.borderRadius,
+  shadows: defaultTheme.shadows,
+  animations: defaultTheme.animations,
 };
 
 const presetThemes: Record<string, ThemeConfig> = {
@@ -269,10 +309,9 @@ export const ThemeCustomizer: React.FC = () => {
       ...prev,
       typography: {
         ...prev.typography,
-        [section]: {
-          ...prev.typography[section as keyof typeof prev.typography],
-          [key]: value
-        }
+        [section]: typeof prev.typography[section as keyof typeof prev.typography] === 'object'
+          ? { ...prev.typography[section as keyof typeof prev.typography] as Record<string, string>, [key]: value }
+          : value
       }
     }));
   };
@@ -675,4 +714,3 @@ export const ThemeCustomizer: React.FC = () => {
     </div>
   );
 };
-
