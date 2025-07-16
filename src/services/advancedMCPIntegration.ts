@@ -2,6 +2,7 @@
 import { mcpIntegration } from './mcpIntegration';
 import { MCPAgent, MCPMessage, MCPTool } from './mcp/types';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Export types for A2A Protocol
@@ -113,7 +114,7 @@ export interface MCPCapability {
 
 class AdvancedMCPIntegrationService {
   private isInitialized = false;
-  private supabaseClient: SupabaseClient | null = null;
+  private supabaseClient: SupabaseClient<Database> | null = null;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -127,7 +128,7 @@ class AdvancedMCPIntegrationService {
     console.log('✅ Advanced MCP Integration initialized');
   }
 
-  init(supabaseClient: SupabaseClient): this {
+  init(supabaseClient: SupabaseClient<Database>): this {
     this.supabaseClient = supabaseClient;
     return this;
   }
