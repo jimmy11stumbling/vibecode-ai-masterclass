@@ -1,3 +1,4 @@
+
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -271,14 +272,14 @@ export class AdvancedMCPIntegrationService {
         id: item.id,
         content: item.content,
         score: 0.8, // Mock score
-        metadata: item.metadata || {},
+        metadata: { category: item.category, tags: item.tags },
         source: item.title,
         chunk: {
           id: `chunk_${item.id}`,
           documentId: item.id,
           content: item.content,
           embedding: [],
-          metadata: item.metadata || {},
+          metadata: { category: item.category, tags: item.tags },
           position: 0,
           hierarchyLevel: 0
         },
@@ -467,9 +468,9 @@ export class AdvancedMCPIntegrationService {
 let serviceInstance: AdvancedMCPIntegrationService | null = null;
 
 export const advancedMCPIntegration = {
-  init: (supabaseClient: SupabaseClient<Database>) => {
+  init: (supabaseClient: SupabaseClient<any>) => {
     if (!serviceInstance) {
-      serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
+      serviceInstance = new AdvancedMCPIntegrationService(supabaseClient as SupabaseClient<Database>);
     }
     return serviceInstance;
   },
