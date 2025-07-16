@@ -223,17 +223,23 @@ Structure your response clearly with reasoning steps and final conclusions.
         return;
       }
 
+      // Serialize the data to be compatible with Supabase Json type
       const sessionData = {
         task_id: sessionId,
-        user_id: user.id, // Use authenticated user ID
+        user_id: user.id,
         status: 'completed',
         project_spec: {
           sessionId,
-          context,
+          context: {
+            query: context.query,
+            context: context.context || null,
+            reasoningDepth: context.reasoningDepth || 'intermediate',
+            domainFocus: context.domainFocus || []
+          },
           results: [result],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        },
+        } as any, // Cast to any to satisfy Json type
         result: 'Reasoning analysis completed',
         progress: 100
       };
