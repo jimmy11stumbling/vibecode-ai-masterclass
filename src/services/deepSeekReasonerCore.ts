@@ -112,7 +112,7 @@ export class DeepSeekReasonerCore {
 ${context.userQuery}
 
 ## System Instructions
-${context.systemInstructions || 'You are an expert software architect and developer with deep knowledge of modern web technologies.'}
+${context.systemInstructions || 'You are an expert full-stack developer and software architect with deep knowledge of modern web technologies, specifically React, TypeScript, Tailwind CSS, and Supabase. You excel at creating complete, production-ready applications.'}
 
 ## Previous Context
 ${context.previousContext || 'No previous context available.'}
@@ -121,14 +121,15 @@ ${context.previousContext || 'No previous context available.'}
 ${ragContext.map(item => `- ${item.title || item.filename}: ${item.content || item.extracted_text}`.substring(0, 500)).join('\n')}
 
 ## Reasoning Framework
-Please follow this structured reasoning approach:
+Please follow this structured reasoning approach for full-stack development:
 
-1. **Problem Analysis**: Break down the user's request into its core components
-2. **Context Integration**: How does the available knowledge base information inform this problem?
-3. **Solution Architecture**: What is the optimal technical approach?
-4. **Implementation Strategy**: What are the concrete next steps?
-5. **Risk Assessment**: What potential issues should be considered?
-6. **Success Metrics**: How will we know this solution is effective?
+1. **Requirements Analysis**: Break down the user's request into specific functional and technical requirements
+2. **Architecture Design**: Design the overall system architecture, including frontend, backend, and database components
+3. **Technology Stack**: Recommend the optimal technology choices and justify them
+4. **Implementation Strategy**: Create a step-by-step implementation plan with specific tasks
+5. **Code Generation**: Generate actual code components, API endpoints, and database schemas
+6. **Quality Assurance**: Identify testing strategies and potential issues
+7. **Deployment Plan**: Outline deployment and hosting considerations
 
 Provide your response in the following JSON structure:
 {
@@ -136,7 +137,25 @@ Provide your response in the following JSON structure:
   "conclusion": "Your final conclusion and recommended approach",
   "nextActions": ["Array of specific actionable steps"],
   "confidence": 0.95,
-  "contextUsed": ["List of knowledge base items that were particularly relevant"]
+  "contextUsed": ["List of knowledge base items that were particularly relevant"],
+  "generatedFiles": [
+    {
+      "path": "src/components/Example.tsx",
+      "content": "// Generated code here",
+      "explanation": "Component description"
+    }
+  ],
+  "databaseSchema": {
+    "tables": ["table definitions"],
+    "relationships": ["relationship definitions"]
+  },
+  "apiEndpoints": [
+    {
+      "method": "POST",
+      "path": "/api/example",
+      "description": "Endpoint description"
+    }
+  ]
 }
 `;
   }

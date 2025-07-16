@@ -1,5 +1,6 @@
 
 import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StreamingStats {
   tokensReceived: number;
@@ -15,9 +16,7 @@ interface Message {
 }
 
 export const useDeepSeekAPI = () => {
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('deepseek_api_key') || '';
-  });
+  const [apiKey, setApiKey] = useState<string>('');
   
   const [streamingStats, setStreamingStats] = useState<StreamingStats>({
     tokensReceived: 0,
@@ -25,13 +24,32 @@ export const useDeepSeekAPI = () => {
     status: 'idle'
   });
 
+  // Load API key from Supabase secrets
+  const loadApiKey = useCallback(async () => {
+    try {
+      const { data } = await supabase.functions.invoke('get-deepseek-key');
+      if (data?.key) {
+        setApiKey(data.key);
+        return data.key;
+      }
+    } catch (error) {
+      console.error('Failed to load DeepSeek API key:', error);
+    }
+    return null;
+  }, []);
+
   const streamChatResponse = useCallback(async (
     messages: Message[],
     onToken: (token: string) => void,
     onProgress?: (stats: StreamingStats) => void
   ) => {
-    if (!apiKey) {
-      throw new Error('API key is required');
+    let currentApiKey = apiKey;
+    
+    if (!currentApiKey) {
+      currentApiKey = await loadApiKey();
+      if (!currentApiKey) {
+        throw new Error('DeepSeek API key is required');
+      }
     }
 
     const startTime = Date.now();
@@ -48,7 +66,7 @@ export const useDeepSeekAPI = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${currentApiKey}`
         },
         body: JSON.stringify({
           model: 'deepseek-reasoner',
@@ -132,17 +150,17 @@ export const useDeepSeekAPI = () => {
       onProgress?.(errorStats);
       throw error;
     }
-  }, [apiKey]);
+  }, [apiKey, loadApiKey]);
 
   const handleApiKeyChange = useCallback((newApiKey: string) => {
     setApiKey(newApiKey);
-    localStorage.setItem('deepseek_api_key', newApiKey);
   }, []);
 
   return {
     apiKey,
     setApiKey: handleApiKeyChange,
     streamChatResponse,
-    streamingStats
+    streamingStats,
+    loadApiKey
   };
 };
