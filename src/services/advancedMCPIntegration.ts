@@ -468,9 +468,9 @@ export class AdvancedMCPIntegrationService {
 let serviceInstance: AdvancedMCPIntegrationService | null = null;
 
 export const advancedMCPIntegration = {
-  init: (supabaseClient: SupabaseClient<any>) => {
+  init: (supabaseClient: SupabaseClient<Database>) => {
     if (!serviceInstance) {
-      serviceInstance = new AdvancedMCPIntegrationService(supabaseClient as SupabaseClient<Database>);
+      serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
     }
     return serviceInstance;
   },
