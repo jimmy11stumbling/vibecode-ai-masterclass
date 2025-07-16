@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Code2, 
   FileText, 
@@ -18,7 +20,11 @@ import {
   Layout,
   Bot,
   Crown,
-  Command
+  Command,
+  Activity,
+  BarChart3,
+  Shield,
+  Cpu
 } from 'lucide-react';
 
 // Import all components
@@ -51,6 +57,9 @@ interface ProjectFile {
   content?: string;
   language?: string;
   children?: ProjectFile[];
+  path?: string;
+  size?: number;
+  lastModified?: Date;
 }
 
 interface LogEntry {
@@ -89,7 +98,8 @@ const FullIDE = () => {
     const fileWithLanguage = {
       ...file,
       language: languageMap[extension] || 'plaintext',
-      content: file.content || '' // Ensure content is always a string
+      content: file.content || '',
+      path: file.path || file.name
     };
 
     setActiveFile(fileWithLanguage);
@@ -156,9 +166,9 @@ const FullIDE = () => {
   };
 
   return (
-    <div className="h-screen bg-slate-950 flex flex-col">
+    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Enhanced Toolbar with Sovereign Badge */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Crown className="w-6 h-6 text-yellow-400" />
@@ -190,9 +200,9 @@ const FullIDE = () => {
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Left Sidebar - File Explorer & Tools */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full bg-slate-900 border-r border-slate-700">
+            <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
               <Tabs defaultValue="files" className="h-full flex flex-col">
-                <div className="border-b border-slate-700 px-2 py-1">
+                <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
                   <TabsList className="grid w-full grid-cols-2 bg-slate-800 h-8">
                     <TabsTrigger value="files" className="text-xs data-[state=active]:bg-slate-700">
                       <FileText className="w-3 h-3 mr-1" />
@@ -205,14 +215,16 @@ const FullIDE = () => {
                   </TabsList>
                 </div>
                 
-                <TabsContent value="files" className="flex-1 m-0">
-                  <FileExplorer onFileSelect={handleFileSelect} />
+                <TabsContent value="files" className="flex-1 m-0 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <FileExplorer onFileSelect={handleFileSelect} />
+                  </ScrollArea>
                 </TabsContent>
                 
-                <TabsContent value="tools" className="flex-1 m-0">
+                <TabsContent value="tools" className="flex-1 m-0 overflow-hidden">
                   <div className="h-full">
                     <Tabs value={activeToolTab} onValueChange={setActiveToolTab} className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-2 py-1">
+                      <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
                         <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
                           <TabsTrigger value="database" className="text-xs data-[state=active]:bg-slate-700">
                             <Database className="w-3 h-3" />
@@ -226,19 +238,25 @@ const FullIDE = () => {
                         </TabsList>
                       </div>
                       
-                      <TabsContent value="database" className="flex-1 m-0">
-                        <DatabaseManager onSchemaChange={() => {}} />
+                      <TabsContent value="database" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <DatabaseManager onSchemaChange={() => {}} />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="deploy" className="flex-1 m-0">
-                        <DeploymentManager />
+                      <TabsContent value="deploy" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <DeploymentManager />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="mobile" className="flex-1 m-0">
-                        <MobileExpoIntegration 
-                          projectFiles={projectFiles}
-                          onProjectUpdate={() => {}}
-                        />
+                      <TabsContent value="mobile" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <MobileExpoIntegration 
+                            projectFiles={projectFiles}
+                            onProjectUpdate={() => {}}
+                          />
+                        </ScrollArea>
                       </TabsContent>
                     </Tabs>
                   </div>
@@ -259,9 +277,19 @@ const FullIDE = () => {
                     file={createCodeFile(activeFile)}
                     onContentChange={(fileId, content) => {
                       if (activeFile) {
-                        setProjectFiles(prev => 
-                          prev.map(f => f.id === activeFile.id ? { ...f, content } : f)
-                        );
+                        setProjectFiles(prev => {
+                          const updateFile = (files: ProjectFile[]): ProjectFile[] => {
+                            return files.map(f => {
+                              if (f.id === activeFile.id) {
+                                return { ...f, content, lastModified: new Date() };
+                              } else if (f.type === 'folder' && f.children) {
+                                return { ...f, children: updateFile(f.children) };
+                              }
+                              return f;
+                            });
+                          };
+                          return updateFile(prev);
+                        });
                       }
                     }}
                   />
@@ -273,7 +301,7 @@ const FullIDE = () => {
               {/* Preview & Terminal */}
               <ResizablePanel defaultSize={40} minSize={20}>
                 <Tabs defaultValue="preview" className="h-full flex flex-col">
-                  <div className="border-b border-slate-700 px-4 py-2">
+                  <div className="border-b border-slate-700 px-4 py-2 flex-shrink-0">
                     <TabsList className="bg-slate-800">
                       <TabsTrigger value="preview" className="data-[state=active]:bg-slate-700">
                         <Globe className="w-4 h-4 mr-2" />
@@ -290,15 +318,15 @@ const FullIDE = () => {
                     </TabsList>
                   </div>
                   
-                  <TabsContent value="preview" className="flex-1 m-0">
+                  <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
                     <LivePreview code={activeFile?.content || ''} />
                   </TabsContent>
                   
-                  <TabsContent value="terminal" className="flex-1 m-0">
+                  <TabsContent value="terminal" className="flex-1 m-0 overflow-hidden">
                     <TerminalPanel />
                   </TabsContent>
                   
-                  <TabsContent value="console" className="flex-1 m-0">
+                  <TabsContent value="console" className="flex-1 m-0 overflow-hidden">
                     <ConsoleLogger 
                       logs={logs}
                       onClear={() => setLogs([])}
@@ -315,9 +343,9 @@ const FullIDE = () => {
 
           {/* Right Sidebar - Sovereign AI & Advanced Features */}
           <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-            <div className="h-full bg-slate-900 border-l border-slate-700">
+            <div className="h-full bg-slate-900 border-l border-slate-700 flex flex-col">
               <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="h-full flex flex-col">
-                <div className="border-b border-slate-700 px-2 py-1">
+                <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
                   <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8">
                     <TabsTrigger value="sovereign-ai" className="text-xs data-[state=active]:bg-slate-700">
                       <Crown className="w-3 h-3 mr-1" />
@@ -334,10 +362,10 @@ const FullIDE = () => {
                   </TabsList>
                 </div>
                 
-                <TabsContent value="sovereign-ai" className="flex-1 m-0">
+                <TabsContent value="sovereign-ai" className="flex-1 m-0 overflow-hidden">
                   <div className="h-full">
                     <Tabs value={activeAITab} onValueChange={setActiveAITab} className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-2 py-1">
+                      <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
                         <TabsList className="grid w-full grid-cols-4 bg-slate-800 h-8 text-xs">
                           <TabsTrigger value="sovereign-control" className="data-[state=active]:bg-slate-700">
                             <Crown className="w-3 h-3" />
@@ -354,7 +382,7 @@ const FullIDE = () => {
                         </TabsList>
                       </div>
                       
-                      <TabsContent value="sovereign-control" className="flex-1 m-0">
+                      <TabsContent value="sovereign-control" className="flex-1 m-0 overflow-hidden">
                         <TrueAIAgent
                           projectFiles={projectFiles}
                           onFilesChange={setProjectFiles}
@@ -365,29 +393,35 @@ const FullIDE = () => {
                         />
                       </TabsContent>
                       
-                      <TabsContent value="command" className="flex-1 m-0">
-                        <SovereignCommandInterface />
+                      <TabsContent value="command" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <SovereignCommandInterface />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="agents" className="flex-1 m-0">
-                        <EnhancedAIChatBot
-                          projectFiles={projectFiles}
-                          onFilesChange={setProjectFiles}
-                          onCodeGenerated={(code) => console.log('Agent code generated:', code)}
-                        />
+                      <TabsContent value="agents" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <EnhancedAIChatBot
+                            projectFiles={projectFiles}
+                            onFilesChange={setProjectFiles}
+                            onCodeGenerated={(code) => console.log('Agent code generated:', code)}
+                          />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="integrations" className="flex-1 m-0">
-                        <ServiceIntegrationHub onIntegrationAdd={() => {}} />
+                      <TabsContent value="integrations" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <ServiceIntegrationHub onIntegrationAdd={() => {}} />
+                        </ScrollArea>
                       </TabsContent>
                     </Tabs>
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="protocols" className="flex-1 m-0">
+                <TabsContent value="protocols" className="flex-1 m-0 overflow-hidden">
                   <div className="h-full">
                     <Tabs defaultValue="rag" className="h-full flex flex-col">
-                      <div className="border-b border-slate-700 px-2 py-1">
+                      <div className="border-b border-slate-700 px-2 py-1 flex-shrink-0">
                         <TabsList className="grid w-full grid-cols-3 bg-slate-800 h-8 text-xs">
                           <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
                             <Brain className="w-3 h-3" />
@@ -401,31 +435,39 @@ const FullIDE = () => {
                         </TabsList>
                       </div>
                       
-                      <TabsContent value="rag" className="flex-1 m-0">
-                        <AdvancedRAGInterface
-                          onResultSelect={(result) => console.log('RAG result selected:', result)}
-                          onDocumentProcess={(doc) => console.log('Document processed:', doc)}
-                        />
+                      <TabsContent value="rag" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <AdvancedRAGInterface
+                            onResultSelect={(result) => console.log('RAG result selected:', result)}
+                            onDocumentProcess={(doc) => console.log('Document processed:', doc)}
+                          />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="mcp" className="flex-1 m-0">
-                        <MCPProtocolInterface
-                          onAgentSelect={(agent) => console.log('MCP agent selected:', agent)}
-                          onToolInvoke={(agentId, toolName, params) => console.log('MCP tool invoked:', { agentId, toolName, params })}
-                        />
+                      <TabsContent value="mcp" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <MCPProtocolInterface
+                            onAgentSelect={(agent) => console.log('MCP agent selected:', agent)}
+                            onToolInvoke={(agentId, toolName, params) => console.log('MCP tool invoked:', { agentId, toolName, params })}
+                          />
+                        </ScrollArea>
                       </TabsContent>
                       
-                      <TabsContent value="a2a" className="flex-1 m-0">
-                        <A2AProtocolInterface
-                          onMessageSend={(message) => console.log('A2A message sent:', message)}
-                        />
+                      <TabsContent value="a2a" className="flex-1 m-0 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <A2AProtocolInterface
+                            onMessageSend={(message) => console.log('A2A message sent:', message)}
+                          />
+                        </ScrollArea>
                       </TabsContent>
                     </Tabs>
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="dashboard" className="flex-1 m-0">
-                  <SovereignDashboard />
+                <TabsContent value="dashboard" className="flex-1 m-0 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <SovereignDashboard />
+                  </ScrollArea>
                 </TabsContent>
               </Tabs>
             </div>
@@ -434,7 +476,7 @@ const FullIDE = () => {
       </div>
 
       {/* Enhanced Status Bar */}
-      <div className="bg-slate-900 border-t border-slate-700 px-4 py-2">
+      <div className="bg-slate-900 border-t border-slate-700 px-4 py-2 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
