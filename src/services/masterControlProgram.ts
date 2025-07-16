@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { ragDatabase } from './ragDatabaseCore';
@@ -241,13 +240,13 @@ export class MasterControlProgram {
       threshold: 0.7
     });
 
-    // Step 2: Perform advanced reasoning with DeepSeek
+    // Step 2: Perform advanced reasoning with DeepSeek - use documents instead of chunks
     const reasoningResult = await this.deepSeekCore.performAdvancedReasoning({
       projectId: context?.projectId || 'default',
       userQuery: userRequest,
       previousContext: context?.previousContext,
       systemInstructions: this.getSystemInstructions(),
-      ragContext: ragResults.chunks || []
+      ragContext: ragResults.documents || []
     });
 
     // Step 3: Coordinate with orchestrator for implementation

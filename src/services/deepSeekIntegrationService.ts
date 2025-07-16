@@ -86,8 +86,8 @@ export class DeepSeekIntegrationService {
         threshold: 0.6
       });
 
-      // Update context with RAG data
-      session.context.ragContext = ragResults.chunks || [];
+      // Update context with RAG data - use documents instead of chunks
+      session.context.ragContext = ragResults.documents || [];
 
       // Perform streaming reasoning with progress updates
       const result = await this.reasonerCore.streamReasoningProcess(
@@ -154,8 +154,9 @@ export class DeepSeekIntegrationService {
       threshold: 0.7
     });
 
-    const ragContext = (ragResults.chunks || [])
-      .map(chunk => `[${chunk.category || 'General'}] ${chunk.content}`)
+    // Use documents instead of chunks
+    const ragContext = (ragResults.documents || [])
+      .map(doc => `[${doc.category || 'General'}] ${doc.content}`)
       .join('\n\n');
 
     return `
@@ -223,7 +224,7 @@ Please provide thorough, step-by-step analysis with actionable recommendations.`
           task_id: session.id,
           user_id: session.userId,
           status: session.status,
-          project_spec: sessionData,
+          project_spec: sessionData as any,
           result: session.results.length > 0 ? session.results[session.results.length - 1].conclusion : null,
           progress: session.status === 'completed' ? 100 : 0
         });
