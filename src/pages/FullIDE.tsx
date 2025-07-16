@@ -57,7 +57,7 @@ interface ProjectFile {
   content?: string;
   language?: string;
   children?: ProjectFile[];
-  path?: string;
+  path: string;
   size?: number;
   lastModified?: Date;
 }
