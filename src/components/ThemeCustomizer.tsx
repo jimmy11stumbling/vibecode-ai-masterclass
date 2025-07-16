@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,7 +171,7 @@ const defaultTheme: ThemeConfig = {
   },
 };
 
-const presetThemes = {
+const presetThemes: Record<string, ThemeConfig> = {
   default: defaultTheme,
   dark: {
     ...defaultTheme,
@@ -280,11 +279,14 @@ export const ThemeCustomizer: React.FC = () => {
 
   const handlePresetChange = (presetName: string) => {
     setSelectedPreset(presetName);
-    setCurrentTheme(presetThemes[presetName as keyof typeof presetThemes]);
-    toast({
-      title: "Theme Applied",
-      description: `${presetName} theme has been applied`,
-    });
+    const selectedTheme = presetThemes[presetName];
+    if (selectedTheme) {
+      setCurrentTheme(selectedTheme);
+      toast({
+        title: "Theme Applied",
+        description: `${presetName} theme has been applied`,
+      });
+    }
   };
 
   const exportTheme = () => {

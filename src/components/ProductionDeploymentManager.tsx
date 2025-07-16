@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,14 +19,14 @@ import {
   ExternalLink,
   GitBranch,
   Globe,
-  Docker,
+  Container,
   Database
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deploymentOrchestrator } from '@/services/deploymentOrchestrator';
 
 interface DeploymentConfig {
-  platform: 'vercel' | 'netlify' | 'aws' | 'gcp' | 'azure' | 'docker';
+  platform: 'vercel' | 'netlify' | 'aws' | 'docker' | 'kubernetes';
   environment: 'development' | 'staging' | 'production';
   domain?: string;
   environmentVariables: Record<string, string>;
@@ -159,9 +158,8 @@ export const ProductionDeploymentManager: React.FC = () => {
       case 'vercel': return <Globe className="w-4 h-4" />;
       case 'netlify': return <Globe className="w-4 h-4" />;
       case 'aws': return <Cloud className="w-4 h-4" />;
-      case 'gcp': return <Cloud className="w-4 h-4" />;
-      case 'azure': return <Cloud className="w-4 h-4" />;
-      case 'docker': return <Docker className="w-4 h-4" />;
+      case 'kubernetes': return <Cloud className="w-4 h-4" />;
+      case 'docker': return <Container className="w-4 h-4" />;
       default: return <Server className="w-4 h-4" />;
     }
   };
@@ -207,8 +205,7 @@ export const ProductionDeploymentManager: React.FC = () => {
                       <SelectItem value="vercel">Vercel</SelectItem>
                       <SelectItem value="netlify">Netlify</SelectItem>
                       <SelectItem value="aws">AWS S3 + CloudFront</SelectItem>
-                      <SelectItem value="gcp">Google Cloud Platform</SelectItem>
-                      <SelectItem value="azure">Microsoft Azure</SelectItem>
+                      <SelectItem value="kubernetes">Kubernetes</SelectItem>
                       <SelectItem value="docker">Docker Container</SelectItem>
                     </SelectContent>
                   </Select>
