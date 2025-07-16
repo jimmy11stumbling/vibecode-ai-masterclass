@@ -171,43 +171,51 @@ const defaultTheme: ThemeConfig = {
   },
 };
 
+const createDarkTheme = (): ThemeConfig => ({
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(210, 40%, 98%)',
+    background: 'hsl(222.2, 84%, 4.9%)',
+    foreground: 'hsl(210, 40%, 98%)',
+    muted: 'hsl(217.2, 32.6%, 17.5%)',
+    border: 'hsl(217.2, 32.6%, 17.5%)',
+  },
+});
+
+const createBlueTheme = (): ThemeConfig => ({
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(221.2, 83.2%, 53.3%)',
+    accent: 'hsl(221.2, 83.2%, 93%)',
+  },
+});
+
+const createGreenTheme = (): ThemeConfig => ({
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(142, 76%, 36%)',
+    accent: 'hsl(142, 76%, 93%)',
+  },
+});
+
+const createPurpleTheme = (): ThemeConfig => ({
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(262.1, 83.3%, 57.8%)',
+    accent: 'hsl(262.1, 83.3%, 93%)',
+  },
+});
+
 const presetThemes: Record<string, ThemeConfig> = {
   default: defaultTheme,
-  dark: {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(210, 40%, 98%)',
-      background: 'hsl(222.2, 84%, 4.9%)',
-      foreground: 'hsl(210, 40%, 98%)',
-      muted: 'hsl(217.2, 32.6%, 17.5%)',
-      border: 'hsl(217.2, 32.6%, 17.5%)',
-    },
-  },
-  blue: {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(221.2, 83.2%, 53.3%)',
-      accent: 'hsl(221.2, 83.2%, 93%)',
-    },
-  },
-  green: {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(142, 76%, 36%)',
-      accent: 'hsl(142, 76%, 93%)',
-    },
-  },
-  purple: {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(262.1, 83.3%, 57.8%)',
-      accent: 'hsl(262.1, 83.3%, 93%)',
-    },
-  },
+  dark: createDarkTheme(),
+  blue: createBlueTheme(),
+  green: createGreenTheme(),
+  purple: createPurpleTheme(),
 };
 
 export const ThemeCustomizer: React.FC = () => {
