@@ -1,4 +1,3 @@
-
 import { DeepSeekReasonerCore, ReasoningContext, ReasoningResult } from './deepSeekReasonerCore';
 import { ragDatabase } from './ragDatabaseCore';
 import { supabase } from '@/integrations/supabase/client';
@@ -154,9 +153,12 @@ export class DeepSeekIntegrationService {
       threshold: 0.7
     });
 
-    // Use documents instead of chunks
+    // Use documents instead of chunks and handle metadata safely
     const ragContext = (ragResults.documents || [])
-      .map(doc => `[${doc.category || 'General'}] ${doc.content}`)
+      .map(doc => {
+        const category = doc.metadata?.category || 'General';
+        return `[${category}] ${doc.content}`;
+      })
       .join('\n\n');
 
     return `
