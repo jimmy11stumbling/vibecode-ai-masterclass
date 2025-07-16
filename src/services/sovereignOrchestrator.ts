@@ -5,7 +5,22 @@ import { a2aProtocol } from './a2aProtocolCore';
 import { TaskManager } from './orchestrator/taskManager';
 import { WorkflowExecutor } from './orchestrator/workflowExecutor';
 import { DelegationManager } from './orchestrator/delegationManager';
-import { SovereignTask, ProjectSpec, WorkflowExecution } from './orchestrator/types';
+import type { 
+  SovereignTask, 
+  ProjectSpec, 
+  WorkflowExecution,
+  AgentCapability,
+  TaskDelegationStrategy 
+} from './orchestrator/types';
+
+// Re-export types for external use
+export type { 
+  SovereignTask, 
+  ProjectSpec, 
+  WorkflowExecution,
+  AgentCapability,
+  TaskDelegationStrategy 
+} from './orchestrator/types';
 
 export class SovereignOrchestrator {
   private deepSeekReasoner: DeepSeekReasonerCore;

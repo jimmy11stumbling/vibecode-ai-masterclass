@@ -1,5 +1,6 @@
 
-import { sovereignOrchestrator, SovereignTask, WorkflowExecution } from './sovereignOrchestrator';
+import { sovereignOrchestrator } from './sovereignOrchestrator';
+import type { SovereignTask, WorkflowExecution } from './sovereignOrchestrator';
 import { a2aProtocol, A2AAgent, A2AMessage } from './a2aProtocolCore';
 import { advancedMCPIntegration } from './advancedMCPIntegration';
 
