@@ -5,6 +5,10 @@ import { CodeEditor } from '@/components/CodeEditor';
 import { LivePreview } from '@/components/LivePreview';
 import { FileExplorer } from '@/components/FileExplorer';
 import { EnhancedAIChatBot } from '@/components/EnhancedAIChatBot';
+import { TrueAIAgent } from '@/components/TrueAIAgent';
+import { ServiceIntegrationHub } from '@/components/ServiceIntegrationHub';
+import { TemplateSystem } from '@/components/TemplateSystem';
+import { MobileExpoIntegration } from '@/components/MobileExpoIntegration';
 import { Terminal } from '@/components/Terminal';
 import { IDEStatusBar } from '@/components/IDEStatusBar';
 import { MCPHub } from '@/components/MCPHub';
@@ -43,12 +47,14 @@ import {
   MessageSquare,
   Activity,
   Shield,
-  Terminal as TerminalIcon
+  Terminal as TerminalIcon,
+  Smartphone,
+  Globe,
+  Layers,
+  Puzzle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRealTimeValidator } from '@/hooks/useRealTimeValidator';
-import { AICodeGenerator } from '@/components/AICodeGenerator';
-import { ProjectAnalyzer } from '@/components/ProjectAnalyzer';
 
 interface ProjectFile {
   id: string;
@@ -72,7 +78,7 @@ interface KnowledgeChunk {
 }
 
 const FullIDE = () => {
-  const [activePanel, setActivePanel] = useState('files');
+  const [activePanel, setActivePanel] = useState('agent');
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null);
   const [previewCode, setPreviewCode] = useState('');
@@ -84,6 +90,7 @@ const FullIDE = () => {
   const [isBuilding, setIsBuilding] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting' | 'processing' | 'error'>('connected');
+  const [currentProject, setCurrentProject] = useState<any>(null);
   const { toast } = useToast();
   const { 
     validations, 
@@ -394,6 +401,32 @@ export default App;`
     validateInfo('Knowledge chunk selected', chunk.title, 'FullIDE');
   };
 
+  const handleTemplateSelect = (template: any) => {
+    console.log('Template selected:', template);
+    // Apply template to project
+    if (template.sourceCode && template.sourceCode.files) {
+      const templateFiles = template.sourceCode.files.map((file: any, index: number) => ({
+        id: `template-${index}`,
+        name: file.path.split('/').pop(),
+        type: 'file' as const,
+        content: file.content
+      }));
+      
+      setProjectFiles(templateFiles);
+      setCurrentProject(template);
+      
+      toast({
+        title: "Template Applied",
+        description: `${template.name} template has been applied to your project`,
+      });
+    }
+  };
+
+  const handleIntegrationAdd = (integration: any) => {
+    console.log('Integration added:', integration);
+    validateSuccess('Service integrated', integration.name, 'FullIDE');
+  };
+
   return (
     <>
       <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
@@ -494,26 +527,32 @@ export default App;`
               <div className="h-full bg-slate-900 border-r border-slate-700 flex flex-col">
                 <Tabs value={activePanel} onValueChange={setActivePanel} className="h-full flex flex-col">
                   <div className="border-b border-slate-700 p-2 flex-shrink-0">
-                    <TabsList className="bg-slate-800 w-full grid grid-cols-5">
-                      <TabsTrigger value="files" className="data-[state=active]:bg-slate-700">
-                        <FolderTree className="w-4 h-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="ai" className="data-[state=active]:bg-slate-700">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-4">
+                      <TabsTrigger value="agent" className="data-[state=active]:bg-slate-700" title="AI Agent">
                         <Bot className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="chat" className="data-[state=active]:bg-slate-700">
-                        <MessageSquare className="w-4 h-4" />
+                      <TabsTrigger value="files" className="data-[state=active]:bg-slate-700" title="Files">
+                        <FolderTree className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="rag" className="data-[state=active]:bg-slate-700">
-                        <Brain className="w-4 h-4" />
+                      <TabsTrigger value="templates" className="data-[state=active]:bg-slate-700" title="Templates">
+                        <Layers className="w-4 h-4" />
                       </TabsTrigger>
-                      <TabsTrigger value="validator" className="data-[state=active]:bg-slate-700">
-                        <Shield className="w-4 h-4" />
+                      <TabsTrigger value="services" className="data-[state=active]:bg-slate-700" title="Services">
+                        <Puzzle className="w-4 h-4" />
                       </TabsTrigger>
                     </TabsList>
                   </div>
 
                   <div className="flex-1 overflow-hidden">
+                    <TabsContent value="agent" className="h-full m-0">
+                      <TrueAIAgent 
+                        projectFiles={projectFiles}
+                        onFilesChange={handleProjectChange}
+                        onCodeGenerated={handleCodeGenerated}
+                        apiKey={aiApiKey}
+                      />
+                    </TabsContent>
+
                     <TabsContent value="files" className="h-full m-0">
                       <ProjectFileManager 
                         files={projectFiles}
@@ -523,29 +562,15 @@ export default App;`
                       />
                     </TabsContent>
 
-                    <TabsContent value="ai" className="h-full m-0">
-                      <AIAssistant 
-                        onCodeGenerated={handleCodeGenerated}
-                        projectContext={projectFiles}
+                    <TabsContent value="templates" className="h-full m-0">
+                      <TemplateSystem 
+                        onTemplateSelect={handleTemplateSelect}
                       />
                     </TabsContent>
 
-                    <TabsContent value="chat" className="h-full m-0">
-                      <RealTimeChat />
-                    </TabsContent>
-
-                    <TabsContent value="rag" className="h-full m-0">
-                      <RAGDatabase 
-                        onChunkSelect={handleChunkSelect}
-                        onSearch={handleRAGSearch}
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="validator" className="h-full m-0">
-                      <RealTimeValidator 
-                        validations={validations}
-                        onClear={clearValidations}
-                        onExport={exportValidations}
+                    <TabsContent value="services" className="h-full m-0">
+                      <ServiceIntegrationHub 
+                        onIntegrationAdd={handleIntegrationAdd}
                       />
                     </TabsContent>
                   </div>
@@ -589,11 +614,37 @@ export default App;`
 
             <ResizableHandle withHandle />
 
-            {/* Right Panel - Deployment */}
+            {/* Right Panel - Mobile & Deployment */}
             <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-              <ScrollArea className="h-full">
-                <DeploymentManager />
-              </ScrollArea>
+              <div className="h-full">
+                <Tabs defaultValue="mobile" className="h-full flex flex-col">
+                  <div className="border-b border-slate-700 p-2 flex-shrink-0">
+                    <TabsList className="bg-slate-800 w-full grid grid-cols-2">
+                      <TabsTrigger value="mobile" className="data-[state=active]:bg-slate-700">
+                        <Smartphone className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger value="deploy" className="data-[state=active]:bg-slate-700">
+                        <Globe className="w-4 h-4" />
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden">
+                    <TabsContent value="mobile" className="h-full m-0">
+                      <MobileExpoIntegration 
+                        projectFiles={projectFiles}
+                        onProjectUpdate={handleProjectChange}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="deploy" className="h-full m-0">
+                      <ScrollArea className="h-full">
+                        <DeploymentManager />
+                      </ScrollArea>
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
