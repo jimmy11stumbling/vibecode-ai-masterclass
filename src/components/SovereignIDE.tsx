@@ -23,7 +23,7 @@ import {
   Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { sovereignOrchestrator, SovereignTask, ProjectSpec } from '@/services/sovereignOrchestrator';
+import { sovereignOrchestrator, type SovereignTask, type ProjectSpec } from '@/services/sovereignOrchestrator';
 import { a2aProtocol } from '@/services/a2aProtocolCore';
 import { mcpHub } from '@/services/mcpHubCore';
 import { ragDatabase } from '@/services/ragDatabaseCore';
@@ -76,9 +76,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
 
   const refreshStatus = async () => {
     try {
-      const projectTasks = sovereignOrchestrator.getTasks();
+      const projectTasks = await sovereignOrchestrator.getTasks();
       const activeAgents = a2aProtocol.getAllAgents();
-      const activeProjects = sovereignOrchestrator.getActiveProjects();
+      const activeProjects = await sovereignOrchestrator.getActiveProjects();
 
       setTasks(projectTasks);
       setAgents(activeAgents);
@@ -126,7 +126,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       const monitorInterval = setInterval(async () => {
         await refreshStatus();
         
-        const projectTasks = sovereignOrchestrator.getTasks();
+        const projectTasks = await sovereignOrchestrator.getTasks(executionId);
         const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
         
         if (completedTasks === projectTasks.length && projectTasks.length > 0) {
@@ -177,7 +177,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
     switch (status) {
       case 'completed': return 'bg-green-500';
       case 'in_progress': return 'bg-blue-500';
-      case 'assigned': return 'bg-yellow-500';
+      case 'pending': return 'bg-yellow-500';
       case 'failed': return 'bg-red-500';
       default: return 'bg-gray-500';
     }
@@ -328,7 +328,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                           <h3 className="font-medium text-white">{currentProject.name}</h3>
                           <p className="text-sm text-slate-400">{currentProject.description}</p>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {currentProject.techStack && currentProject.techStack.map(tech => (
+                            {currentProject.tech_stack && currentProject.tech_stack.map(tech => (
                               <Badge key={tech} variant="secondary" className="text-xs">
                                 {tech}
                               </Badge>
@@ -345,7 +345,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                                 <div className="flex-1">
                                   <p className="text-sm text-white">{task.description}</p>
                                   <p className="text-xs text-slate-400">
-                                    {task.assignedAgent ? `Assigned to: ${task.assignedAgent}` : 'Unassigned'}
+                                    {task.assigned_agent ? `Assigned to: ${task.assigned_agent}` : 'Unassigned'}
                                   </p>
                                 </div>
                                 <Badge variant="outline" className="text-xs">
@@ -394,7 +394,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                       <div className="flex items-center justify-between">
                         <div className={`w-3 h-3 rounded-full ${getTaskStatusColor(task.status)}`} />
                         <span className="text-xs text-slate-400">
-                          {task.assignedAgent || 'Unassigned'}
+                          {task.assigned_agent || 'Unassigned'}
                         </span>
                       </div>
                     </CardContent>
@@ -426,10 +426,10 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-400">Tasks</span>
-                        <span className="text-xs text-white">{agent.currentTasks.length}</span>
+                        <span className="text-xs text-white">{agent.currentTasks?.length || 0}</span>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {agent.capabilities.slice(0, 3).map((cap: string) => (
+                        {(agent.capabilities || []).slice(0, 3).map((cap: string) => (
                           <Badge key={cap} variant="secondary" className="text-xs">
                             {cap}
                           </Badge>

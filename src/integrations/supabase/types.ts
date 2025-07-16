@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_capabilities: {
+        Row: {
+          agent_id: string
+          capability_name: string
+          capability_type: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          parameters: Json | null
+        }
+        Insert: {
+          agent_id: string
+          capability_name: string
+          capability_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          parameters?: Json | null
+        }
+        Update: {
+          agent_id?: string
+          capability_name?: string
+          capability_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          parameters?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_capabilities_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_conversations: {
         Row: {
           agent_id: string
@@ -711,6 +749,45 @@ export type Database = {
         }
         Relationships: []
       }
+      project_specs: {
+        Row: {
+          created_at: string
+          description: string | null
+          execution_id: string
+          id: string
+          name: string
+          requirements: Json | null
+          status: string
+          tech_stack: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          execution_id: string
+          id?: string
+          name: string
+          requirements?: Json | null
+          status?: string
+          tech_stack?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          execution_id?: string
+          id?: string
+          name?: string
+          requirements?: Json | null
+          status?: string
+          tech_stack?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       prompt_categories: {
         Row: {
           created_at: string | null
@@ -837,6 +914,59 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sovereign_tasks: {
+        Row: {
+          assigned_agent: string | null
+          created_at: string
+          description: string
+          execution_id: string
+          id: string
+          metadata: Json | null
+          priority: string
+          result: Json | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_agent?: string | null
+          created_at?: string
+          description: string
+          execution_id: string
+          id?: string
+          metadata?: Json | null
+          priority?: string
+          result?: Json | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_agent?: string | null
+          created_at?: string
+          description?: string
+          execution_id?: string
+          id?: string
+          metadata?: Json | null
+          priority?: string
+          result?: Json | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sovereign_tasks_assigned_agent_fkey"
+            columns: ["assigned_agent"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]

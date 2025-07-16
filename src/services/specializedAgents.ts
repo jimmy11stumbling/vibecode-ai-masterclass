@@ -1,3 +1,4 @@
+
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Define interfaces for project context and files
@@ -74,14 +75,16 @@ export class BaseAgent {
   private async logTaskExecution(task: AgentTask, response: AgentResponse): Promise<void> {
     try {
       const { error } = await this.supabase
-        .from('agent_tasks')
+        .from('sovereign_tasks')
         .insert({
           id: task.id,
-          agent_id: this.id,
+          user_id: (await this.supabase.auth.getUser()).data.user?.id || '',
+          execution_id: `exec_${Date.now()}`,
+          type: 'agent_task',
           description: task.description,
-          context: JSON.stringify(task.context),
-          result: response.result,
-          timestamp: response.timestamp.toISOString(),
+          status: 'completed',
+          result: { agentResponse: response },
+          metadata: { context: task.context }
         });
 
       if (error) {
@@ -155,3 +158,13 @@ export class LibrarianAgent extends BaseAgent {
     return `Knowledge base managed for task ${task.id} by LibrarianAgent.`;
   }
 }
+
+// Create a collection of specialized agents for export
+export const SpecializedAgents = {
+  ArchitectAgent,
+  BuilderAgent,
+  ValidatorAgent,
+  OptimizerAgent,
+  LibrarianAgent,
+  BaseAgent
+};
