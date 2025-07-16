@@ -114,7 +114,7 @@ export interface MCPCapability {
 
 class AdvancedMCPIntegrationService {
   private isInitialized = false;
-  private supabaseClient: SupabaseClient<Database> | null = null;
+  private supabaseClient: typeof supabase | null = null;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -128,7 +128,7 @@ class AdvancedMCPIntegrationService {
     console.log('✅ Advanced MCP Integration initialized');
   }
 
-  init(supabaseClient: SupabaseClient<Database>): this {
+  init(supabaseClient: typeof supabase): this {
     this.supabaseClient = supabaseClient;
     return this;
   }
