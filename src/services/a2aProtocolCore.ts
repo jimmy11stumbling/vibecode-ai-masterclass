@@ -1,6 +1,7 @@
+
 import { v4 as uuidv4 } from 'uuid';
 
-interface A2AAgent {
+export interface A2AAgent {
   id: string;
   name: string;
   type: string;
@@ -12,7 +13,7 @@ interface A2AAgent {
   description: string;
 }
 
-interface A2AMessage {
+export interface A2AMessage {
   id: string;
   fromAgent: string;
   toAgent: string;
