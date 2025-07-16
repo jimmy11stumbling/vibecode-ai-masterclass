@@ -1,43 +1,20 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { ragDatabase } from './ragDatabaseCore';
 import { a2aProtocol } from './a2aProtocolCore';
 import { mcpHub } from './mcpHubCore';
 import { masterControlProgram } from './masterControlProgram';
-
-interface SovereignTask {
-  id: string;
-  type: string;
-  description: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  assignedAgent?: string;
-  metadata?: Record<string, any>;
-  result?: any;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface SystemMetrics {
-  totalAgents: number;
-  activeAgents: number;
-  pendingTasks: number;
-  completedTasks: number;
-  systemUptime: number;
-  lastHealthCheck: Date;
-}
+import { HealthMonitor } from './system/healthMonitor';
+import { SovereignTask } from './system/types';
 
 class SovereignSystemInitializer {
   private isInitialized = false;
   private systemTasks: Map<string, SovereignTask> = new Map();
-  private systemMetrics: SystemMetrics = {
-    totalAgents: 0,
-    activeAgents: 0,
-    pendingTasks: 0,
-    completedTasks: 0,
-    systemUptime: 0,
-    lastHealthCheck: new Date()
-  };
-  private startTime = Date.now();
+  private healthMonitor: HealthMonitor;
+
+  constructor() {
+    this.healthMonitor = new HealthMonitor();
+  }
 
   async initializeSovereignSystem(): Promise<void> {
     if (this.isInitialized) {
@@ -65,7 +42,7 @@ class SovereignSystemInitializer {
 
       // Phase 5: Health Monitoring
       console.log('❤️ Phase 5: Starting health monitoring');
-      await this.startHealthMonitoring();
+      await this.healthMonitor.startHealthMonitoring();
 
       this.isInitialized = true;
       console.log('✅ Sovereign System: Initialization complete');
@@ -177,43 +154,6 @@ class SovereignSystemInitializer {
     }
   }
 
-  private async startHealthMonitoring(): Promise<void> {
-    try {
-      // Start periodic health checks
-      setInterval(async () => {
-        await this.performHealthCheck();
-      }, 30000); // Every 30 seconds
-
-      // Initial health check
-      await this.performHealthCheck();
-
-      console.log('✅ Health monitoring started');
-    } catch (error) {
-      console.error('❌ Health monitoring failed to start:', error);
-      throw error;
-    }
-  }
-
-  private async performHealthCheck(): Promise<void> {
-    try {
-      const agents = a2aProtocol.getAgents();
-      const tools = mcpHub.getAllTools();
-
-      this.systemMetrics = {
-        totalAgents: agents.length,
-        activeAgents: agents.filter(agent => agent.status === 'active').length,
-        pendingTasks: Array.from(this.systemTasks.values()).filter(task => task.status === 'pending').length,
-        completedTasks: Array.from(this.systemTasks.values()).filter(task => task.status === 'completed').length,
-        systemUptime: Date.now() - this.startTime,
-        lastHealthCheck: new Date()
-      };
-
-      console.log('🏥 System Health Check:', this.systemMetrics);
-    } catch (error) {
-      console.error('❌ Health check failed:', error);
-    }
-  }
-
   async createTask(taskData: Omit<SovereignTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -260,7 +200,7 @@ class SovereignSystemInitializer {
 
   async getSystemStatus(): Promise<{
     initialized: boolean;
-    metrics: SystemMetrics;
+    metrics: any;
     tasks: SovereignTask[];
     agents: any[];
     tools: any[];
@@ -270,7 +210,7 @@ class SovereignSystemInitializer {
 
     return {
       initialized: this.isInitialized,
-      metrics: this.systemMetrics,
+      metrics: this.healthMonitor.getMetrics(),
       tasks: Array.from(this.systemTasks.values()),
       agents,
       tools
@@ -300,8 +240,8 @@ class SovereignSystemInitializer {
     return this.isInitialized;
   }
 
-  getMetrics(): SystemMetrics {
-    return { ...this.systemMetrics };
+  getMetrics() {
+    return this.healthMonitor.getMetrics();
   }
 }
 

@@ -1,6 +1,6 @@
 
 import { a2aProtocol, A2AAgent } from './a2aProtocolCore';
-import { advancedMCPIntegration } from './advancedMCPIntegration';
+import { AgentMetricsService, AgentMetrics } from './agents/agentMetrics';
 
 interface ProjectContext {
   id: string;
@@ -23,21 +23,6 @@ interface AgentStatus {
   lastActivity: Date;
 }
 
-interface AgentMetrics {
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  avgExecutionTime: number;
-  totalTasksCompleted: number;
-  successRate: number;
-  averageTaskDuration: number;
-  currentStats: {
-    activeAgents: number;
-    queuedTasks: number;
-  };
-  agentUtilization: number;
-}
-
 interface ActiveExecution {
   id: string;
   agentId: string;
@@ -50,8 +35,10 @@ class AgentManager {
   private eventListeners: Map<string, ((data: any) => void)[]> = new Map();
   private activeExecutions: ActiveExecution[] = [];
   private isInitialized = false;
+  private metricsService: AgentMetricsService;
 
   constructor() {
+    this.metricsService = new AgentMetricsService();
     this.initializeAgents();
   }
 
@@ -59,7 +46,6 @@ class AgentManager {
     if (this.isInitialized) return;
 
     try {
-      // Initialize A2A protocol first (this will register all agents)
       await a2aProtocol.initialize();
       
       this.isInitialized = true;
@@ -73,7 +59,6 @@ class AgentManager {
   async processUserRequest(prompt: string, projectContext: ProjectContext): Promise<string> {
     const executionId = `execution_${Date.now()}`;
 
-    // Create execution
     const execution: ActiveExecution = {
       id: executionId,
       agentId: 'orchestrator',
@@ -84,7 +69,6 @@ class AgentManager {
 
     this.activeExecutions.push(execution);
 
-    // Simulate agent processing via A2A protocol
     setTimeout(() => {
       const result: ExecutionResult = {
         success: true,
@@ -120,7 +104,6 @@ class AgentManager {
   }
 
   getAgentStatus(agentId?: string): AgentStatus | AgentStatus[] {
-    // Get agents from A2A protocol instead of maintaining our own
     const a2aAgents = a2aProtocol.getAgents();
     
     const agentStatuses: AgentStatus[] = a2aAgents.map((agent: A2AAgent) => ({
@@ -141,26 +124,9 @@ class AgentManager {
     return agentStatuses;
   }
 
-  getMetrics(): AgentMetrics {
+  async getMetrics(): Promise<AgentMetrics> {
     const agents = a2aProtocol.getAgents();
-    const completedTasks = this.activeExecutions.filter(e => e.status === 'completed').length;
-    const failedTasks = this.activeExecutions.filter(e => e.status === 'failed').length;
-    const totalTasks = this.activeExecutions.length;
-    
-    return {
-      totalTasks,
-      completedTasks,
-      failedTasks,
-      avgExecutionTime: 5000,
-      totalTasksCompleted: completedTasks,
-      successRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-      averageTaskDuration: 5000,
-      currentStats: {
-        activeAgents: agents.filter(agent => agent.status === 'active').length,
-        queuedTasks: this.activeExecutions.filter(e => e.status === 'running').length
-      },
-      agentUtilization: agents.length > 0 ? (agents.filter(agent => agent.status === 'busy').length / agents.length) * 100 : 0
-    };
+    return await this.metricsService.calculateMetrics(this.activeExecutions, agents);
   }
 
   getActiveExecutions(): ActiveExecution[] {

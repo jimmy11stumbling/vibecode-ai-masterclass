@@ -1,51 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
-
-export interface MCPAgent {
-  id: string;
-  name: string;
-  type: 'conversation' | 'document' | 'rag' | 'router';
-  status: 'active' | 'idle' | 'processing' | 'offline';
-  capabilities: string[];
-  config: Record<string, any>;
-}
-
-export interface MCPMessage {
-  id: string;
-  from: string;
-  to: string;
-  type: 'request' | 'response' | 'notification';
-  method?: string;
-  params?: any;
-  result?: any;
-  error?: any;
-  timestamp: Date;
-}
-
-export interface MCPTool {
-  name: string;
-  description: string;
-  input_schema: any;
-  execute: (params: any) => Promise<any>;
-}
-
-export interface MCPServer {
-  id: string;
-  name: string;
-  url: string;
-  tools: MCPTool[];
-  status: 'connected' | 'disconnected' | 'error';
-}
+import { MessageProcessor } from './mcp/messageProcessor';
+import { MCPAgent, MCPMessage, MCPTool, MCPServer } from './mcp/types';
 
 class MCPIntegrationService {
   private agents: Map<string, MCPAgent> = new Map();
   private servers: Map<string, MCPServer> = new Map();
-  private messageQueue: MCPMessage[] = [];
+  private messageProcessor: MessageProcessor;
   private eventCallbacks: Map<string, Function[]> = new Map();
 
   constructor() {
+    this.messageProcessor = new MessageProcessor();
     this.initializeDefaultAgents();
-    this.startMessageProcessor();
   }
 
   private initializeDefaultAgents() {
@@ -89,97 +55,9 @@ class MCPIntegrationService {
     });
   }
 
-  private startMessageProcessor() {
-    setInterval(() => {
-      this.processMessageQueue();
-    }, 100);
-  }
-
-  private async processMessageQueue() {
-    while (this.messageQueue.length > 0) {
-      const message = this.messageQueue.shift();
-      if (message) {
-        await this.handleMessage(message);
-      }
-    }
-  }
-
-  private async handleMessage(message: MCPMessage) {
-    const targetAgent = this.agents.get(message.to);
-    if (!targetAgent) {
-      console.error(`Agent ${message.to} not found`);
-      return;
-    }
-
-    // Process message based on agent type and capabilities
-    switch (targetAgent.type) {
-      case 'conversation':
-        await this.handleConversationMessage(message, targetAgent);
-        break;
-      case 'document':
-        await this.handleDocumentMessage(message, targetAgent);
-        break;
-      case 'rag':
-        await this.handleRAGMessage(message, targetAgent);
-        break;
-      case 'router':
-        await this.handleRouterMessage(message, targetAgent);
-        break;
-    }
-
-    this.emitEvent('message-processed', { message, agent: targetAgent });
-  }
-
-  private async handleConversationMessage(message: MCPMessage, agent: MCPAgent) {
-    if (message.method === 'generate-response') {
-      const response = await this.generateAIResponse(message.params?.prompt, agent.config);
-      this.sendMessage({
-        from: agent.id,
-        to: message.from,
-        type: 'response',
-        result: { response }
-      });
-    }
-  }
-
-  private async handleDocumentMessage(message: MCPMessage, agent: MCPAgent) {
-    if (message.method === 'analyze-document') {
-      const analysis = await this.analyzeDocument(message.params?.document);
-      this.sendMessage({
-        from: agent.id,
-        to: message.from,
-        type: 'response',
-        result: analysis
-      });
-    }
-  }
-
-  private async handleRAGMessage(message: MCPMessage, agent: MCPAgent) {
-    if (message.method === 'search-knowledge') {
-      const results = await this.searchKnowledgeBase(message.params?.query);
-      this.sendMessage({
-        from: agent.id,
-        to: message.from,
-        type: 'response',
-        result: { results }
-      });
-    }
-  }
-
-  private async handleRouterMessage(message: MCPMessage, agent: MCPAgent) {
-    if (message.method === 'route-request') {
-      const targetAgentId = this.selectBestAgent(message.params?.capabilities);
-      if (targetAgentId) {
-        message.to = targetAgentId;
-        this.messageQueue.push(message);
-      }
-    }
-  }
-
   private async generateAIResponse(prompt: string, config: any): Promise<string> {
     try {
       // In production, this would call the actual DeepSeek API
-      // For now, return a simulated response
       return `AI Response to: ${prompt}`;
     } catch (error) {
       console.error('Error generating AI response:', error);
@@ -189,7 +67,6 @@ class MCPIntegrationService {
 
   private async analyzeDocument(document: any): Promise<any> {
     try {
-      // Document analysis logic would go here
       return {
         summary: 'Document analysis complete',
         keyPoints: ['Point 1', 'Point 2', 'Point 3'],
@@ -217,16 +94,6 @@ class MCPIntegrationService {
     }
   }
 
-  private selectBestAgent(requiredCapabilities: string[]): string | null {
-    for (const [id, agent] of this.agents) {
-      if (agent.status === 'active' && 
-          requiredCapabilities.every(cap => agent.capabilities.includes(cap))) {
-        return id;
-      }
-    }
-    return null;
-  }
-
   // Public API methods
   public sendMessage(message: Omit<MCPMessage, 'id' | 'timestamp'>) {
     const fullMessage: MCPMessage = {
@@ -234,7 +101,7 @@ class MCPIntegrationService {
       id: Date.now().toString(),
       timestamp: new Date()
     };
-    this.messageQueue.push(fullMessage);
+    this.messageProcessor.addToQueue(fullMessage);
   }
 
   public registerAgent(agent: MCPAgent) {

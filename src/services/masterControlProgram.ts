@@ -2,20 +2,7 @@
 import { ragDatabase } from './ragDatabaseCore';
 import { a2aProtocol } from './a2aProtocolCore';
 import { mcpHub } from './mcpHubCore';
-
-interface ProcessingContext {
-  projectFiles?: any[];
-  activeFile?: any;
-  systemContext?: string;
-  userPreferences?: Record<string, any>;
-}
-
-interface ProcessingResult {
-  success: boolean;
-  result?: any;
-  error?: string;
-  metadata?: Record<string, any>;
-}
+import { ProcessingContextManager } from './mcp/processingContext';
 
 interface SystemStatus {
   uptime: number;
@@ -30,6 +17,11 @@ class MasterControlProgram {
   private startTime = Date.now();
   private processedRequests = 0;
   private lastActivity = new Date();
+  private processingManager: ProcessingContextManager;
+
+  constructor() {
+    this.processingManager = new ProcessingContextManager();
+  }
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -37,7 +29,6 @@ class MasterControlProgram {
     console.log('🧠 MCP: Initializing Master Control Program');
     
     try {
-      // Initialize core dependencies
       await ragDatabase.initialize();
       await a2aProtocol.initialize();
       await mcpHub.initialize();
@@ -52,67 +43,39 @@ class MasterControlProgram {
     }
   }
 
-  async processUserRequest(prompt: string, context: ProcessingContext = {}): Promise<ProcessingResult> {
+  async processUserRequest(prompt: string, context: any = {}): Promise<any> {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
-    try {
-      console.log('🔄 MCP: Processing user request:', prompt.substring(0, 100) + '...');
-      
-      this.processedRequests++;
-      this.lastActivity = new Date();
+    this.processedRequests++;
+    this.lastActivity = new Date();
 
-      // Enhance context with RAG
-      const relevantKnowledge = await ragDatabase.searchSimilar(prompt, {
-        limit: 5,
-        threshold: 0.3
-      });
+    const relevantKnowledge = await ragDatabase.searchSimilar(prompt, {
+      limit: 5,
+      threshold: 0.3
+    });
 
-      // Process through specialized agents
-      const agents = a2aProtocol.getAgents();
-      const selectedAgent = this.selectBestAgent(prompt, agents);
+    const agents = a2aProtocol.getAgents();
+    const selectedAgent = this.selectBestAgent(prompt, agents);
 
-      if (selectedAgent) {
-        await a2aProtocol.sendMessage({
-          fromAgent: 'master_control',
-          toAgent: selectedAgent.id,
-          type: 'task',
-          content: {
-            prompt,
-            context,
-            relevantKnowledge: relevantKnowledge.map(r => r.document)
-          }
-        });
-      }
-
-      // Generate response based on available tools and knowledge
-      const result = await this.generateResponse(prompt, context, relevantKnowledge);
-
-      console.log('✅ MCP: Request processed successfully');
-      
-      return {
-        success: true,
-        result,
-        metadata: {
-          agentUsed: selectedAgent?.name,
-          knowledgeUsed: relevantKnowledge.length,
-          processingTime: Date.now() - this.lastActivity.getTime()
+    if (selectedAgent) {
+      await a2aProtocol.sendMessage({
+        fromAgent: 'master_control',
+        toAgent: selectedAgent.id,
+        type: 'task',
+        content: {
+          prompt,
+          context,
+          relevantKnowledge: relevantKnowledge.map(r => r.document)
         }
-      };
-
-    } catch (error) {
-      console.error('❌ MCP: Request processing failed:', error);
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
+      });
     }
+
+    return await this.processingManager.processUserRequest(prompt, context);
   }
 
   private selectBestAgent(prompt: string, agents: any[]): any | null {
-    // Simple agent selection based on prompt keywords
     const promptLower = prompt.toLowerCase();
     
     if (promptLower.includes('code') || promptLower.includes('generate') || promptLower.includes('build')) {
@@ -127,27 +90,7 @@ class MasterControlProgram {
       return agents.find(agent => agent.capabilities.includes('security_scanning'));
     }
     
-    // Default to first available agent
     return agents.length > 0 ? agents[0] : null;
-  }
-
-  private async generateResponse(prompt: string, context: ProcessingContext, knowledge: any[]): Promise<string> {
-    // Simple response generation based on prompt and context
-    const response = `Based on your request "${prompt}", I've analyzed the available context and knowledge base. 
-
-Context analysis:
-- Project files: ${context.projectFiles?.length || 0}
-- System context: ${context.systemContext || 'general'}
-- Relevant knowledge items: ${knowledge.length}
-
-Recommendations:
-1. Consider the existing project structure
-2. Leverage available tools and integrations
-3. Follow best practices for maintainability
-
-This is a simulated response from the Master Control Program. In a production environment, this would integrate with actual AI services.`;
-
-    return response;
   }
 
   async getSystemStatus(): Promise<SystemStatus> {
@@ -171,11 +114,9 @@ This is a simulated response from the Master Control Program. In a production en
     console.log('🔄 MCP: Shutting down Master Control Program');
     
     try {
-      // Notify all components of shutdown
       const agents = a2aProtocol.getAgents();
       console.log(`Notifying ${agents.length} agents of shutdown`);
       
-      // Clear caches
       await ragDatabase.clearCache();
       
       this.isInitialized = false;

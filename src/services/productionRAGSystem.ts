@@ -1,64 +1,27 @@
 
 import { supabase } from '@/integrations/supabase/client';
-
-export interface Document {
-  id: string;
-  title: string;
-  content: string;
-  metadata: {
-    type: string;
-    source: string;
-    tags: string[];
-    lastModified: Date;
-    author?: string;
-  };
-  embeddings?: number[];
-  chunks?: DocumentChunk[];
-}
-
-export interface DocumentChunk {
-  id: string;
-  documentId: string;
-  content: string;
-  index: number;
-  embeddings: number[];
-  metadata: Record<string, any>;
-}
-
-export interface SearchQuery {
-  query: string;
-  filters?: {
-    type?: string[];
-    tags?: string[];
-    dateRange?: [Date, Date];
-  };
-  limit?: number;
-  threshold?: number;
-  includeChunks?: boolean;
-}
-
-export interface SearchResult {
-  document: Document;
-  chunk?: DocumentChunk;
-  similarity: number;
-  relevanceScore: number;
-  contextualExplanation: string;
-}
+import { Document, SearchQuery, SearchResult } from './rag/types';
+import { EmbeddingService } from './rag/embeddingService';
+import { ChunkingService } from './rag/chunkingService';
 
 export class ProductionRAGSystem {
-  private embeddingModel = 'text-embedding-3-small';
-  private chunkSize = 1000;
-  private chunkOverlap = 200;
+  private embeddingService: EmbeddingService;
+  private chunkingService: ChunkingService;
+
+  constructor() {
+    this.embeddingService = new EmbeddingService();
+    this.chunkingService = new ChunkingService();
+  }
 
   async addDocument(document: Omit<Document, 'id' | 'embeddings' | 'chunks'>): Promise<string> {
     try {
       const docId = crypto.randomUUID();
       
       // Generate embeddings for the full document
-      const documentEmbeddings = await this.generateEmbeddings(document.content);
+      const documentEmbeddings = await this.embeddingService.generateEmbeddings(document.content);
       
       // Split into chunks and generate embeddings for each
-      const chunks = await this.createChunks(docId, document.content);
+      const chunks = await this.chunkingService.createChunks(docId, document.content);
       
       // Store document in Supabase
       const { error: docError } = await supabase
@@ -83,7 +46,7 @@ export class ProductionRAGSystem {
         chunk_index: chunk.index,
         chunk_text: chunk.content,
         vector_id: `vec_${chunk.id}`,
-        embedding_model: this.embeddingModel,
+        embedding_model: 'text-embedding-3-small',
         metadata: chunk.metadata
       }));
 
@@ -104,7 +67,7 @@ export class ProductionRAGSystem {
   async search(query: SearchQuery): Promise<SearchResult[]> {
     try {
       // Generate query embeddings
-      const queryEmbeddings = await this.generateEmbeddings(query.query);
+      const queryEmbeddings = await this.embeddingService.generateEmbeddings(query.query);
       
       // Search in Supabase using vector similarity (simplified version)
       let supabaseQuery = supabase
@@ -132,7 +95,7 @@ export class ProductionRAGSystem {
       const results: SearchResult[] = [];
       
       for (const doc of data || []) {
-        const similarity = this.calculateTextSimilarity(query.query, doc.content);
+        const similarity = this.embeddingService.calculateTextSimilarity(query.query, doc.content);
         
         if (similarity >= (query.threshold || 0.3)) {
           results.push({
@@ -149,7 +112,7 @@ export class ProductionRAGSystem {
             },
             similarity,
             relevanceScore: similarity * 100,
-            contextualExplanation: this.generateContextualExplanation(query.query, doc.content)
+            contextualExplanation: this.chunkingService.generateContextualExplanation(query.query, doc.content)
           });
         }
       }
@@ -162,95 +125,6 @@ export class ProductionRAGSystem {
       console.error('Search failed:', error);
       return [];
     }
-  }
-
-  private async generateEmbeddings(text: string): Promise<number[]> {
-    try {
-      // In production, this would call OpenAI or similar service
-      // For now, return mock embeddings
-      const words = text.toLowerCase().split(/\s+/);
-      const embeddings = new Array(1536).fill(0);
-      
-      words.forEach((word, index) => {
-        const hash = this.simpleHash(word);
-        embeddings[hash % 1536] += 0.1;
-      });
-      
-      // Normalize
-      const magnitude = Math.sqrt(embeddings.reduce((sum, val) => sum + val * val, 0));
-      return embeddings.map(val => val / (magnitude || 1));
-    } catch (error) {
-      console.error('Embedding generation failed:', error);
-      return new Array(1536).fill(0);
-    }
-  }
-
-  private async createChunks(documentId: string, content: string): Promise<DocumentChunk[]> {
-    const chunks: DocumentChunk[] = [];
-    const words = content.split(/\s+/);
-    
-    for (let i = 0; i < words.length; i += this.chunkSize - this.chunkOverlap) {
-      const chunkWords = words.slice(i, i + this.chunkSize);
-      const chunkContent = chunkWords.join(' ');
-      
-      if (chunkContent.trim()) {
-        const chunkId = crypto.randomUUID();
-        const embeddings = await this.generateEmbeddings(chunkContent);
-        
-        chunks.push({
-          id: chunkId,
-          documentId,
-          content: chunkContent,
-          index: chunks.length,
-          embeddings,
-          metadata: {
-            wordCount: chunkWords.length,
-            startIndex: i,
-            endIndex: i + chunkWords.length
-          }
-        });
-      }
-    }
-    
-    return chunks;
-  }
-
-  private calculateTextSimilarity(query: string, text: string): number {
-    const queryWords = new Set(query.toLowerCase().split(/\s+/));
-    const textWords = text.toLowerCase().split(/\s+/);
-    
-    let matches = 0;
-    for (const word of textWords) {
-      if (queryWords.has(word)) matches++;
-    }
-    
-    return matches / Math.max(queryWords.size, textWords.length);
-  }
-
-  private generateContextualExplanation(query: string, content: string): string {
-    const queryWords = query.toLowerCase().split(/\s+/);
-    const sentences = content.split(/[.!?]+/);
-    
-    for (const sentence of sentences) {
-      const sentenceWords = sentence.toLowerCase().split(/\s+/);
-      const hasMatch = queryWords.some(word => sentenceWords.includes(word));
-      
-      if (hasMatch) {
-        return sentence.trim().substring(0, 200) + '...';
-      }
-    }
-    
-    return content.substring(0, 200) + '...';
-  }
-
-  private simpleHash(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash);
   }
 
   async updateDocument(id: string, updates: Partial<Document>): Promise<void> {
@@ -287,7 +161,7 @@ export class ProductionRAGSystem {
       .eq('document_id', documentId);
 
     // Generate new chunks
-    const chunks = await this.createChunks(documentId, content);
+    const chunks = await this.chunkingService.createChunks(documentId, content);
     
     // Insert new chunks
     const chunkInserts = chunks.map(chunk => ({
@@ -296,7 +170,7 @@ export class ProductionRAGSystem {
       chunk_index: chunk.index,
       chunk_text: chunk.content,
       vector_id: `vec_${chunk.id}`,
-      embedding_model: this.embeddingModel,
+      embedding_model: 'text-embedding-3-small',
       metadata: chunk.metadata
     }));
 
