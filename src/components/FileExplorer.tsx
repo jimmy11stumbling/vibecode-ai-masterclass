@@ -16,7 +16,7 @@ import {
   Save,
   X,
   Copy,
-  Cut,
+  Scissors,
   MoreHorizontal,
   ChevronDown,
   ChevronRight,
@@ -73,7 +73,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     createNewFile,
     deleteFile,
     updateFiles
-  } = useProjectFiles(onProjectChange);
+  } = useProjectFiles((updatedFiles) => {
+    // Ensure all files have the required path property
+    const filesWithPath = updatedFiles.map(file => ({
+      ...file,
+      path: file.path || `/${file.name}`
+    }));
+    onProjectChange?.(filesWithPath);
+  });
 
   // Initialize with default project structure
   useEffect(() => {
@@ -173,7 +180,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       if (targetFolderId) {
         createNewFile(targetFolderId, file.type);
       } else {
-        updateFiles([...files, newFile]);
+        const filesWithPath = [...files, newFile].map(f => ({ ...f, path: f.path || `/${f.name}` }));
+        updateFiles(filesWithPath);
       }
     } else if (action === 'cut') {
       // Move the file
@@ -338,7 +346,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                   Copy
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => handleCut(file)}>
-                  <Cut className="w-4 h-4 mr-2" />
+                  <Scissors className="w-4 h-4 mr-2" />
                   Cut
                 </ContextMenuItem>
                 {clipboardItem && file.type === 'folder' && (

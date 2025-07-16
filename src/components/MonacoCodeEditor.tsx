@@ -32,6 +32,17 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const [wordCount, setWordCount] = useState(0);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Initialize state based on file prop
+  useEffect(() => {
+    if (file) {
+      setWordCount(file.content.split(/\s+/).filter(word => word.length > 0).length);
+      setHasUnsavedChanges(false);
+    } else {
+      setWordCount(0);
+      setHasUnsavedChanges(false);
+    }
+  }, [file]);
+
   // Early return if no file is provided
   if (!file) {
     return (
@@ -140,11 +151,6 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
         return 'text';
     }
   };
-
-  useEffect(() => {
-    setWordCount(file.content.split(/\s+/).filter(word => word.length > 0).length);
-    setHasUnsavedChanges(false);
-  }, [file.content]);
 
   return (
     <div className={`flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>

@@ -1,292 +1,130 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-interface A2AAgent {
+export interface A2AAgent {
   id: string;
   name: string;
-  type: string;
+  type: 'conversation' | 'document' | 'rag' | 'router';
+  status: 'active' | 'idle' | 'offline' | 'busy';
   capabilities: string[];
-  status: 'active' | 'idle' | 'busy' | 'offline';
-  currentTasks: string[];
+  config?: any;
+  currentTasks?: string[];
+  lastActivity?: Date;
 }
 
-interface A2AMessage {
+export interface A2AMessage {
   id: string;
   fromAgent: string;
   toAgent: string;
-  messageType: 'task' | 'response' | 'notification' | 'coordination';
-  payload: any;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  requiresResponse: boolean;
+  type: 'task' | 'response' | 'notification' | 'coordination';
+  content: any;
+  metadata?: any;
   timestamp: Date;
+}
+
+export interface A2AConversation {
+  id: string;
+  agents: string[];
+  title: string;
+  status: 'active' | 'paused' | 'completed';
+  metadata?: any;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 class A2AProtocolCore {
   private agents: Map<string, A2AAgent> = new Map();
-  private messageQueue: A2AMessage[] = [];
+  private conversations: Map<string, A2AConversation> = new Map();
   private messageHandlers: Map<string, Function[]> = new Map();
-  private isInitialized = false;
-  private processingInterval: NodeJS.Timeout | null = null;
 
   async initialize() {
-    if (this.isInitialized) return;
-
+    console.log('🤖 A2A: Initializing Protocol Core');
+    
     try {
-      console.log('🤝 A2A Protocol: Initializing...');
-      
-      // Load agents from database
-      await this.loadAgentsFromDatabase();
-      
-      // Initialize default agents
-      await this.initializeDefaultAgents();
-      
-      // Start message processing
-      this.startMessageProcessing();
-      
-      this.isInitialized = true;
-      console.log('✅ A2A Protocol: Initialized successfully');
+      // Load existing agents from database
+      const { data: agentsData, error } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Failed to load agents:', error);
+        return;
+      }
+
+      // Convert database agents to A2A agents
+      if (agentsData) {
+        agentsData.forEach(agent => {
+          this.agents.set(agent.id, {
+            id: agent.id,
+            name: agent.name,
+            type: agent.type,
+            status: agent.status === 'processing' ? 'busy' : agent.status,
+            capabilities: agent.capabilities || [],
+            config: agent.config,
+            currentTasks: [],
+            lastActivity: new Date(agent.updated_at || agent.created_at)
+          });
+        });
+      }
+
+      console.log('🤖 A2A: Protocol initialized with', this.agents.size, 'agents');
     } catch (error) {
-      console.error('❌ A2A Protocol: Initialization failed:', error);
+      console.error('🤖 A2A: Initialization failed:', error);
+    }
+  }
+
+  async registerAgent(agent: Omit<A2AAgent, 'id' | 'lastActivity'>): Promise<string> {
+    const agentId = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      // Store in database
+      const { error } = await supabase
+        .from('agents')
+        .insert({
+          id: agentId,
+          name: agent.name,
+          type: agent.type,
+          status: agent.status === 'busy' ? 'active' : agent.status,
+          capabilities: agent.capabilities,
+          config: agent.config
+        });
+
+      if (error) {
+        console.error('Failed to register agent:', error);
+        throw error;
+      }
+
+      // Store locally
+      const fullAgent: A2AAgent = {
+        ...agent,
+        id: agentId,
+        lastActivity: new Date()
+      };
+
+      this.agents.set(agentId, fullAgent);
+      console.log('🤖 A2A: Registered agent', agent.name);
+      
+      return agentId;
+    } catch (error) {
+      console.error('Failed to register agent:', error);
       throw error;
     }
   }
 
-  private async loadAgentsFromDatabase() {
-    const { data: agentsData, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('status', 'active');
-
-    if (error) {
-      console.warn('Warning: Could not load agents from database:', error);
-      return;
-    }
-
-    if (agentsData) {
-      agentsData.forEach(agent => {
-        // Generate proper UUID for agent ID
-        const agentId = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        this.agents.set(agentId, {
-          id: agentId,
-          name: agent.name,
-          type: agent.type,
-          capabilities: agent.capabilities || [],
-          status: agent.status,
-          currentTasks: []
-        });
-      });
-    }
-  }
-
-  private async initializeDefaultAgents() {
-    const defaultAgents: A2AAgent[] = [
-      {
-        id: 'orchestrator',
-        name: 'Orchestrator Agent',
-        type: 'coordination',
-        capabilities: ['task_planning', 'agent_coordination', 'progress_monitoring'],
-        status: 'active',
-        currentTasks: []
-      },
-      {
-        id: 'architect',
-        name: 'Architect Agent',
-        type: 'design',
-        capabilities: ['system_design', 'database_schema', 'api_design', 'file_structure'],
-        status: 'active',
-        currentTasks: []
-      },
-      {
-        id: 'frontend_builder',
-        name: 'Frontend Builder Agent',
-        type: 'development',
-        capabilities: ['react_development', 'ui_components', 'styling', 'state_management'],
-        status: 'active',
-        currentTasks: []
-      },
-      {
-        id: 'backend_builder',
-        name: 'Backend Builder Agent',
-        type: 'development',
-        capabilities: ['api_development', 'database_operations', 'authentication', 'business_logic'],
-        status: 'active',
-        currentTasks: []
-      },
-      {
-        id: 'validator',
-        name: 'Validator Agent',
-        type: 'qa',
-        capabilities: ['code_validation', 'testing', 'quality_assurance', 'error_detection'],
-        status: 'active',
-        currentTasks: []
-      },
-      {
-        id: 'optimizer',
-        name: 'Optimizer Agent',
-        type: 'enhancement',
-        capabilities: ['performance_optimization', 'code_refactoring', 'security_analysis', 'best_practices'],
-        status: 'active',
-        currentTasks: []
-      }
-    ];
-
-    for (const agent of defaultAgents) {
-      if (!this.agents.has(agent.id)) {
-        this.agents.set(agent.id, agent);
-        
-        // Try to register in database with proper UUID
-        try {
-          const agentId = crypto.randomUUID();
-          await supabase.from('agents').insert({
-            id: agentId,
-            name: agent.name,
-            type: agent.type,
-            capabilities: agent.capabilities,
-            status: agent.status,
-            description: `Default ${agent.name}`,
-            config: {}
-          });
-        } catch (error) {
-          console.warn(`Could not register agent ${agent.id} in database:`, error);
-        }
-      }
-    }
-  }
-
-  async registerAgent(agent: A2AAgent) {
-    this.agents.set(agent.id, agent);
-    
+  async unregisterAgent(agentId: string): Promise<void> {
     try {
-      const agentId = crypto.randomUUID();
-      await supabase.from('agents').insert({
-        id: agentId,
-        name: agent.name,
-        type: agent.type,
-        capabilities: agent.capabilities,
-        status: agent.status,
-        description: agent.name,
-        config: {}
-      });
+      // Update status in database
+      await supabase
+        .from('agents')
+        .update({ status: 'offline' })
+        .eq('id', agentId);
+
+      // Remove locally
+      this.agents.delete(agentId);
+      console.log('🤖 A2A: Unregistered agent', agentId);
     } catch (error) {
-      console.warn(`Could not register agent ${agent.id} in database:`, error);
-    }
-    
-    console.log(`🤖 A2A: Registered agent ${agent.id}`);
-  }
-
-  async sendMessage(message: Omit<A2AMessage, 'id' | 'timestamp'>) {
-    const fullMessage: A2AMessage = {
-      ...message,
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date()
-    };
-
-    this.messageQueue.push(fullMessage);
-    console.log(`📨 A2A: Queued message from ${message.fromAgent} to ${message.toAgent}`);
-    
-    return fullMessage.id;
-  }
-
-  private startMessageProcessing() {
-    if (this.processingInterval) return;
-    
-    this.processingInterval = setInterval(() => {
-      this.processMessageQueue();
-    }, 100);
-  }
-
-  private async processMessageQueue() {
-    if (this.messageQueue.length === 0) return;
-
-    // Sort by priority
-    this.messageQueue.sort((a, b) => {
-      const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
-    });
-
-    const message = this.messageQueue.shift();
-    if (!message) return;
-
-    try {
-      await this.deliverMessage(message);
-    } catch (error) {
-      console.error(`❌ A2A: Failed to deliver message ${message.id}:`, error);
-    }
-  }
-
-  private async deliverMessage(message: A2AMessage) {
-    const targetAgent = this.agents.get(message.toAgent);
-    if (!targetAgent) {
-      console.warn(`⚠️ A2A: Target agent ${message.toAgent} not found`);
-      return;
-    }
-
-    // Update agent status
-    if (message.messageType === 'task') {
-      targetAgent.status = 'busy';
-      targetAgent.currentTasks.push(message.id);
-    }
-
-    // Emit to message handlers
-    const handlers = this.messageHandlers.get(message.toAgent) || [];
-    handlers.forEach(handler => {
-      try {
-        handler(message);
-      } catch (error) {
-        console.error(`Error in message handler for ${message.toAgent}:`, error);
-      }
-    });
-
-    console.log(`✅ A2A: Delivered message ${message.id} to ${message.toAgent}`);
-
-    // Auto-generate response for simulation
-    if (message.requiresResponse) {
-      setTimeout(() => {
-        this.generateAutoResponse(message);
-      }, 1000 + Math.random() * 2000);
-    }
-  }
-
-  private async generateAutoResponse(originalMessage: A2AMessage) {
-    const responseMessage: Omit<A2AMessage, 'id' | 'timestamp'> = {
-      fromAgent: originalMessage.toAgent,
-      toAgent: originalMessage.fromAgent,
-      messageType: 'response',
-      payload: {
-        originalMessageId: originalMessage.id,
-        status: 'completed',
-        result: `Task completed by ${originalMessage.toAgent}`,
-        executionTime: 1000 + Math.random() * 2000
-      },
-      priority: 'medium',
-      requiresResponse: false
-    };
-
-    await this.sendMessage(responseMessage);
-
-    // Update agent status
-    const agent = this.agents.get(originalMessage.toAgent);
-    if (agent) {
-      agent.status = 'idle';
-      agent.currentTasks = agent.currentTasks.filter(taskId => taskId !== originalMessage.id);
-    }
-  }
-
-  addMessageHandler(agentId: string, handler: (message: A2AMessage) => void) {
-    if (!this.messageHandlers.has(agentId)) {
-      this.messageHandlers.set(agentId, []);
-    }
-    this.messageHandlers.get(agentId)!.push(handler);
-  }
-
-  removeMessageHandler(agentId: string, handler: (message: A2AMessage) => void) {
-    const handlers = this.messageHandlers.get(agentId);
-    if (handlers) {
-      const index = handlers.indexOf(handler);
-      if (index > -1) {
-        handlers.splice(index, 1);
-      }
+      console.error('Failed to unregister agent:', error);
     }
   }
 
@@ -294,45 +132,108 @@ class A2AProtocolCore {
     return Array.from(this.agents.values());
   }
 
-  getAgent(id: string): A2AAgent | undefined {
-    return this.agents.get(id);
+  getAgent(agentId: string): A2AAgent | undefined {
+    return this.agents.get(agentId);
   }
 
-  getAgentsByType(type: string): A2AAgent[] {
-    return Array.from(this.agents.values()).filter(agent => agent.type === type);
-  }
-
-  getAgentsByCapability(capability: string): A2AAgent[] {
-    return Array.from(this.agents.values()).filter(agent => 
-      agent.capabilities.includes(capability)
-    );
-  }
-
-  getMessageQueue(): A2AMessage[] {
-    return [...this.messageQueue];
-  }
-
-  getAgentStats() {
-    const agents = Array.from(this.agents.values());
-    return {
-      total: agents.length,
-      active: agents.filter(a => a.status === 'active').length,
-      busy: agents.filter(a => a.status === 'busy').length,
-      idle: agents.filter(a => a.status === 'idle').length,
-      offline: agents.filter(a => a.status === 'offline').length,
-      queuedMessages: this.messageQueue.length
+  async sendMessage(message: Omit<A2AMessage, 'id' | 'timestamp'>): Promise<string> {
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const fullMessage: A2AMessage = {
+      ...message,
+      id: messageId,
+      timestamp: new Date()
     };
+
+    // Notify handlers
+    const handlers = this.messageHandlers.get(message.toAgent) || [];
+    handlers.forEach(handler => {
+      try {
+        handler(fullMessage);
+      } catch (error) {
+        console.error('Message handler error:', error);
+      }
+    });
+
+    console.log('🤖 A2A: Message sent from', message.fromAgent, 'to', message.toAgent);
+    return messageId;
   }
 
-  destroy() {
-    if (this.processingInterval) {
-      clearInterval(this.processingInterval);
-      this.processingInterval = null;
+  onMessage(agentId: string, handler: (message: A2AMessage) => void): void {
+    if (!this.messageHandlers.has(agentId)) {
+      this.messageHandlers.set(agentId, []);
     }
-    this.agents.clear();
-    this.messageQueue.length = 0;
-    this.messageHandlers.clear();
-    this.isInitialized = false;
+    this.messageHandlers.get(agentId)!.push(handler);
+  }
+
+  async createConversation(agents: string[], title: string): Promise<string> {
+    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const conversation: A2AConversation = {
+      id: conversationId,
+      agents,
+      title,
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.conversations.set(conversationId, conversation);
+    console.log('🤖 A2A: Created conversation', title, 'with agents:', agents);
+    
+    return conversationId;
+  }
+
+  getConversations(): A2AConversation[] {
+    return Array.from(this.conversations.values());
+  }
+
+  async updateAgentStatus(agentId: string, status: A2AAgent['status']): Promise<void> {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      agent.status = status;
+      agent.lastActivity = new Date();
+      
+      // Update in database
+      try {
+        await supabase
+          .from('agents')
+          .update({ 
+            status: status === 'busy' ? 'active' : status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', agentId);
+      } catch (error) {
+        console.error('Failed to update agent status:', error);
+      }
+    }
+  }
+
+  async broadcastMessage(fromAgent: string, message: any, type: A2AMessage['type'] = 'notification'): Promise<void> {
+    const agents = this.getAgents().filter(agent => agent.id !== fromAgent);
+    
+    for (const agent of agents) {
+      await this.sendMessage({
+        fromAgent,
+        toAgent: agent.id,
+        type,
+        content: message
+      });
+    }
+  }
+
+  getActiveAgents(): A2AAgent[] {
+    return this.getAgents().filter(agent => agent.status === 'active' || agent.status === 'busy');
+  }
+
+  async coordinateTask(taskDescription: string, requiredCapabilities: string[]): Promise<string[]> {
+    const suitableAgents = this.getAgents().filter(agent => 
+      agent.status === 'active' && 
+      requiredCapabilities.some(cap => agent.capabilities.includes(cap))
+    );
+
+    console.log('🤖 A2A: Found', suitableAgents.length, 'suitable agents for task coordination');
+    return suitableAgents.map(agent => agent.id);
   }
 }
 

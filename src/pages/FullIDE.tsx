@@ -217,7 +217,7 @@ const FullIDE = () => {
                 
                 <TabsContent value="files" className="flex-1 m-0 overflow-hidden">
                   <ScrollArea className="h-full">
-                    <FileExplorer onFileSelect={handleFileSelect} />
+                    <FileExplorer onFileSelect={handleFileSelect} onProjectChange={handleFilesChange} />
                   </ScrollArea>
                 </TabsContent>
                 
