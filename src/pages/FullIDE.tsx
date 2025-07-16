@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -134,7 +133,7 @@ const App = () => {
           <button
             onClick={() => setCount(0)}
             className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-          >
+            >
             Reset
           </button>
         </div>
@@ -262,6 +261,24 @@ export default App;`,
       });
     } catch (error) {
       console.error('Failed to apply suggestion:', error);
+    }
+  };
+
+  const handleCodeChange = (fileId: string, content: string) => {
+    if (activeFile) {
+      setProjectFiles(prev => {
+        const updateFile = (files: ProjectFile[]): ProjectFile[] => {
+          return files.map(f => {
+            if (f.id === activeFile.id) {
+              return { ...f, content, lastModified: new Date() };
+            } else if (f.type === 'folder' && f.children) {
+              return { ...f, children: updateFile(f.children) };
+            }
+            return f;
+          });
+        };
+        return updateFile(prev);
+      });
     }
   };
 
@@ -430,24 +447,7 @@ export default App;`,
                 <div className="h-full bg-slate-900 border-b border-slate-700 relative">
                   <MonacoCodeEditor
                     file={createCodeFile(activeFile)}
-                    onContentChange={(fileId, content) => {
-                      if (activeFile) {
-                        setProjectFiles(prev => {
-                          const updateFile = (files: ProjectFile[]): ProjectFile[] => {
-                            return files.map(f => {
-                              if (f.id === activeFile.id) {
-                                return { ...f, content, lastModified: new Date() };
-                              } else if (f.type === 'folder' && f.children) {
-                                return { ...f, children: updateFile(f.children) };
-                              }
-                              return f;
-                            });
-                          };
-                          return updateFile(prev);
-                        });
-                      }
-                    }}
-                    onCursorPositionChange={setCursorPosition}
+                    onContentChange={handleCodeChange}
                   />
                   
                   {/* AI Code Completion Overlay */}
@@ -613,8 +613,7 @@ export default App;`,
                           </TabsTrigger>
                           <TabsTrigger value="a2a" className="data-[state=active]:bg-slate-700">
                             <Users className="w-3 h-3" />
-                          </TabsTrigger>
-                        </TabsList>
+                          </TabsList>
                       </div>
                       
                       <TabsContent value="rag" className="flex-1 m-0 overflow-hidden">

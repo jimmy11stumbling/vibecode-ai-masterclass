@@ -71,14 +71,27 @@ Provide specific, actionable suggestions for:
 4. Best practice improvements
 5. Pattern recognition and improvements`;
 
+      // Ensure all files have the required type property
+      const filesWithType = (projectContext?.files || []).map(file => ({
+        name: file.name,
+        content: file.content,
+        type: file.name.split('.').pop() || 'typescript'
+      }));
+
+      // Add current file if not already included
+      const currentFileExists = filesWithType.some(f => f.name === fileName);
+      if (!currentFileExists) {
+        filesWithType.push({
+          name: fileName,
+          content: currentCode,
+          type: fileName.split('.').pop() || 'typescript'
+        });
+      }
+
       const result = await realAICodeGenerator.generateCode({
         prompt,
         context: {
-          files: projectContext?.files || [{
-            name: fileName,
-            content: currentCode,
-            type: fileName.split('.').pop() || 'typescript'
-          }],
+          files: filesWithType,
           framework: projectContext?.framework || 'React',
           requirements: ['code completion', 'optimization', 'best practices']
         },
