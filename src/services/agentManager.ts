@@ -104,18 +104,39 @@ class AgentManager {
     return executionId;
   }
 
+  private mapA2AStatusToAgentStatus(a2aStatus: string): 'idle' | 'busy' | 'offline' {
+    switch (a2aStatus) {
+      case 'active':
+        return 'idle';
+      case 'busy':
+        return 'busy';
+      case 'idle':
+        return 'idle';
+      case 'offline':
+        return 'offline';
+      default:
+        return 'offline';
+    }
+  }
+
   getAgentStatus(agentId?: string): AgentStatus | AgentStatus[] {
     // Get agents from A2A protocol instead of maintaining our own
     const a2aAgents = a2aProtocol.getAgents();
     
-    const agentStatuses = a2aAgents.map((agent: A2AAgent) => ({
+    const agentStatuses: AgentStatus[] = a2aAgents.map((agent: A2AAgent) => ({
       id: agent.id,
-      status: agent.status === 'active' ? 'idle' : agent.status === 'busy' ? 'busy' : 'offline',
+      status: this.mapA2AStatusToAgentStatus(agent.status),
+      currentTask: agent.currentTasks?.[0],
       lastActivity: agent.lastActivity
     }));
 
     if (agentId) {
-      return agentStatuses.find(status => status.id === agentId) || null;
+      const foundStatus = agentStatuses.find(status => status.id === agentId);
+      return foundStatus || {
+        id: agentId,
+        status: 'offline' as const,
+        lastActivity: new Date()
+      };
     }
     return agentStatuses;
   }
