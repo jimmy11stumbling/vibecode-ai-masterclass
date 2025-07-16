@@ -125,10 +125,10 @@ export interface MCPAuthentication {
 }
 
 export class AdvancedMCPIntegrationService {
-  private supabase: SupabaseClient<Database>;
+  private supabase: SupabaseClient<any>;
   private mockTasks: A2ATask[] = [];
 
-  constructor(supabaseClient: SupabaseClient<Database>) {
+  constructor(supabaseClient: SupabaseClient<any>) {
     this.supabase = supabaseClient;
   }
 
@@ -468,7 +468,7 @@ export class AdvancedMCPIntegrationService {
 let serviceInstance: AdvancedMCPIntegrationService | null = null;
 
 export const advancedMCPIntegration = {
-  init: (supabaseClient: SupabaseClient<Database>) => {
+  init: (supabaseClient: SupabaseClient<any>) => {
     if (!serviceInstance) {
       serviceInstance = new AdvancedMCPIntegrationService(supabaseClient);
     }
