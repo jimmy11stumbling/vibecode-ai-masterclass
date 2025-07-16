@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Task {
@@ -31,6 +30,13 @@ export interface ProjectContext {
   };
 }
 
+interface AgentInfo {
+  id: string;
+  type: string;
+  status: 'idle' | 'busy' | 'offline';
+  capabilities: string[];
+}
+
 export class OrchestratorAgent {
   private tasks: Map<string, Task> = new Map();
   private agents: Map<string, AgentInfo> = new Map();
@@ -43,11 +49,11 @@ export class OrchestratorAgent {
 
   private initializeAgents() {
     const agentTypes = [
-      { id: 'architect-1', type: 'architect', status: 'idle', capabilities: ['schema-design', 'file-structure', 'api-contracts'] },
-      { id: 'builder-frontend-1', type: 'builder-frontend', status: 'idle', capabilities: ['react', 'typescript', 'tailwind'] },
-      { id: 'builder-backend-1', type: 'builder-backend', status: 'idle', capabilities: ['api', 'database', 'authentication'] },
-      { id: 'validator-1', type: 'validator', status: 'idle', capabilities: ['linting', 'type-checking', 'testing'] },
-      { id: 'optimizer-1', type: 'optimizer', status: 'idle', capabilities: ['performance', 'security', 'refactoring'] }
+      { id: 'architect-1', type: 'architect', status: 'idle' as const, capabilities: ['schema-design', 'file-structure', 'api-contracts'] },
+      { id: 'builder-frontend-1', type: 'builder-frontend', status: 'idle' as const, capabilities: ['react', 'typescript', 'tailwind'] },
+      { id: 'builder-backend-1', type: 'builder-backend', status: 'idle' as const, capabilities: ['api', 'database', 'authentication'] },
+      { id: 'validator-1', type: 'validator', status: 'idle' as const, capabilities: ['linting', 'type-checking', 'testing'] },
+      { id: 'optimizer-1', type: 'optimizer', status: 'idle' as const, capabilities: ['performance', 'security', 'refactoring'] }
     ];
 
     agentTypes.forEach(agent => {
@@ -68,6 +74,13 @@ export class OrchestratorAgent {
     const executionId = await this.executeTaskPlan(taskPlan, projectContext);
     
     return executionId;
+  }
+
+  private cleanDocument(content: string): string {
+    return content
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\-_.]/g, '')
+      .trim();
   }
 
   private async analyzePrompt(prompt: string, context: ProjectContext) {
@@ -258,87 +271,6 @@ export class OrchestratorAgent {
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
-  }
-
-  private async executeArchitectureTask(task: Task) {
-    const { components, techStack } = task.requirements;
-    
-    const architecture = {
-      fileStructure: this.generateFileStructure(components),
-      databaseSchema: this.generateDatabaseSchema(components),
-      apiContracts: this.generateAPIContracts(components),
-      componentSpecs: this.generateComponentSpecs(components)
-    };
-    
-    return { success: true, data: architecture };
-  }
-
-  private async executeFrontendBuildTask(task: Task) {
-    const component = task.requirements;
-    
-    const code = this.generateReactComponent(component);
-    const styles = this.generateComponentStyles(component);
-    
-    return {
-      success: true,
-      data: {
-        files: [
-          {
-            path: `src/components/${component.name}.tsx`,
-            content: code,
-            type: 'typescript'
-          },
-          {
-            path: `src/styles/${component.name}.css`,
-            content: styles,
-            type: 'css'
-          }
-        ]
-      }
-    };
-  }
-
-  private async executeBackendBuildTask(task: Task) {
-    const component = task.requirements;
-    
-    const apiCode = this.generateAPIEndpoint(component);
-    const dbQueries = this.generateDatabaseQueries(component);
-    
-    return {
-      success: true,
-      data: {
-        files: [
-          {
-            path: `src/api/${component.name}.ts`,
-            content: apiCode,
-            type: 'typescript'
-          }
-        ],
-        queries: dbQueries
-      }
-    };
-  }
-
-  private async executeValidationTask(task: Task) {
-    // Simulate validation checks
-    const validationResults = {
-      linting: { passed: true, issues: [] },
-      typeChecking: { passed: true, errors: [] },
-      testing: { passed: true, failures: [] },
-      buildCheck: { passed: true, errors: [] }
-    };
-    
-    return { success: true, data: validationResults };
-  }
-
-  private async executeOptimizationTask(task: Task) {
-    const optimizations = {
-      performanceImprovements: [],
-      securityFixes: [],
-      codeRefactoring: []
-    };
-    
-    return { success: true, data: optimizations };
   }
 
   // Helper methods for code generation
@@ -538,6 +470,87 @@ export async function handle${component.name}Request(req: Request) {
     return suggested;
   }
 
+  private async executeArchitectureTask(task: Task) {
+    const { components, techStack } = task.requirements;
+    
+    const architecture = {
+      fileStructure: this.generateFileStructure(components),
+      databaseSchema: this.generateDatabaseSchema(components),
+      apiContracts: this.generateAPIContracts(components),
+      componentSpecs: this.generateComponentSpecs(components)
+    };
+    
+    return { success: true, data: architecture };
+  }
+
+  private async executeFrontendBuildTask(task: Task) {
+    const component = task.requirements;
+    
+    const code = this.generateReactComponent(component);
+    const styles = this.generateComponentStyles(component);
+    
+    return {
+      success: true,
+      data: {
+        files: [
+          {
+            path: `src/components/${component.name}.tsx`,
+            content: code,
+            type: 'typescript'
+          },
+          {
+            path: `src/styles/${component.name}.css`,
+            content: styles,
+            type: 'css'
+          }
+        ]
+      }
+    };
+  }
+
+  private async executeBackendBuildTask(task: Task) {
+    const component = task.requirements;
+    
+    const apiCode = this.generateAPIEndpoint(component);
+    const dbQueries = this.generateDatabaseQueries(component);
+    
+    return {
+      success: true,
+      data: {
+        files: [
+          {
+            path: `src/api/${component.name}.ts`,
+            content: apiCode,
+            type: 'typescript'
+          }
+        ],
+        queries: dbQueries
+      }
+    };
+  }
+
+  private async executeValidationTask(task: Task) {
+    // Simulate validation checks
+    const validationResults = {
+      linting: { passed: true, issues: [] },
+      typeChecking: { passed: true, errors: [] },
+      testing: { passed: true, failures: [] },
+      buildCheck: { passed: true, errors: [] }
+    };
+    
+    return { success: true, data: validationResults };
+  }
+
+  private async executeOptimizationTask(task: Task) {
+    const optimizations = {
+      performanceImprovements: [],
+      securityFixes: [],
+      codeRefactoring: []
+    };
+    
+    return { success: true, data: optimizations };
+  }
+
   private startTaskProcessor() {
     setInterval(() => {
       this.processTaskQueue();
@@ -594,13 +607,8 @@ export async function handle${component.name}Request(req: Request) {
       }
     }
   }
-}
 
-interface AgentInfo {
-  id: string;
-  type: string;
-  status: 'idle' | 'busy' | 'offline';
-  capabilities: string[];
+  // Add missing task execution methods
 }
 
 // Global orchestrator instance

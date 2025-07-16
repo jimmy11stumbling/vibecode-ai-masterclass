@@ -165,9 +165,6 @@ const FullIDE = () => {
                 <TabsContent value="files" className="flex-1 m-0">
                   <FileExplorer 
                     onFileSelect={setActiveFile}
-                    onFileCreate={() => {}}
-                    onFileDelete={() => {}}
-                    onFileRename={() => {}}
                   />
                 </TabsContent>
                 
@@ -189,7 +186,7 @@ const FullIDE = () => {
                       </div>
                       
                       <TabsContent value="database" className="flex-1 m-0">
-                        <DatabaseManager onSchemaChange={() => {}} />
+                        <DatabaseManager />
                       </TabsContent>
                       
                       <TabsContent value="deploy" className="flex-1 m-0">
@@ -199,7 +196,6 @@ const FullIDE = () => {
                       <TabsContent value="mobile" className="flex-1 m-0">
                         <MobileExpoIntegration 
                           onProjectUpdate={() => {}}
-                          onStatusChange={() => {}}
                         />
                       </TabsContent>
                     </Tabs>
@@ -219,7 +215,7 @@ const FullIDE = () => {
                 <div className="h-full bg-slate-900 border-b border-slate-700">
                   <MonacoCodeEditor
                     file={activeFile}
-                    onFileChange={(content) => {
+                    onChange={(content) => {
                       if (activeFile) {
                         setProjectFiles(prev => 
                           prev.map(f => f.id === activeFile.id ? { ...f, content } : f)
@@ -336,7 +332,7 @@ const FullIDE = () => {
                       </TabsContent>
                       
                       <TabsContent value="integrations" className="flex-1 m-0">
-                        <ServiceIntegrationHub />
+                        <ServiceIntegrationHub onIntegrationAdd={() => {}} />
                       </TabsContent>
                       
                       <TabsContent value="templates" className="flex-1 m-0">

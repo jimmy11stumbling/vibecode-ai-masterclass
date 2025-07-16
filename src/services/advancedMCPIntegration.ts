@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Advanced RAG 2.0 Interfaces
@@ -72,6 +71,7 @@ export interface MCPAuth {
 
 // A2A Protocol Interfaces
 export interface A2ATask {
+  [key: string]: any; // Index signature for Json compatibility
   id: string;
   title: string;
   description: string;
@@ -85,6 +85,7 @@ export interface A2ATask {
 }
 
 export interface A2AAgent {
+  [key: string]: any; // Index signature for Json compatibility
   id: string;
   name: string;
   type: 'reasoning' | 'execution' | 'coordination' | 'specialized';
@@ -94,6 +95,7 @@ export interface A2AAgent {
 }
 
 export interface A2AMessage {
+  [key: string]: any; // Index signature for Json compatibility
   id: string;
   from: string;
   to: string;
@@ -104,12 +106,14 @@ export interface A2AMessage {
 }
 
 export interface A2APart {
+  [key: string]: any; // Index signature for Json compatibility
   type: 'text' | 'code' | 'file' | 'image' | 'data';
   content: any;
   metadata: Record<string, any>;
 }
 
 export interface A2AArtifact {
+  [key: string]: any; // Index signature for Json compatibility
   id: string;
   name: string;
   type: 'code' | 'document' | 'data' | 'configuration';
@@ -120,12 +124,14 @@ export interface A2AArtifact {
 }
 
 export interface A2AWorkflow {
+  [key: string]: any; // Index signature for Json compatibility
   steps: A2AWorkflowStep[];
   currentStep: number;
   parallelExecution: boolean;
 }
 
 export interface A2AWorkflowStep {
+  [key: string]: any; // Index signature for Json compatibility
   id: string;
   name: string;
   assignedAgent: string;
@@ -182,36 +188,6 @@ class AdvancedMCPIntegrationService {
     await this.storeDocumentInDB(processedDoc);
     
     return processedDoc;
-  }
-
-  private cleanDocument(content: string): string {
-    return content
-      .replace(/\s+/g, ' ')
-      .replace(/[^\w\s\-_.]/g, '')
-      .trim();
-  }
-
-  private async hierarchicalChunking(content: string, docId: string): Promise<RAGChunk[]> {
-    const chunks: RAGChunk[] = [];
-    const sentences = content.split(/[.!?]+/);
-    
-    // Small chunks for precise retrieval
-    for (let i = 0; i < sentences.length; i += 2) {
-      const chunkContent = sentences.slice(i, i + 2).join('. ');
-      const embedding = await this.generateEmbedding(chunkContent);
-      
-      chunks.push({
-        id: `chunk_${docId}_${i}`,
-        documentId: docId,
-        content: chunkContent,
-        embedding,
-        metadata: { sentenceStart: i, sentenceEnd: i + 1 },
-        position: i,
-        hierarchyLevel: 1
-      });
-    }
-    
-    return chunks;
   }
 
   async hybridSearch(query: RAGQuery): Promise<RAGResult[]> {
@@ -362,6 +338,26 @@ class AdvancedMCPIntegrationService {
     return task;
   }
 
+  async sendA2AMessage(taskId: string, message: Omit<A2AMessage, 'id' | 'timestamp'>): Promise<A2AMessage> {
+    const task = this.a2aTasks.get(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    const a2aMessage: A2AMessage = {
+      ...message,
+      id: `msg_${Date.now()}`,
+      timestamp: new Date()
+    };
+
+    task.messages.push(a2aMessage);
+    task.updatedAt = new Date();
+    
+    await this.updateTaskInDB(task);
+    
+    return a2aMessage;
+  }
+
   // Utility methods
   private async generateEmbedding(text: string): Promise<number[]> {
     // Mock embedding generation - in production, use actual embedding model
@@ -507,8 +503,12 @@ class AdvancedMCPIntegrationService {
   // Database operations using existing tables
   private async storeDocumentInDB(document: RAGDocument): Promise<void> {
     try {
+      // Get current user ID (mock for now)
+      const userId = 'system-user';
+      
       // Use existing documents table
       await supabase.from('documents').insert({
+        user_id: userId,
         filename: document.title,
         original_filename: document.title,
         mime_type: 'text/plain',
@@ -535,15 +535,19 @@ class AdvancedMCPIntegrationService {
 
   private async storeTaskInDB(task: A2ATask): Promise<void> {
     try {
+      // Get current user ID (mock for now)
+      const userId = 'system-user';
+      
       // Use existing workflow_definitions table
       await supabase.from('workflow_definitions').insert({
+        user_id: userId,
         name: task.title,
         description: task.description,
-        definition: {
+        definition: JSON.parse(JSON.stringify({
           task: task,
           workflow: task.workflow,
           participants: task.participants
-        },
+        })),
         status: task.status,
         created_at: task.createdAt.toISOString(),
         updated_at: task.updatedAt.toISOString()
@@ -557,11 +561,11 @@ class AdvancedMCPIntegrationService {
     try {
       await supabase.from('workflow_definitions')
         .update({
-          definition: {
+          definition: JSON.parse(JSON.stringify({
             task: task,
             workflow: task.workflow,
             participants: task.participants
-          },
+          })),
           status: task.status,
           updated_at: task.updatedAt.toISOString()
         })
@@ -588,11 +592,11 @@ class AdvancedMCPIntegrationService {
               documentId: chunk.document_id || '',
               content: chunk.chunk_text,
               embedding: Array(384).fill(0).map(() => Math.random()),
-              metadata: chunk.metadata || {},
+              metadata: (chunk.metadata as Record<string, any>) || {},
               position: chunk.chunk_index,
               hierarchyLevel: 1
             })),
-            metadata: doc.metadata || {},
+            metadata: (doc.metadata as Record<string, any>) || {},
             source: 'database',
             processedAt: new Date(doc.processed_at || doc.created_at || '')
           });
@@ -601,6 +605,36 @@ class AdvancedMCPIntegrationService {
     } catch (error) {
       console.error('Failed to load knowledge base:', error);
     }
+  }
+
+  private cleanDocument(content: string): string {
+    return content
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\-_.]/g, '')
+      .trim();
+  }
+
+  private async hierarchicalChunking(content: string, docId: string): Promise<RAGChunk[]> {
+    const chunks: RAGChunk[] = [];
+    const sentences = content.split(/[.!?]+/);
+    
+    // Small chunks for precise retrieval
+    for (let i = 0; i < sentences.length; i += 2) {
+      const chunkContent = sentences.slice(i, i + 2).join('. ');
+      const embedding = await this.generateEmbedding(chunkContent);
+      
+      chunks.push({
+        id: `chunk_${docId}_${i}`,
+        documentId: docId,
+        content: chunkContent,
+        embedding,
+        metadata: { sentenceStart: i, sentenceEnd: i + 1 },
+        position: i,
+        hierarchyLevel: 1
+      });
+    }
+    
+    return chunks;
   }
 
   private async setupHybridSearch(): Promise<void> {
