@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Crown, 
   Brain, 
@@ -20,7 +20,8 @@ import {
   Users,
   Server,
   Eye,
-  Settings
+  Settings,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sovereignOrchestrator, type SovereignTask, type ProjectSpec } from '@/services/sovereignOrchestrator';
@@ -40,6 +41,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
   const [currentProject, setCurrentProject] = useState<ProjectSpec | null>(null);
   const [tasks, setTasks] = useState<SovereignTask[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [isAnonymousMode, setIsAnonymousMode] = useState(false);
   const [systemStatus, setSystemStatus] = useState({
     orchestrator: 'active',
     a2aProtocol: 'active',
@@ -58,6 +60,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
   const initializeSystem = async () => {
     console.log('👑 Initializing Sovereign IDE System');
     
+    // Check if we're in anonymous mode
+    setIsAnonymousMode(sovereignOrchestrator.isAnonymousMode());
+    
     // Check API key
     const apiKey = localStorage.getItem('deepseek_api_key');
     if (apiKey) {
@@ -70,7 +75,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
     
     toast({
       title: "Sovereign IDE Ready",
-      description: "All systems initialized and ready for autonomous development",
+      description: isAnonymousMode 
+        ? "Running in demo mode - full features available with authentication"
+        : "All systems initialized and ready for autonomous development",
     });
   };
 
@@ -82,6 +89,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
 
       setTasks(projectTasks);
       setAgents(activeAgents);
+      setIsAnonymousMode(sovereignOrchestrator.isAnonymousMode());
       
       if (activeProjects.length > 0 && !currentProject) {
         setCurrentProject(activeProjects[0]);
@@ -119,7 +127,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       
       toast({
         title: "Generation Started",
-        description: `Autonomous development initiated. Execution ID: ${executionId}`,
+        description: isAnonymousMode 
+          ? `Demo generation initiated. Execution ID: ${executionId}`
+          : `Autonomous development initiated. Execution ID: ${executionId}`,
       });
 
       // Start monitoring
@@ -135,7 +145,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
           
           toast({
             title: "Application Generated",
-            description: "Autonomous development completed successfully!",
+            description: isAnonymousMode 
+              ? "Demo generation completed successfully!"
+              : "Autonomous development completed successfully!",
           });
 
           if (onProjectGenerated) {
@@ -201,7 +213,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
             </div>
             <div>
               <h1 className="text-xl font-bold">Sovereign IDE</h1>
-              <p className="text-sm text-slate-400">Autonomous AI Development Environment</p>
+              <p className="text-sm text-slate-400">
+                {isAnonymousMode ? 'Demo Mode - Autonomous AI Development' : 'Autonomous AI Development Environment'}
+              </p>
             </div>
           </div>
 
@@ -224,6 +238,17 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
             </Button>
           </div>
         </div>
+
+        {/* Anonymous Mode Alert */}
+        {isAnonymousMode && (
+          <Alert className="mt-4 bg-blue-900/20 border-blue-700">
+            <Info className="w-4 h-4" />
+            <AlertDescription>
+              Running in demo mode. All features are available, but data won't be permanently stored. 
+              Authenticate for full persistence and collaboration features.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Main Content */}
@@ -260,6 +285,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                   </CardTitle>
                   <CardDescription>
                     Describe your application in natural language. The Sovereign IDE will autonomously architect, develop, and deploy it.
+                    {isAnonymousMode && " (Demo mode - showcasing capabilities)"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -297,12 +323,12 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                     {isProcessing ? (
                       <>
                         <Activity className="w-4 h-4 mr-2 animate-spin" />
-                        Generating Autonomously...
+                        {isAnonymousMode ? 'Generating Demo...' : 'Generating Autonomously...'}
                       </>
                     ) : (
                       <>
                         <Play className="w-4 h-4 mr-2" />
-                        Generate Application
+                        {isAnonymousMode ? 'Generate Demo Application' : 'Generate Application'}
                       </>
                     )}
                   </Button>
@@ -317,7 +343,10 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                     <span>Real-time Development Monitor</span>
                   </CardTitle>
                   <CardDescription>
-                    Live monitoring of autonomous development progress
+                    {isAnonymousMode 
+                      ? 'Demo monitoring of autonomous development progress'
+                      : 'Live monitoring of autonomous development progress'
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -365,7 +394,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                         <div className="text-center">
                           <Crown className="w-12 h-12 mx-auto mb-4 opacity-50" />
                           <p>Ready for autonomous development</p>
-                          <p className="text-sm">Describe your application to begin</p>
+                          <p className="text-sm">
+                            {isAnonymousMode ? 'Describe your application to begin demo' : 'Describe your application to begin'}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -500,6 +531,15 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                       <p className="text-xs text-slate-400">Online</p>
                     </div>
                   </div>
+                  
+                  {isAnonymousMode && (
+                    <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-700">
+                      <p className="text-xs text-blue-300">
+                        Demo Mode: Metrics shown are for demonstration. 
+                        Authenticate for real-time performance tracking.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
