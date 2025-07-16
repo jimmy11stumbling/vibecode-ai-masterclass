@@ -1,3 +1,4 @@
+
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Define data structures for RAG
@@ -8,6 +9,9 @@ export interface RAGDocument {
   chunks: RAGChunk[];
   embeddings: number[][];
   processed: boolean;
+  title?: string;
+  source?: string;
+  processedAt?: Date;
 }
 
 export interface RAGChunk {
@@ -20,24 +24,48 @@ export interface RAGChunk {
   hierarchyLevel: number;
 }
 
+export interface RAGResult {
+  id: string;
+  content: string;
+  score: number;
+  metadata: Record<string, any>;
+  source: string;
+}
+
 // Define data structures for A2A
 export interface A2ATask {
   id: string;
   type: string;
   status: string;
+  title: string;
+  description: string;
+  workflow: A2AWorkflow;
+  participants: A2AAgent[];
+  messages: A2AMessage[];
+  artifacts: A2AArtifact[];
+  updatedAt: Date;
+  [key: string]: any;
 }
 
 export interface A2AWorkflow {
   id: string;
   name?: string;
   description?: string;
-  steps?: A2ATask[];
+  steps: A2AWorkflowStep[];
+}
+
+export interface A2AWorkflowStep {
+  id: string;
+  name: string;
+  status: string;
+  assignedAgent: string;
 }
 
 export interface A2AAgent {
   id: string;
   name: string;
   role: string;
+  type: string;
   capabilities: string[];
 }
 
@@ -51,19 +79,145 @@ export interface A2AMessage {
   parts: any[];
 }
 
+export interface A2AArtifact {
+  id: string;
+  name: string;
+  type: string;
+  immutable: boolean;
+}
+
+// Define MCP structures
+export interface MCPAgentCard {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  capabilities: MCPCapability[];
+  endpoints: MCPEndpoint[];
+  authentication: MCPAuthentication;
+  metadata: Record<string, any>;
+}
+
+export interface MCPCapability {
+  name: string;
+  type: string;
+  description: string;
+  parameters: Record<string, any>;
+}
+
+export interface MCPEndpoint {
+  name: string;
+  url: string;
+  method: string;
+  authentication?: boolean;
+}
+
+export interface MCPAuthentication {
+  type: string;
+  required: boolean;
+}
+
 export class AdvancedMCPIntegrationService {
   private supabase: SupabaseClient;
+  private mockTasks: A2ATask[] = [];
 
   constructor(supabaseClient: SupabaseClient) {
     this.supabase = supabaseClient;
   }
 
-  async sendA2AMessage(taskId: string, message: string): Promise<void> {
+  // A2A Methods
+  async getAllTasks(): Promise<A2ATask[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('workflow_definitions')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('Failed to get tasks:', error);
+        return this.mockTasks;
+      }
+
+      return data.map(item => ({
+        id: item.id,
+        type: 'collaborative',
+        status: item.status || 'pending',
+        title: item.name,
+        description: item.description || '',
+        workflow: {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          steps: []
+        },
+        participants: [],
+        messages: [],
+        artifacts: [],
+        updatedAt: new Date(item.updated_at)
+      }));
+    } catch (error) {
+      console.error('Error getting tasks:', error);
+      return this.mockTasks;
+    }
+  }
+
+  async createTask(title: string, description: string, capabilities: string[]): Promise<A2ATask> {
+    try {
+      const taskData = {
+        name: title,
+        description: description,
+        definition: JSON.parse(JSON.stringify({
+          capabilities,
+          type: 'collaborative'
+        })),
+        status: 'pending',
+        is_active: true,
+        user_id: 'system'
+      };
+
+      const { data, error } = await this.supabase
+        .from('workflow_definitions')
+        .insert(taskData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to create task:', error);
+        throw error;
+      }
+
+      const newTask: A2ATask = {
+        id: data.id,
+        type: 'collaborative',
+        status: data.status,
+        title: data.name,
+        description: data.description || '',
+        workflow: {
+          id: data.id,
+          name: data.name,
+          description: data.description,
+          steps: []
+        },
+        participants: [],
+        messages: [],
+        artifacts: [],
+        updatedAt: new Date(data.updated_at)
+      };
+
+      this.mockTasks.push(newTask);
+      return newTask;
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
+    }
+  }
+
+  async sendA2AMessage(taskId: string, from: string, to: string, message: string): Promise<void> {
     const a2aMessage: A2AMessage = {
       id: `msg_${Date.now()}`,
       timestamp: new Date(),
-      from: 'system',
-      to: taskId,
+      from: from,
+      to: to,
       type: 'task_update',
       content: message,
       parts: []
@@ -93,6 +247,33 @@ export class AdvancedMCPIntegrationService {
     }
   }
 
+  // RAG Methods
+  async searchKnowledge(query: string): Promise<RAGResult[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('knowledge_base')
+        .select('*')
+        .textSearch('content', query)
+        .limit(10);
+
+      if (error) {
+        console.error('Failed to search knowledge:', error);
+        return [];
+      }
+
+      return data.map(item => ({
+        id: item.id,
+        content: item.content,
+        score: 0.8, // Mock score
+        metadata: item.metadata || {},
+        source: item.title
+      }));
+    } catch (error) {
+      console.error('Error searching knowledge:', error);
+      return [];
+    }
+  }
+
   async processDocument(content: string, metadata: Record<string, any> = {}): Promise<RAGDocument> {
     try {
       const docData = {
@@ -104,7 +285,7 @@ export class AdvancedMCPIntegrationService {
         metadata: JSON.parse(JSON.stringify(metadata)),
         processing_status: 'completed',
         processed_at: new Date().toISOString(),
-        user_id: 'system' // Add required user_id field
+        user_id: 'system'
       };
 
       const { data, error } = await this.supabase
@@ -124,12 +305,60 @@ export class AdvancedMCPIntegrationService {
         metadata: metadata,
         chunks: [],
         embeddings: [],
-        processed: true
+        processed: true,
+        title: metadata.title || 'Untitled',
+        source: metadata.source || 'upload',
+        processedAt: new Date()
       };
     } catch (error) {
       console.error('Error processing document:', error);
       throw error;
     }
+  }
+
+  // MCP Methods
+  async discoverMCPAgents(): Promise<MCPAgentCard[]> {
+    // Mock MCP agents for demonstration
+    return [
+      {
+        id: 'mcp-agent-1',
+        name: 'Code Generator Agent',
+        version: '1.0.0',
+        description: 'Generates code based on specifications',
+        capabilities: [
+          {
+            name: 'generate_code',
+            type: 'tool',
+            description: 'Generate code from specifications',
+            parameters: { spec: 'string', language: 'string' }
+          }
+        ],
+        endpoints: [
+          {
+            name: 'generate',
+            url: '/api/mcp/generate',
+            method: 'POST',
+            authentication: true
+          }
+        ],
+        authentication: {
+          type: 'api_key',
+          required: true
+        },
+        metadata: {}
+      }
+    ];
+  }
+
+  async invokeMCPTool(agentId: string, toolName: string, params: any): Promise<any> {
+    console.log(`Invoking MCP tool ${toolName} on agent ${agentId} with params:`, params);
+    
+    // Mock response
+    return {
+      success: true,
+      result: `Tool ${toolName} executed successfully`,
+      timestamp: new Date().toISOString()
+    };
   }
 
   async createA2ATask(task: A2ATask, workflow: A2AWorkflow, participants: A2AAgent[]): Promise<string> {

@@ -46,6 +46,7 @@ interface ProjectFile {
   name: string;
   type: 'file' | 'folder';
   content?: string;
+  language?: string;
   children?: ProjectFile[];
 }
 
@@ -69,7 +70,25 @@ const FullIDE = () => {
   const [agentStatus, setAgentStatus] = useState('ready');
 
   const handleFileSelect = (file: ProjectFile) => {
-    setActiveFile(file);
+    // Add language detection based on file extension
+    const extension = file.name.split('.').pop() || '';
+    const languageMap: { [key: string]: string } = {
+      'tsx': 'typescript',
+      'ts': 'typescript',
+      'jsx': 'javascript',
+      'js': 'javascript',
+      'css': 'css',
+      'html': 'html',
+      'json': 'json',
+      'md': 'markdown'
+    };
+
+    const fileWithLanguage = {
+      ...file,
+      language: languageMap[extension] || 'plaintext'
+    };
+
+    setActiveFile(fileWithLanguage);
   };
 
   const handleFilesChange = (files: ProjectFile[]) => {

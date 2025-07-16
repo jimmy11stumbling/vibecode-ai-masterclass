@@ -1,4 +1,5 @@
-import { orchestratorAgent, OrchestratorAgent } from './orchestratorAgent';
+
+import { OrchestratorAgent } from './orchestratorAgent';
 import { 
   BaseAgent, 
   ArchitectAgent, 
@@ -23,11 +24,35 @@ interface ExecutionResult {
   details?: any;
 }
 
+interface AgentStatus {
+  id: string;
+  status: 'idle' | 'busy' | 'offline';
+  currentTask?: string;
+  lastActivity: Date;
+}
+
+interface AgentMetrics {
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  avgExecutionTime: number;
+}
+
+interface ActiveExecution {
+  id: string;
+  agentId: string;
+  status: 'running' | 'paused' | 'completed' | 'failed';
+  progress: number;
+  startTime: Date;
+}
+
 type AgentType = 'architect' | 'frontend-builder' | 'backend-builder' | 'validator' | 'optimizer' | 'librarian';
 
 class AgentManager {
   private agents: Map<AgentType, BaseAgent> = new Map();
   private eventListeners: Map<string, ((data: any) => void)[]> = new Map();
+  private activeExecutions: ActiveExecution[] = [];
+  private agentStatuses: Map<string, AgentStatus> = new Map();
 
   constructor() {
     this.initializeAgents();
@@ -43,6 +68,15 @@ class AgentManager {
       this.agents.set('optimizer', new OptimizerAgent('optimizer', 'Optimizes code performance and structure'));
       this.agents.set('librarian', new LibrarianAgent('librarian', 'Manages knowledge base and documentation'));
 
+      // Initialize agent statuses
+      this.agents.forEach((agent, type) => {
+        this.agentStatuses.set(agent.id, {
+          id: agent.id,
+          status: 'idle',
+          lastActivity: new Date()
+        });
+      });
+
       console.log('Agent swarm initialized successfully');
     } catch (error) {
       console.error('Failed to initialize agents:', error);
@@ -52,6 +86,17 @@ class AgentManager {
 
   async processUserRequest(prompt: string, projectContext: ProjectContext): Promise<string> {
     const executionId = `execution_${Date.now()}`;
+
+    // Create mock execution
+    const execution: ActiveExecution = {
+      id: executionId,
+      agentId: 'architect',
+      status: 'running',
+      progress: 0,
+      startTime: new Date()
+    };
+
+    this.activeExecutions.push(execution);
 
     // Simulate agent processing
     setTimeout(() => {
@@ -64,10 +109,55 @@ class AgentManager {
         }
       };
 
+      // Update execution status
+      execution.status = 'completed';
+      execution.progress = 100;
+
       this.dispatchEvent('executionCompleted', { executionId, result });
     }, 5000);
 
     return executionId;
+  }
+
+  getAgentStatus(agentId: string): AgentStatus | null {
+    return this.agentStatuses.get(agentId) || null;
+  }
+
+  getMetrics(): AgentMetrics {
+    return {
+      totalTasks: this.activeExecutions.length,
+      completedTasks: this.activeExecutions.filter(e => e.status === 'completed').length,
+      failedTasks: this.activeExecutions.filter(e => e.status === 'failed').length,
+      avgExecutionTime: 5000 // Mock average
+    };
+  }
+
+  getActiveExecutions(): ActiveExecution[] {
+    return this.activeExecutions.filter(e => e.status === 'running' || e.status === 'paused');
+  }
+
+  async pauseExecution(executionId: string): Promise<void> {
+    const execution = this.activeExecutions.find(e => e.id === executionId);
+    if (execution && execution.status === 'running') {
+      execution.status = 'paused';
+      console.log(`Execution ${executionId} paused`);
+    }
+  }
+
+  async resumeExecution(executionId: string): Promise<void> {
+    const execution = this.activeExecutions.find(e => e.id === executionId);
+    if (execution && execution.status === 'paused') {
+      execution.status = 'running';
+      console.log(`Execution ${executionId} resumed`);
+    }
+  }
+
+  async cancelExecution(executionId: string): Promise<void> {
+    const execution = this.activeExecutions.find(e => e.id === executionId);
+    if (execution) {
+      execution.status = 'failed';
+      console.log(`Execution ${executionId} cancelled`);
+    }
   }
 
   addEventListener(event: string, listener: (data: any) => void): void {
