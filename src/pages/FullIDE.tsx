@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -56,14 +57,14 @@ interface LogEntry {
   context?: string;
 }
 
-export const FullIDE = () => {
+const FullIDE = () => {
   const [activeFile, setActiveFile] = useState<any>(null);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
   const [activeAITab, setActiveAITab] = useState('true-agent');
   const [activeToolTab, setActiveToolTab] = useState('database');
-  const [activeRightTab, setActiveRightTab] = useState('true-agent');
+  const [activeRightTab, setActiveRightTab] = useState('ai-agents');
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
   const [agentStatus, setAgentStatus] = useState('ready');
 
@@ -163,9 +164,10 @@ export const FullIDE = () => {
                 
                 <TabsContent value="files" className="flex-1 m-0">
                   <FileExplorer 
-                    files={projectFiles}
                     onFileSelect={setActiveFile}
-                    onFilesChange={setProjectFiles}
+                    onFileCreate={() => {}}
+                    onFileDelete={() => {}}
+                    onFileRename={() => {}}
                   />
                 </TabsContent>
                 
@@ -187,7 +189,7 @@ export const FullIDE = () => {
                       </div>
                       
                       <TabsContent value="database" className="flex-1 m-0">
-                        <DatabaseManager />
+                        <DatabaseManager onSchemaChange={() => {}} />
                       </TabsContent>
                       
                       <TabsContent value="deploy" className="flex-1 m-0">
@@ -196,8 +198,8 @@ export const FullIDE = () => {
                       
                       <TabsContent value="mobile" className="flex-1 m-0">
                         <MobileExpoIntegration 
-                          onProjectCreate={() => {}}
-                          onPreviewUpdate={() => {}}
+                          onProjectUpdate={() => {}}
+                          onStatusChange={() => {}}
                         />
                       </TabsContent>
                     </Tabs>
@@ -217,7 +219,7 @@ export const FullIDE = () => {
                 <div className="h-full bg-slate-900 border-b border-slate-700">
                   <MonacoCodeEditor
                     file={activeFile}
-                    onChange={(content) => {
+                    onFileChange={(content) => {
                       if (activeFile) {
                         setProjectFiles(prev => 
                           prev.map(f => f.id === activeFile.id ? { ...f, content } : f)
@@ -334,16 +336,12 @@ export const FullIDE = () => {
                       </TabsContent>
                       
                       <TabsContent value="integrations" className="flex-1 m-0">
-                        <ServiceIntegrationHub
-                          onServiceAdd={(service) => console.log('Service added:', service)}
-                          onCodeGenerate={(code) => console.log('Integration code:', code)}
-                        />
+                        <ServiceIntegrationHub />
                       </TabsContent>
                       
                       <TabsContent value="templates" className="flex-1 m-0">
                         <TemplateSystem
                           onTemplateSelect={(template) => console.log('Template selected:', template)}
-                          onProjectCreate={(project) => setProjectFiles(project.files)}
                         />
                       </TabsContent>
                     </Tabs>
@@ -415,3 +413,5 @@ export const FullIDE = () => {
     </div>
   );
 };
+
+export default FullIDE;

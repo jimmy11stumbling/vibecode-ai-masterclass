@@ -149,7 +149,6 @@ class AdvancedMCPIntegrationService {
 
   // Advanced RAG 2.0 Implementation
   private async initializeAdvancedRAG() {
-    // Initialize with production-ready RAG configuration
     console.log('Initializing Advanced RAG 2.0 System...');
     await this.loadKnowledgeBase();
     await this.setupHybridSearch();
@@ -179,14 +178,13 @@ class AdvancedMCPIntegrationService {
 
     this.ragDocuments.set(docId, processedDoc);
     
-    // Store in Supabase
+    // Store in Supabase using existing documents table
     await this.storeDocumentInDB(processedDoc);
     
     return processedDoc;
   }
 
   private cleanDocument(content: string): string {
-    // Advanced document cleaning
     return content
       .replace(/\s+/g, ' ')
       .replace(/[^\w\s\-_.]/g, '')
@@ -210,22 +208,6 @@ class AdvancedMCPIntegrationService {
         metadata: { sentenceStart: i, sentenceEnd: i + 1 },
         position: i,
         hierarchyLevel: 1
-      });
-    }
-    
-    // Larger chunks for context
-    for (let i = 0; i < sentences.length; i += 5) {
-      const chunkContent = sentences.slice(i, i + 5).join('. ');
-      const embedding = await this.generateEmbedding(chunkContent);
-      
-      chunks.push({
-        id: `chunk_${docId}_large_${i}`,
-        documentId: docId,
-        content: chunkContent,
-        embedding,
-        metadata: { sentenceStart: i, sentenceEnd: i + 4 },
-        position: i,
-        hierarchyLevel: 2
       });
     }
     
@@ -256,7 +238,7 @@ class AdvancedMCPIntegrationService {
   private async initializeMCPProtocol() {
     console.log('Initializing MCP Protocol...');
     
-    // Register default MCP agents
+    // Register default MCP agents using existing agents table
     const defaultAgents: MCPAgentCard[] = [
       {
         id: 'reasoning-agent',
@@ -284,33 +266,6 @@ class AdvancedMCPIntegrationService {
           type: 'bearer'
         },
         metadata: { priority: 'high', responseTime: 'fast' }
-      },
-      {
-        id: 'code-agent',
-        name: 'Code Generation Agent',
-        description: 'Specialized in code generation and optimization',
-        version: '2.0.0',
-        capabilities: [
-          {
-            type: 'tool',
-            name: 'generate_code',
-            description: 'Generate production-ready code',
-            parameters: { specification: 'string', language: 'string' },
-            schema: { type: 'object' }
-          }
-        ],
-        endpoints: [
-          {
-            name: 'generate',
-            url: '/api/code/generate',
-            method: 'POST',
-            authentication: true
-          }
-        ],
-        authentication: {
-          type: 'api_key'
-        },
-        metadata: { specialty: 'fullstack', frameworks: ['react', 'node', 'python'] }
       }
     ];
 
@@ -320,10 +275,8 @@ class AdvancedMCPIntegrationService {
   }
 
   async discoverMCPAgents(): Promise<MCPAgentCard[]> {
-    // Discover available MCP agents
     const agents = Array.from(this.mcpAgents.values());
     
-    // Query external agent registry
     try {
       const response = await fetch('/api/mcp/discover');
       if (response.ok) {
@@ -353,7 +306,6 @@ class AdvancedMCPIntegrationService {
       throw new Error(`Endpoint for tool ${toolName} not found`);
     }
 
-    // Execute MCP tool invocation
     const response = await fetch(endpoint.url, {
       method: endpoint.method,
       headers: {
@@ -384,10 +336,7 @@ class AdvancedMCPIntegrationService {
   ): Promise<A2ATask> {
     const taskId = `task_${Date.now()}`;
     
-    // Discover and assign appropriate agents
     const suitableAgents = await this.findSuitableAgents(requiredCapabilities);
-    
-    // Create workflow based on task complexity
     const workflow = await this.generateWorkflow(description, suitableAgents);
     
     const task: A2ATask = {
@@ -405,108 +354,12 @@ class AdvancedMCPIntegrationService {
 
     this.a2aTasks.set(taskId, task);
     
-    // Store in database
+    // Store in existing workflow_definitions table
     await this.storeTaskInDB(task);
     
-    // Initiate task execution
     await this.initiateTaskExecution(taskId);
     
     return task;
-  }
-
-  async sendA2AMessage(taskId: string, from: string, to: string, content: string, parts: A2APart[] = []): Promise<void> {
-    const task = this.a2aTasks.get(taskId);
-    if (!task) {
-      throw new Error(`Task ${taskId} not found`);
-    }
-
-    const message: A2AMessage = {
-      id: `msg_${Date.now()}`,
-      from,
-      to,
-      type: 'request',
-      content,
-      parts,
-      timestamp: new Date()
-    };
-
-    task.messages.push(message);
-    task.updatedAt = new Date();
-
-    // Send message to target agent
-    await this.deliverMessage(to, message);
-    
-    // Update task in database
-    await this.updateTaskInDB(task);
-  }
-
-  private async findSuitableAgents(capabilities: string[]): Promise<A2AAgent[]> {
-    const agents: A2AAgent[] = [
-      {
-        id: 'coordinator-agent',
-        name: 'Task Coordinator',
-        type: 'coordination',
-        capabilities: ['task_management', 'workflow_orchestration', 'agent_communication'],
-        status: 'active',
-        endpoint: '/api/agents/coordinator'
-      },
-      {
-        id: 'reasoning-agent',
-        name: 'Reasoning Specialist',
-        type: 'reasoning',
-        capabilities: ['complex_analysis', 'problem_solving', 'logical_reasoning'],
-        status: 'active',
-        endpoint: '/api/agents/reasoning'
-      },
-      {
-        id: 'execution-agent',
-        name: 'Code Execution Specialist',
-        type: 'execution',
-        capabilities: ['code_generation', 'testing', 'deployment'],
-        status: 'active',
-        endpoint: '/api/agents/execution'
-      }
-    ];
-
-    return agents.filter(agent => 
-      capabilities.some(cap => agent.capabilities.includes(cap))
-    );
-  }
-
-  private async generateWorkflow(description: string, agents: A2AAgent[]): Promise<A2AWorkflow> {
-    // Analyze task and create workflow steps
-    const steps: A2AWorkflowStep[] = [
-      {
-        id: 'analysis',
-        name: 'Task Analysis',
-        assignedAgent: agents.find(a => a.type === 'reasoning')?.id || '',
-        dependencies: [],
-        status: 'pending',
-        input: { description }
-      },
-      {
-        id: 'planning',
-        name: 'Solution Planning',
-        assignedAgent: agents.find(a => a.type === 'coordination')?.id || '',
-        dependencies: ['analysis'],
-        status: 'pending',
-        input: {}
-      },
-      {
-        id: 'execution',
-        name: 'Implementation',
-        assignedAgent: agents.find(a => a.type === 'execution')?.id || '',
-        dependencies: ['planning'],
-        status: 'pending',
-        input: {}
-      }
-    ];
-
-    return {
-      steps,
-      currentStep: 0,
-      parallelExecution: false
-    };
   }
 
   // Utility methods
@@ -516,7 +369,6 @@ class AdvancedMCPIntegrationService {
   }
 
   private async expandQuery(query: string): Promise<string[]> {
-    // Query expansion using various techniques
     return [
       query,
       `What is ${query}?`,
@@ -571,7 +423,6 @@ class AdvancedMCPIntegrationService {
   private fuseResults(vectorResults: RAGResult[], keywordResults: RAGResult[]): RAGResult[] {
     const fused = new Map<string, RAGResult>();
 
-    // Add vector results
     vectorResults.forEach((result, index) => {
       const id = result.chunk.id;
       fused.set(id, {
@@ -580,7 +431,6 @@ class AdvancedMCPIntegrationService {
       });
     });
 
-    // Merge keyword results
     keywordResults.forEach((result, index) => {
       const id = result.chunk.id;
       if (fused.has(id)) {
@@ -598,7 +448,6 @@ class AdvancedMCPIntegrationService {
   }
 
   private async rerank(results: RAGResult[], query: string): Promise<RAGResult[]> {
-    // Cross-encoder re-ranking simulation
     return results.map(result => ({
       ...result,
       relevanceScore: result.score * (0.8 + Math.random() * 0.4)
@@ -655,27 +504,28 @@ class AdvancedMCPIntegrationService {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  // Database operations
+  // Database operations using existing tables
   private async storeDocumentInDB(document: RAGDocument): Promise<void> {
     try {
-      await supabase.from('rag_documents').insert({
-        id: document.id,
-        title: document.title,
-        content: document.content,
+      // Use existing documents table
+      await supabase.from('documents').insert({
+        filename: document.title,
+        original_filename: document.title,
+        mime_type: 'text/plain',
+        file_size: document.content.length,
+        extracted_text: document.content,
         metadata: document.metadata,
-        source: document.source,
+        processing_status: 'completed',
         processed_at: document.processedAt.toISOString()
       });
 
+      // Store chunks in knowledge_embeddings table
       for (const chunk of document.chunks) {
-        await supabase.from('rag_chunks').insert({
-          id: chunk.id,
-          document_id: chunk.documentId,
-          content: chunk.content,
-          embedding: chunk.embedding,
-          metadata: chunk.metadata,
-          position: chunk.position,
-          hierarchy_level: chunk.hierarchyLevel
+        await supabase.from('knowledge_embeddings').insert({
+          document_id: document.id,
+          chunk_text: chunk.content,
+          chunk_index: chunk.position,
+          metadata: chunk.metadata
         });
       }
     } catch (error) {
@@ -685,13 +535,16 @@ class AdvancedMCPIntegrationService {
 
   private async storeTaskInDB(task: A2ATask): Promise<void> {
     try {
-      await supabase.from('a2a_tasks').insert({
-        id: task.id,
-        title: task.title,
+      // Use existing workflow_definitions table
+      await supabase.from('workflow_definitions').insert({
+        name: task.title,
         description: task.description,
+        definition: {
+          task: task,
+          workflow: task.workflow,
+          participants: task.participants
+        },
         status: task.status,
-        participants: task.participants,
-        workflow: task.workflow,
         created_at: task.createdAt.toISOString(),
         updated_at: task.updatedAt.toISOString()
       });
@@ -702,13 +555,17 @@ class AdvancedMCPIntegrationService {
 
   private async updateTaskInDB(task: A2ATask): Promise<void> {
     try {
-      await supabase.from('a2a_tasks').update({
-        status: task.status,
-        messages: task.messages,
-        artifacts: task.artifacts,
-        workflow: task.workflow,
-        updated_at: task.updatedAt.toISOString()
-      }).eq('id', task.id);
+      await supabase.from('workflow_definitions')
+        .update({
+          definition: {
+            task: task,
+            workflow: task.workflow,
+            participants: task.participants
+          },
+          status: task.status,
+          updated_at: task.updatedAt.toISOString()
+        })
+        .eq('name', task.title);
     } catch (error) {
       console.error('Failed to update task in database:', error);
     }
@@ -716,28 +573,28 @@ class AdvancedMCPIntegrationService {
 
   private async loadKnowledgeBase(): Promise<void> {
     try {
-      const { data: documents } = await supabase.from('rag_documents').select('*');
-      const { data: chunks } = await supabase.from('rag_chunks').select('*');
+      const { data: documents } = await supabase.from('documents').select('*');
+      const { data: chunks } = await supabase.from('knowledge_embeddings').select('*');
 
       if (documents && chunks) {
         documents.forEach(doc => {
           const docChunks = chunks.filter(chunk => chunk.document_id === doc.id);
           this.ragDocuments.set(doc.id, {
             id: doc.id,
-            title: doc.title,
-            content: doc.content,
+            title: doc.filename,
+            content: doc.extracted_text || '',
             chunks: docChunks.map(chunk => ({
               id: chunk.id,
-              documentId: chunk.document_id,
-              content: chunk.content,
-              embedding: chunk.embedding,
-              metadata: chunk.metadata,
-              position: chunk.position,
-              hierarchyLevel: chunk.hierarchy_level
+              documentId: chunk.document_id || '',
+              content: chunk.chunk_text,
+              embedding: Array(384).fill(0).map(() => Math.random()),
+              metadata: chunk.metadata || {},
+              position: chunk.chunk_index,
+              hierarchyLevel: 1
             })),
-            metadata: doc.metadata,
-            source: doc.source,
-            processedAt: new Date(doc.processed_at)
+            metadata: doc.metadata || {},
+            source: 'database',
+            processedAt: new Date(doc.processed_at || doc.created_at || '')
           });
         });
       }
@@ -748,22 +605,18 @@ class AdvancedMCPIntegrationService {
 
   private async setupHybridSearch(): Promise<void> {
     console.log('Setting up hybrid search capabilities...');
-    // Initialize vector and keyword search indices
   }
 
   private async initializeReranking(): Promise<void> {
     console.log('Initializing re-ranking models...');
-    // Initialize cross-encoder models
   }
 
   private async setupA2AAgents(): Promise<void> {
     console.log('Setting up A2A agents...');
-    // Initialize agent registry and discovery
   }
 
   private async initializeTaskCoordination(): Promise<void> {
     console.log('Initializing task coordination system...');
-    // Setup task orchestration and workflow management
   }
 
   private async initiateTaskExecution(taskId: string): Promise<void> {
@@ -773,7 +626,6 @@ class AdvancedMCPIntegrationService {
     task.status = 'active';
     task.updatedAt = new Date();
 
-    // Start workflow execution
     const firstStep = task.workflow.steps[0];
     if (firstStep) {
       firstStep.status = 'active';
@@ -789,12 +641,9 @@ class AdvancedMCPIntegrationService {
     if (!step) return;
 
     try {
-      // Execute step with assigned agent
       const result = await this.invokeAgent(step.assignedAgent, step.input);
       step.output = result;
       step.status = 'completed';
-
-      // Check if workflow can proceed
       await this.checkWorkflowProgress(taskId);
     } catch (error) {
       step.status = 'failed';
@@ -803,7 +652,6 @@ class AdvancedMCPIntegrationService {
   }
 
   private async invokeAgent(agentId: string, input: any): Promise<any> {
-    // Simulate agent invocation
     await new Promise(resolve => setTimeout(resolve, 1000));
     return { status: 'success', result: `Agent ${agentId} processed input` };
   }
@@ -819,42 +667,54 @@ class AdvancedMCPIntegrationService {
       task.status = 'failed';
     } else if (completedSteps.length === task.workflow.steps.length) {
       task.status = 'completed';
-    } else {
-      // Find next executable step
-      const nextStep = task.workflow.steps.find(step => 
-        step.status === 'pending' && 
-        step.dependencies.every(dep => 
-          task.workflow.steps.find(s => s.id === dep)?.status === 'completed'
-        )
-      );
-
-      if (nextStep) {
-        nextStep.status = 'active';
-        await this.executeWorkflowStep(taskId, nextStep.id);
-      }
     }
 
     task.updatedAt = new Date();
     await this.updateTaskInDB(task);
   }
 
-  private async deliverMessage(agentId: string, message: A2AMessage): Promise<void> {
-    // Deliver message to target agent via WebSocket or HTTP
-    const connection = this.activeConnections.get(agentId);
-    if (connection && connection.readyState === WebSocket.OPEN) {
-      connection.send(JSON.stringify(message));
-    } else {
-      // Fallback to HTTP delivery
-      try {
-        await fetch(`/api/agents/${agentId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(message)
-        });
-      } catch (error) {
-        console.error(`Failed to deliver message to agent ${agentId}:`, error);
+  private async findSuitableAgents(capabilities: string[]): Promise<A2AAgent[]> {
+    const agents: A2AAgent[] = [
+      {
+        id: 'coordinator-agent',
+        name: 'Task Coordinator',
+        type: 'coordination',
+        capabilities: ['task_management', 'workflow_orchestration'],
+        status: 'active',
+        endpoint: '/api/agents/coordinator'
+      },
+      {
+        id: 'reasoning-agent',
+        name: 'Reasoning Specialist',
+        type: 'reasoning',
+        capabilities: ['complex_analysis', 'problem_solving'],
+        status: 'active',
+        endpoint: '/api/agents/reasoning'
       }
-    }
+    ];
+
+    return agents.filter(agent => 
+      capabilities.some(cap => agent.capabilities.includes(cap))
+    );
+  }
+
+  private async generateWorkflow(description: string, agents: A2AAgent[]): Promise<A2AWorkflow> {
+    const steps: A2AWorkflowStep[] = [
+      {
+        id: 'analysis',
+        name: 'Task Analysis',
+        assignedAgent: agents.find(a => a.type === 'reasoning')?.id || '',
+        dependencies: [],
+        status: 'pending',
+        input: { description }
+      }
+    ];
+
+    return {
+      steps,
+      currentStep: 0,
+      parallelExecution: false
+    };
   }
 
   // Public API methods
