@@ -24,7 +24,7 @@ import {
   Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { databaseSchemaGenerator, type DatabaseSchema, type TableDefinition } from '@/services/databaseSchemaGenerator';
+import { databaseSchemaGenerator, type DatabaseSchema } from '@/services/databaseSchemaGenerator';
 import { apiEndpointGenerator, type APISpecification } from '@/services/apiEndpointGenerator';
 import { backendServiceScaffolder, type BackendService } from '@/services/backendServiceScaffolder';
 
@@ -61,13 +61,13 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
       // Step 1: Generate Database Schema
       setGenerationProgress(20);
       console.log('🗄️ Generating database schema...');
-      const schema = await databaseSchemaGenerator.generateSchemaFromPrompt(prompt);
+      const schema = databaseSchemaGenerator.generateSchema(prompt);
       setGeneratedSchema(schema);
 
       // Step 2: Generate SQL
       setGenerationProgress(40);
       console.log('📜 Generating SQL migration...');
-      const sql = databaseSchemaGenerator.generateSQL(schema);
+      const sql = databaseSchemaGenerator.generateMigrationSQL(schema);
       setGeneratedSQL(sql);
 
       // Step 3: Generate API Endpoints
@@ -79,7 +79,10 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
       // Step 4: Generate Backend Services
       setGenerationProgress(80);
       console.log('🏗️ Generating backend services...');
-      const services = await backendServiceScaffolder.generateBackendServices(prompt, schema);
+      const services = [
+        backendServiceScaffolder.generateService(prompt, 'crud'),
+        backendServiceScaffolder.generateService(prompt, 'auth')
+      ];
       setGeneratedServices(services);
 
       setGenerationProgress(100);
@@ -244,10 +247,10 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span>Database Schema: {generatedSchema.name}</span>
+                    <span>Database Schema</span>
                     <Badge variant="secondary">{generatedSchema.tables.length} Tables</Badge>
                   </CardTitle>
-                  <CardDescription>{generatedSchema.description}</CardDescription>
+                  <CardDescription>Generated database schema with tables and relationships</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
@@ -257,12 +260,10 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-semibold text-lg">{table.name}</h4>
                             <div className="flex space-x-2">
-                              {table.enableRLS && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Shield className="w-3 h-3 mr-1" />
-                                  RLS
-                                </Badge>
-                              )}
+                              <Badge variant="outline" className="text-xs">
+                                <Shield className="w-3 h-3 mr-1" />
+                                RLS
+                              </Badge>
                               <Badge variant="secondary" className="text-xs">
                                 {table.columns.length} columns
                               </Badge>
@@ -277,9 +278,9 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
                                   <Badge variant="outline" className="text-xs">{column.type}</Badge>
                                   {column.primaryKey && <Badge className="text-xs bg-blue-500">PK</Badge>}
                                   {column.unique && <Badge className="text-xs bg-green-500">UNIQUE</Badge>}
-                                  {column.references && (
+                                  {column.foreignKey && (
                                     <Badge className="text-xs bg-purple-500">
-                                      FK → {column.references.table}
+                                      FK → {column.foreignKey.table}
                                     </Badge>
                                   )}
                                 </div>
@@ -291,11 +292,11 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
                             ))}
                           </div>
 
-                          {table.policies && table.policies.length > 0 && (
+                          {table.rlsPolicies && table.rlsPolicies.length > 0 && (
                             <div className="mt-3">
                               <h5 className="text-sm font-medium mb-2">RLS Policies:</h5>
                               <div className="space-y-1">
-                                {table.policies.map((policy, policyIndex) => (
+                                {table.rlsPolicies.map((policy, policyIndex) => (
                                   <div key={policyIndex} className="text-xs bg-blue-50 p-2 rounded">
                                     <span className="font-semibold">{policy.operation}:</span> {policy.name}
                                   </div>
@@ -429,32 +430,29 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
                         <span className="text-base">{service.name}</span>
                         <Badge variant="secondary">{service.type}</Badge>
                       </CardTitle>
-                      <CardDescription>{service.description}</CardDescription>
+                      <CardDescription>Backend service for {service.type} operations</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
                         <div>
-                          <h5 className="text-sm font-medium mb-1">Template:</h5>
-                          <p className="text-sm text-gray-600">{service.template.description}</p>
-                        </div>
-
-                        <div>
-                          <h5 className="text-sm font-medium mb-1">Files:</h5>
+                          <h5 className="text-sm font-medium mb-1">Endpoints:</h5>
                           <div className="space-y-1">
-                            {service.template.files.map((file, fileIndex) => (
-                              <div key={fileIndex} className="text-xs bg-gray-50 p-2 rounded flex items-center justify-between">
-                                <code>{file.path}</code>
-                                <Badge variant="outline" className="text-xs">{file.type}</Badge>
+                            {service.endpoints.map((endpoint, endpointIndex) => (
+                              <div key={endpointIndex} className="text-xs bg-gray-50 p-2 rounded flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Badge variant="outline" className="text-xs">{endpoint.method}</Badge>
+                                  <code className="text-xs">{endpoint.path}</code>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {service.template.dependencies.length > 0 && (
+                        {service.dependencies.length > 0 && (
                           <div>
                             <h5 className="text-sm font-medium mb-1">Dependencies:</h5>
                             <div className="flex flex-wrap gap-1">
-                              {service.template.dependencies.map((dep, depIndex) => (
+                              {service.dependencies.map((dep, depIndex) => (
                                 <Badge key={depIndex} variant="outline" className="text-xs">{dep}</Badge>
                               ))}
                             </div>
@@ -465,16 +463,16 @@ export const DatabaseBackendGenerator: React.FC<DatabaseBackendGeneratorProps> =
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => copyToClipboard(JSON.stringify(service, null, 2))}
+                            onClick={() => copyToClipboard(service.implementation.code)}
                           >
                             <Copy className="w-3 h-3 mr-1" />
-                            Copy
+                            Copy Code
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => downloadFile(
-                              service.template.files[0]?.content || '',
+                              service.implementation.code,
                               `${service.name.toLowerCase().replace(/\s+/g, '-')}.ts`
                             )}
                           >
