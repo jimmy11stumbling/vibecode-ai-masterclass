@@ -138,8 +138,8 @@ const products = [
 const App = () => {
   const [cart, setCart] = useState([]);
 
-  const addToCart = (template) => {
-    setCart([...cart, template]);
+  const addToCart = (product) => {
+    setCart([...cart, product]);
   };
 
   return (
@@ -156,14 +156,14 @@ const App = () => {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {products.map((template) => (
-            <div key={template.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {products.map((product) => (
+            <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="h-48 bg-gray-200"></div>
               <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                <p className="text-2xl font-bold text-green-600 mt-2">${template.price}</p>
+                <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
+                <p className="text-2xl font-bold text-green-600 mt-2">${product.price}</p>
                 <button
-                  onClick={() => addToCart(template)}
+                  onClick={() => addToCart(product)}
                   className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Add to Cart
