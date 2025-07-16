@@ -56,7 +56,7 @@ interface ProjectFile {
   content?: string;
   language?: string;
   children?: ProjectFile[];
-  path?: string;
+  path: string;
   size?: number;
   lastModified?: Date;
 }
@@ -289,10 +289,10 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
         await executeTask(task, updatedPlan);
       }
 
-      // Mark plan as completed
-      updatedPlan.status = 'completed';
-      setCurrentPlan(updatedPlan);
-      setBuildHistory(prev => [updatedPlan, ...prev]);
+      // Mark plan as completed - Fix: use correct status type
+      const completedPlan = { ...updatedPlan, status: 'completed' as const };
+      setCurrentPlan(completedPlan);
+      setBuildHistory(prev => [completedPlan, ...prev]);
       
       addLog('success', 'Build plan execution completed successfully!', 'Orchestrator');
       
@@ -695,7 +695,16 @@ export const TrueAIAgent: React.FC<TrueAIAgentProps> = ({
 
             <TabsContent value="progress" className="h-full m-0">
               <div className="h-full p-4">
-                <SovereignRealTimeProgress />
+                <SovereignRealTimeProgress 
+                  isActive={isProcessing}
+                  currentOperation={currentPlan?.status === 'executing' ? 'Executing Build Plan' : 'Idle'}
+                  steps={currentPlan?.tasks.map(task => ({
+                    id: task.id,
+                    name: task.description,
+                    status: task.status as any,
+                    progress: task.progress
+                  })) || []}
+                />
                 <div className="mt-4">
                   <AgentWorkflowVisualizer />
                 </div>

@@ -385,7 +385,7 @@ const FullIDE = () => {
                       <TabsContent value="sovereign-control" className="flex-1 m-0 overflow-hidden">
                         <TrueAIAgent
                           projectFiles={projectFiles}
-                          onFilesChange={setProjectFiles}
+                          onFilesChange={handleFilesChange}
                           onCodeGenerated={(code) => {
                             console.log('Sovereign AI generated code:', code);
                             handleSovereignRequest(code);
@@ -403,7 +403,7 @@ const FullIDE = () => {
                         <ScrollArea className="h-full">
                           <EnhancedAIChatBot
                             projectFiles={projectFiles}
-                            onFilesChange={setProjectFiles}
+                            onFilesChange={handleFilesChange}
                             onCodeGenerated={(code) => console.log('Agent code generated:', code)}
                           />
                         </ScrollArea>
