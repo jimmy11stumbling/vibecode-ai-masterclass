@@ -58,9 +58,9 @@ interface LogEntry {
 }
 
 const FullIDE = () => {
-  const [activeFile, setActiveFile] = useState<any>(null);
-  const [projectFiles, setProjectFiles] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [activeFile, setActiveFile] = useState<ProjectFile | null>(null);
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
   const [activeAITab, setActiveAITab] = useState('true-agent');
   const [activeToolTab, setActiveToolTab] = useState('database');
@@ -163,9 +163,7 @@ const FullIDE = () => {
                 </div>
                 
                 <TabsContent value="files" className="flex-1 m-0">
-                  <FileExplorer 
-                    onFileSelect={setActiveFile}
-                  />
+                  <FileExplorer onFileSelect={handleFileSelect} />
                 </TabsContent>
                 
                 <TabsContent value="tools" className="flex-1 m-0">
@@ -186,7 +184,7 @@ const FullIDE = () => {
                       </div>
                       
                       <TabsContent value="database" className="flex-1 m-0">
-                        <DatabaseManager />
+                        <DatabaseManager onSchemaChange={() => {}} />
                       </TabsContent>
                       
                       <TabsContent value="deploy" className="flex-1 m-0">
@@ -195,6 +193,7 @@ const FullIDE = () => {
                       
                       <TabsContent value="mobile" className="flex-1 m-0">
                         <MobileExpoIntegration 
+                          projectFiles={projectFiles}
                           onProjectUpdate={() => {}}
                         />
                       </TabsContent>
@@ -215,7 +214,7 @@ const FullIDE = () => {
                 <div className="h-full bg-slate-900 border-b border-slate-700">
                   <MonacoCodeEditor
                     file={activeFile}
-                    onChange={(content) => {
+                    onContentChange={(fileId, content) => {
                       if (activeFile) {
                         setProjectFiles(prev => 
                           prev.map(f => f.id === activeFile.id ? { ...f, content } : f)

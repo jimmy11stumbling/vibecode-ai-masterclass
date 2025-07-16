@@ -11,7 +11,7 @@ interface CodeFile {
 }
 
 interface MonacoCodeEditorProps {
-  file: CodeFile;
+  file: CodeFile | null;
   onContentChange: (fileId: string, content: string) => void;
   onRun?: (code: string) => void;
   onSave?: () => void;
@@ -31,6 +31,20 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [wordCount, setWordCount] = useState(0);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Early return if no file is provided
+  if (!file) {
+    return (
+      <div className={`flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+        <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-2">
+          <span className="text-sm text-slate-300">No file selected</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center text-slate-400">
+          <p>Select a file to start editing</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
