@@ -305,7 +305,7 @@ class SovereignSystemInitializer {
     await a2aProtocol.sendMessage({
       fromAgent: 'sovereign_system',
       toAgent: 'task_dispatcher',
-      type: 'task_assignment',
+      type: 'task',
       content: { taskId, task }
     });
 
