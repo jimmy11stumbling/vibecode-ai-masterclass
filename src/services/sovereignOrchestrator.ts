@@ -1,7 +1,7 @@
 
 import { createDeepSeekReasonerCore } from './deepSeekReasonerCore';
 import { a2aProtocol } from './a2aProtocolCore';
-import { SpecializedAgents } from './specializedAgents';
+import { BaseAgent, ArchitectAgent, BuilderAgent, ValidatorAgent, OptimizerAgent, LibrarianAgent } from './specializedAgents';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -10,19 +10,40 @@ export type SovereignTask = Tables<'sovereign_tasks'>;
 export type ProjectSpec = Tables<'project_specs'>;
 export type AgentCapability = Tables<'agent_capabilities'>;
 
+// Agent registry to manage specialized agents
+class AgentRegistry {
+  private agents: Map<string, BaseAgent> = new Map();
+
+  constructor() {
+    // Initialize specialized agents
+    this.agents.set('architect', new ArchitectAgent('architect', 'Designs application architecture'));
+    this.agents.set('builder', new BuilderAgent('builder', 'Builds frontend components'));
+    this.agents.set('validator', new ValidatorAgent('validator', 'Validates code quality'));
+    this.agents.set('optimizer', new OptimizerAgent('optimizer', 'Optimizes performance'));
+    this.agents.set('librarian', new LibrarianAgent('librarian', 'Manages knowledge base'));
+  }
+
+  getAgent(type: string): BaseAgent | null {
+    return this.agents.get(type) || null;
+  }
+
+  getAllAgents(): BaseAgent[] {
+    return Array.from(this.agents.values());
+  }
+}
+
 export class SovereignOrchestrator {
   private deepSeekReasoner: any;
-  private specializedAgents: SpecializedAgents;
+  private agentRegistry: AgentRegistry;
   private apiKey: string | null = null;
 
   constructor() {
-    this.specializedAgents = new SpecializedAgents();
+    this.agentRegistry = new AgentRegistry();
   }
 
   setApiKey(apiKey: string) {
     this.apiKey = apiKey;
-    this.deepSeekReasoner = createDeepSeekReasonerCore();
-    this.deepSeekReasoner.setApiKey(apiKey);
+    this.deepSeekReasoner = createDeepSeekReasonerCore(apiKey);
     console.log('👑 Sovereign Orchestrator: API key configured');
   }
 
@@ -136,13 +157,15 @@ Return only valid JSON.`;
     const lowerTask = taskStr.toLowerCase();
 
     if (lowerTask.includes('ui') || lowerTask.includes('interface') || lowerTask.includes('component')) {
-      return 'frontend';
+      return 'builder';
     } else if (lowerTask.includes('api') || lowerTask.includes('backend') || lowerTask.includes('server')) {
       return 'backend';
     } else if (lowerTask.includes('database') || lowerTask.includes('data')) {
       return 'database';
     } else if (lowerTask.includes('test') || lowerTask.includes('testing')) {
-      return 'testing';
+      return 'validator';
+    } else if (lowerTask.includes('architecture') || lowerTask.includes('design')) {
+      return 'architect';
     } else {
       return 'general';
     }
@@ -184,21 +207,37 @@ Return only valid JSON.`;
         .eq('id', task.id);
 
       // Get the appropriate specialized agent
-      const agent = this.specializedAgents.getAgent(task.type);
+      const agent = this.agentRegistry.getAgent(task.type);
       
       if (!agent) {
         throw new Error(`No agent available for task type: ${task.type}`);
       }
 
+      // Create a mock project context for the agent
+      const projectContext = {
+        id: task.execution_id,
+        name: 'Generated Project',
+        description: task.description,
+        techStack: ['React', 'TypeScript'],
+        files: []
+      };
+
+      // Create agent task from sovereign task
+      const agentTask = {
+        id: task.id,
+        description: task.description,
+        context: task.metadata
+      };
+
       // Execute the task using the specialized agent
-      const result = await agent.executeTask(task);
+      const result = await agent.executeTask(agentTask, projectContext);
 
       // Update task with results
       await supabase
         .from('sovereign_tasks')
         .update({ 
           status: 'completed',
-          result: result,
+          result: { agentResponse: result },
           updated_at: new Date().toISOString()
         })
         .eq('id', task.id);
