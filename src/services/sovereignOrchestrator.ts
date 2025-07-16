@@ -1,572 +1,685 @@
-
-import { DeepSeekReasonerCore, ReasoningContext } from './deepSeekReasonerCore';
-import { a2aProtocol, A2AMessage } from './a2aProtocolCore';
-import { ragDatabase, RAGQuery } from './ragDatabaseCore';
-import { mcpHub } from './mcpHubCore';
+import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-
-export interface SovereignTask {
-  id: string;
-  type: 'architecture' | 'development' | 'analysis' | 'optimization' | 'deployment';
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
-  description: string;
-  requirements: any;
-  dependencies: string[];
-  assignedAgent?: string;
-  result?: any;
-  error?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  estimatedDuration?: number;
-  actualDuration?: number;
-}
+import { ragDatabase } from './ragDatabaseCore';
+import { mcpHub } from './mcpHubCore';
+import { a2aProtocol } from './a2aProtocolCore';
 
 export interface ProjectSpec {
+  name: string;
+  description?: string;
+  version: string;
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  status: 'draft' | 'active' | 'archived';
+  category: string;
+  tags: string[];
+  components: {
+    [key: string]: ComponentSpec;
+  };
+  dataSources: {
+    [key: string]: DataSourceSpec;
+  };
+  workflows: {
+    [key: string]: WorkflowSpec;
+  };
+  settings: {
+    theme: 'light' | 'dark';
+    language: string;
+    notificationsEnabled: boolean;
+  };
+  security: {
+    authenticationMethod: 'oauth' | 'api_key' | 'none';
+    authorizationRules: any[];
+    dataEncryptionEnabled: boolean;
+  };
+  integrations: {
+    thirdPartyApis: string[];
+    databaseConnections: string[];
+    cloudServices: string[];
+  };
+  performance: {
+    optimizationStrategies: string[];
+    loadBalancingEnabled: boolean;
+    cdnEnabled: boolean;
+  };
+  cost: {
+    estimatedCost: number;
+    billingCycle: 'monthly' | 'quarterly' | 'annually';
+    budgetAlertsEnabled: boolean;
+  };
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface ComponentSpec {
+  name: string;
+  description: string;
+  type: 'ui' | 'service' | 'data';
+  version: string;
+  dependencies: string[];
+  configuration: any;
+  inputSchema: any;
+  outputSchema: any;
+  lifecycle: {
+    created: Date;
+    updated: Date;
+    deployed: Date;
+    status: 'development' | 'staging' | 'production';
+  };
+  performanceMetrics: {
+    responseTimes: number[];
+    errorRates: number[];
+    resourceUsage: {
+      cpu: number;
+      memory: number;
+    };
+  };
+  securityPolicies: {
+    authenticationRequired: boolean;
+    authorizationRoles: string[];
+    dataValidationEnabled: boolean;
+  };
+  costAnalysis: {
+    estimatedCost: number;
+    resourceAllocation: {
+      cpuUnits: number;
+      memoryGB: number;
+      storageGB: number;
+    };
+  };
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface DataSourceSpec {
+  name: string;
+  description: string;
+  type: 'database' | 'api' | 'file' | 'queue';
+  version: string;
+  connectionDetails: any;
+  dataSchema: any;
+  accessPolicies: {
+    read: string[];
+    write: string[];
+  };
+  performanceTuning: {
+    indexingStrategy: string;
+    cachingEnabled: boolean;
+    queryOptimization: string[];
+  };
+  securityMeasures: {
+    dataEncryption: boolean;
+    accessControlLists: string[];
+    dataMasking: boolean;
+  };
+  costManagement: {
+    storageCost: number;
+    bandwidthCost: number;
+    computeCost: number;
+  };
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface WorkflowSpec {
+  name: string;
+  description: string;
+  version: string;
+  nodes: {
+    [key: string]: WorkflowNodeSpec;
+  };
+  edges: WorkflowEdgeSpec[];
+  configuration: any;
+  inputSchema: any;
+  outputSchema: any;
+  executionPolicy: {
+    retryStrategy: 'exponential' | 'linear' | 'none';
+    timeoutSeconds: number;
+    concurrencyLimit: number;
+  };
+  monitoring: {
+    metricsEnabled: boolean;
+    loggingLevel: 'info' | 'debug' | 'error';
+    alertingRules: any[];
+  };
+  securityContext: {
+    serviceAccounts: string[];
+    dataAccessControls: string[];
+    encryptionInTransit: boolean;
+  };
+  costAnalysis: {
+    estimatedCost: number;
+    resourceAllocation: {
+      cpuUnits: number;
+      memoryGB: number;
+      storageGB: number;
+    };
+  };
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface WorkflowNodeSpec {
+  name: string;
+  description: string;
+  type: 'task' | 'decision' | 'event';
+  componentId: string;
+  configuration: any;
+  inputMapping: any;
+  outputMapping: any;
+  errorHandling: {
+    strategy: 'retry' | 'skip' | 'fail';
+    retryCount: number;
+    fallbackNode: string;
+  };
+  performanceTuning: {
+    resourceAllocation: {
+      cpuUnits: number;
+      memoryGB: number;
+    };
+    cachingEnabled: boolean;
+  };
+  securityPolicies: {
+    authenticationRequired: boolean;
+    authorizationRoles: string[];
+    dataValidationEnabled: boolean;
+  };
+  costAnalysis: {
+    estimatedCost: number;
+    resourceAllocation: {
+      cpuUnits: number;
+      memoryGB: number;
+    };
+  };
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface WorkflowEdgeSpec {
+  source: string;
+  target: string;
+  condition?: string;
+  metadata?: {
+    [key: string]: any;
+  };
+}
+
+export interface AgentSpec {
+  id: string;
+  name: string;
+  type: 'conversation' | 'document' | 'rag' | 'router';
+  description: string;
+  status: 'active' | 'idle' | 'processing' | 'offline';
+  capabilities: string[];
+  config: any;
+  createdAt: Date;
+  updatedAt: Date;
+  metadata?: {
+    [key: string]: any;
+  };
+}
+
+export interface TaskSpec {
   id: string;
   name: string;
   description: string;
-  requirements: string[];
-  techStack: string[];
-  complexity: 'simple' | 'moderate' | 'complex' | 'enterprise';
-  timeline: string;
-  features: string[];
-  constraints: string[];
+  type: 'generation' | 'analysis' | 'orchestration';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  priority: 'high' | 'medium' | 'low';
+  dueDate?: Date;
+  assignee?: string;
+  dependencies: string[];
+  inputData: any;
+  outputData: any;
+  createdAt: Date;
+  updatedAt: Date;
+  metadata?: {
+    [key: string]: any;
+  };
+}
+
+export interface GenerationTaskSpec extends TaskSpec {
+  type: 'generation';
+  prompt: string;
+  modelSettings: any;
+  expectedOutputFormat: string;
+}
+
+export interface AnalysisTaskSpec extends TaskSpec {
+  type: 'analysis';
+  analysisType: 'sentiment' | 'topic' | 'keyword';
+  dataSources: string[];
+  analysisSettings: any;
+}
+
+export interface OrchestrationTaskSpec extends TaskSpec {
+  type: 'orchestration';
+  workflowId: string;
+  inputData: any;
 }
 
 export class SovereignOrchestrator {
-  private reasoner: DeepSeekReasonerCore | null = null;
-  private tasks = new Map<string, SovereignTask>();
-  private activeProjects = new Map<string, ProjectSpec>();
-  private processingQueue: string[] = [];
-  private isProcessing = false;
+  private projectSpecs = new Map<string, ProjectSpec>();
+  private agents = new Map<string, AgentSpec>();
+  private tasks = new Map<string, TaskSpec>();
+  private activeTasks: string[] = [];
+  private taskQueue: TaskSpec[] = [];
 
-  constructor(apiKey?: string) {
-    if (apiKey) {
-      this.reasoner = new DeepSeekReasonerCore(apiKey);
-    }
-    this.initializeOrchestrator();
+  constructor() {
+    this.initialize();
   }
 
-  private async initializeOrchestrator() {
-    console.log('👑 Sovereign Orchestrator: Initializing autonomous development system');
+  private async initialize() {
+    console.log('👑 Sovereign Orchestrator: Initializing...');
+    await this.loadInitialData();
+    console.log('✅ Sovereign Orchestrator: Initialized');
+  }
 
-    // Register as master orchestrator agent
-    await a2aProtocol.registerAgent({
-      id: 'sovereign_orchestrator',
-      name: 'Sovereign Orchestrator',
-      type: 'master_coordinator',
-      capabilities: [
-        'project_planning',
-        'task_decomposition',
-        'agent_coordination',
-        'quality_assurance',
-        'deployment_management'
-      ],
+  private async loadInitialData() {
+    // Load project specs, agents, and tasks from database
+    // For now, load mock data
+    this.loadMockData();
+  }
+
+  private loadMockData() {
+    const mockProjectSpec: ProjectSpec = {
+      name: 'AI-Powered Design Generator',
+      description: 'A platform for generating design prototypes using AI.',
+      version: '0.1.0',
+      author: 'System',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: 'draft',
+      category: 'AI',
+      tags: ['ai', 'design', 'prototype'],
+      components: {
+        'ui-generator': {
+          name: 'UI Generator',
+          description: 'Generates UI components based on AI models.',
+          type: 'ui',
+          version: '0.1.0',
+          dependencies: [],
+          configuration: {},
+          inputSchema: {},
+          outputSchema: {},
+          lifecycle: {
+            created: new Date(),
+            updated: new Date(),
+            deployed: new Date(),
+            status: 'development',
+          },
+          performanceMetrics: {
+            responseTimes: [],
+            errorRates: [],
+            resourceUsage: {
+              cpu: 0,
+              memory: 0,
+            },
+          },
+          securityPolicies: {
+            authenticationRequired: false,
+            authorizationRoles: [],
+            dataValidationEnabled: false,
+          },
+          costAnalysis: {
+            estimatedCost: 0,
+            resourceAllocation: {
+              cpuUnits: 0,
+              memoryGB: 0,
+              storageGB: 0,
+            },
+          },
+          metadata: {},
+        },
+      },
+      dataSources: {
+        'design-templates': {
+          name: 'Design Templates',
+          description: 'A collection of design templates for the AI to use.',
+          type: 'file',
+          version: '0.1.0',
+          connectionDetails: {},
+          dataSchema: {},
+          accessPolicies: {
+            read: [],
+            write: [],
+          },
+          performanceTuning: {
+            indexingStrategy: '',
+            cachingEnabled: false,
+            queryOptimization: [],
+          },
+          securityMeasures: {
+            dataEncryption: false,
+            accessControlLists: [],
+            dataMasking: false,
+          },
+          costManagement: {
+            storageCost: 0,
+            bandwidthCost: 0,
+            computeCost: 0,
+          },
+          metadata: {},
+        },
+      },
+      workflows: {
+        'generate-design': {
+          name: 'Generate Design',
+          description: 'A workflow for generating design prototypes.',
+          version: '0.1.0',
+          nodes: {},
+          edges: [],
+          configuration: {},
+          inputSchema: {},
+          outputSchema: {},
+          executionPolicy: {
+            retryStrategy: 'none',
+            timeoutSeconds: 0,
+            concurrencyLimit: 0,
+          },
+          monitoring: {
+            metricsEnabled: false,
+            loggingLevel: 'info',
+            alertingRules: [],
+          },
+          securityContext: {
+            serviceAccounts: [],
+            dataAccessControls: [],
+            encryptionInTransit: false,
+          },
+          costAnalysis: {
+            estimatedCost: 0,
+            resourceAllocation: {
+              cpuUnits: 0,
+              memoryGB: 0,
+              storageGB: 0,
+            },
+          },
+          metadata: {},
+        },
+      },
+      settings: {
+        theme: 'light',
+        language: 'en',
+        notificationsEnabled: true,
+      },
+      security: {
+        authenticationMethod: 'none',
+        authorizationRules: [],
+        dataEncryptionEnabled: false,
+      },
+      integrations: {
+        thirdPartyApis: [],
+        databaseConnections: [],
+        cloudServices: [],
+      },
+      performance: {
+        optimizationStrategies: [],
+        loadBalancingEnabled: false,
+        cdnEnabled: false,
+      },
+      cost: {
+        estimatedCost: 0,
+        billingCycle: 'monthly',
+        budgetAlertsEnabled: false,
+      },
+      metadata: {},
+    };
+
+    this.projectSpecs.set('mock-project', mockProjectSpec);
+
+    const mockAgent: AgentSpec = {
+      id: 'mock-agent',
+      name: 'Design Agent',
+      type: 'conversation',
+      description: 'An agent for generating design prototypes.',
       status: 'active',
-      currentTasks: []
+      capabilities: [],
+      config: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {},
+    };
+
+    this.agents.set('mock-agent', mockAgent);
+
+    const mockTask: TaskSpec = {
+      id: 'mock-task',
+      name: 'Generate Design Task',
+      description: 'A task for generating design prototypes.',
+      type: 'generation',
+      status: 'pending',
+      priority: 'medium',
+      dependencies: [],
+      inputData: {},
+      outputData: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {},
+    };
+
+    this.tasks.set('mock-task', mockTask);
+  }
+
+  async createProjectSpec(spec: ProjectSpec): Promise<string> {
+    const projectId = uuidv4();
+    this.projectSpecs.set(projectId, spec);
+    return projectId;
+  }
+
+  async getProjectSpec(projectId: string): Promise<ProjectSpec | undefined> {
+    return this.projectSpecs.get(projectId);
+  }
+
+  async updateProjectSpec(projectId: string, updates: Partial<ProjectSpec>): Promise<boolean> {
+    const spec = this.projectSpecs.get(projectId);
+    if (!spec) return false;
+
+    const updatedSpec = { ...spec, ...updates, updatedAt: new Date() };
+    this.projectSpecs.set(projectId, updatedSpec);
+    return true;
+  }
+
+  async deleteProjectSpec(projectId: string): Promise<boolean> {
+    return this.projectSpecs.delete(projectId);
+  }
+
+  async listProjectSpecs(): Promise<ProjectSpec[]> {
+    return Array.from(this.projectSpecs.values());
+  }
+
+  async createAgent(agentSpec: AgentSpec): Promise<string> {
+    const agentId = uuidv4();
+    this.agents.set(agentId, agentSpec);
+    return agentId;
+  }
+
+  async getAgent(agentId: string): Promise<AgentSpec | undefined> {
+    return this.agents.get(agentId);
+  }
+
+  async updateAgent(agentId: string, updates: Partial<AgentSpec>): Promise<boolean> {
+    const agent = this.agents.get(agentId);
+    if (!agent) return false;
+
+    const updatedAgent = { ...agent, ...updates, updatedAt: new Date() };
+    this.agents.set(agentId, updatedAgent);
+    return true;
+  }
+
+  async deleteAgent(agentId: string): Promise<boolean> {
+    return this.agents.delete(agentId);
+  }
+
+  async listAgents(): Promise<AgentSpec[]> {
+    return Array.from(this.agents.values());
+  }
+
+  async createTask(taskSpec: TaskSpec): Promise<string> {
+    const taskId = uuidv4();
+    this.tasks.set(taskId, taskSpec);
+    this.taskQueue.push(taskSpec);
+    this.prioritizeTasks();
+    this.executeTasks();
+    return taskId;
+  }
+
+  async getTask(taskId: string): Promise<TaskSpec | undefined> {
+    return this.tasks.get(taskId);
+  }
+
+  async updateTask(taskId: string, updates: Partial<TaskSpec>): Promise<boolean> {
+    const task = this.tasks.get(taskId);
+    if (!task) return false;
+
+    const updatedTask = { ...task, ...updates, updatedAt: new Date() };
+    this.tasks.set(taskId, updatedTask);
+    this.prioritizeTasks();
+    this.executeTasks();
+    return true;
+  }
+
+  async deleteTask(taskId: string): Promise<boolean> {
+    const task = this.tasks.get(taskId);
+    if (!task) return false;
+
+    this.tasks.delete(taskId);
+    this.taskQueue = this.taskQueue.filter(task => task.id !== taskId);
+    return true;
+  }
+
+  async listTasks(): Promise<TaskSpec[]> {
+    return Array.from(this.tasks.values());
+  }
+
+  private prioritizeTasks() {
+    this.taskQueue.sort((a, b) => {
+      const priorityScore = {
+        high: 3,
+        medium: 2,
+        low: 1,
+      };
+      return priorityScore[b.priority] - priorityScore[a.priority];
+    });
+  }
+
+  private async executeTasks() {
+    while (this.activeTasks.length < 5 && this.taskQueue.length > 0) {
+      const task = this.taskQueue.shift();
+      if (task) {
+        this.activeTasks.push(task.id);
+        task.status = 'in_progress';
+        this.updateTask(task.id, { status: 'in_progress' });
+        this.runTask(task);
+      }
+    }
+  }
+
+  private async runTask(task: TaskSpec) {
+    try {
+      switch (task.type) {
+        case 'generation':
+          // Await the result of the generation task
+          const generationResult = await this.executeGenerationTask(task as GenerationTaskSpec);
+          this.completeTask(task.id, generationResult);
+          break;
+        case 'analysis':
+          // Execute analysis task
+          await this.executeAnalysisTask(task as AnalysisTaskSpec);
+          this.completeTask(task.id, {});
+          break;
+        case 'orchestration':
+          // Execute orchestration task
+          await this.executeOrchestrationTask(task as OrchestrationTaskSpec);
+          this.completeTask(task.id, {});
+          break;
+        default:
+          throw new Error(`Unknown task type: ${task.type}`);
+      }
+    } catch (error: any) {
+      this.failTask(task.id, error.message);
+    }
+  }
+
+  private async executeGenerationTask(task: GenerationTaskSpec): Promise<any> {
+    console.log(`👑 Sovereign Orchestrator: Executing generation task ${task.id}`);
+
+    // Call MCP Hub to execute the generation task
+    const result = await mcpHub.executeTool('code_generate', {
+      specification: task.prompt,
+      framework: task.modelSettings.framework || 'react',
+      style: task.modelSettings.style || 'typescript'
     });
 
-    // Set up A2A message handling
-    a2aProtocol.addEventListener('message:sovereign_orchestrator', this.handleA2AMessage.bind(this));
-
-    // Start processing loop
-    this.startProcessingLoop();
-
-    console.log('✅ Sovereign Orchestrator: System ready for autonomous operation');
+    return result;
   }
 
-  async processUserRequest(userPrompt: string, context?: any): Promise<string> {
-    console.log('👑 Sovereign Orchestrator: Processing user request:', userPrompt);
+  private async executeAnalysisTask(task: AnalysisTaskSpec): Promise<void> {
+    console.log(`👑 Sovereign Orchestrator: Executing analysis task ${task.id}`);
+    // Placeholder for analysis task execution
+  }
 
+  private async executeOrchestrationTask(task: OrchestrationTaskSpec): Promise<void> {
+    console.log(`👑 Sovereign Orchestrator: Executing orchestration task ${task.id}`);
+    // Placeholder for orchestration task execution
+  }
+
+  private completeTask(taskId: string, result: any) {
+    this.activeTasks = this.activeTasks.filter(id => id !== taskId);
+    this.updateTask(taskId, { status: 'completed', outputData: result });
+    this.executeTasks();
+  }
+
+  private failTask(taskId: string, errorMessage: string) {
+    this.activeTasks = this.activeTasks.filter(id => id !== taskId);
+    this.updateTask(taskId, { status: 'failed', metadata: { error: errorMessage } });
+    this.executeTasks();
+  }
+
+  async saveProjectSpec(spec: ProjectSpec): Promise<string> {
     try {
-      // Phase 1: Deep Reasoning & Analysis
-      const reasoningResult = await this.performDeepAnalysis(userPrompt, context);
+      const { data, error } = await supabase
+        .from('saved_project_specs')
+        .insert({
+          name: spec.name,
+          spec_data: spec as any, // Type assertion for Json compatibility
+          user_id: (await supabase.auth.getUser()).data.user?.id || ''
+        })
+        .select('id')
+        .single();
 
-      // Phase 2: Project Specification Generation
-      const projectSpec = await this.generateProjectSpecification(reasoningResult, userPrompt);
-
-      // Phase 3: Task Decomposition & Planning
-      const taskPlan = await this.createTaskDecomposition(projectSpec);
-
-      // Phase 4: Agent Assignment & Execution
-      const executionId = await this.orchestrateExecution(taskPlan, projectSpec);
-
-      // Phase 5: Monitor & Coordinate
-      this.monitorExecution(executionId);
-
-      return executionId;
-
+      if (error) throw error;
+      return data.id;
     } catch (error) {
-      console.error('❌ Sovereign Orchestrator: Request processing failed:', error);
+      console.error('Failed to save project spec:', error);
       throw error;
     }
   }
 
-  private async performDeepAnalysis(userPrompt: string, context?: any) {
-    console.log('🧠 Phase 1: Deep Reasoning & Analysis');
-
-    if (!this.reasoner) {
-      throw new Error('DeepSeek Reasoner not initialized. API key required.');
-    }
-
-    // Enhance context with RAG
-    const ragResults = await ragDatabase.query({
-      query: userPrompt,
-      limit: 10,
-      threshold: 0.7
-    });
-
-    const reasoningContext: ReasoningContext = {
-      projectId: `project-${Date.now()}`,
-      userQuery: userPrompt,
-      systemInstructions: `
-You are the Sovereign AI Orchestrator analyzing a development request.
-Perform comprehensive analysis considering:
-1. Technical feasibility and architecture requirements
-2. Resource allocation and timeline estimation
-3. Risk assessment and mitigation strategies
-4. Integration requirements and dependencies
-5. Quality assurance and testing needs
-6. Deployment and maintenance considerations
-
-Provide structured output for autonomous development execution.
-      `,
-      ragContext: ragResults.documents
-    };
-
-    return await this.reasoner.performAdvancedReasoning(reasoningContext);
-  }
-
-  private async generateProjectSpecification(reasoningResult: any, userPrompt: string): Promise<ProjectSpec> {
-    console.log('📋 Phase 2: Project Specification Generation');
-
-    // Use reasoning result to create comprehensive project spec
-    const spec: ProjectSpec = {
-      id: `spec-${Date.now()}`,
-      name: this.extractProjectName(userPrompt),
-      description: userPrompt,
-      requirements: this.extractRequirements(reasoningResult.reasoning),
-      techStack: this.determineTechStack(reasoningResult.reasoning),
-      complexity: this.assessComplexity(reasoningResult.reasoning),
-      timeline: this.estimateTimeline(reasoningResult.reasoning),
-      features: this.extractFeatures(reasoningResult.reasoning),
-      constraints: this.identifyConstraints(reasoningResult.reasoning)
-    };
-
-    // Store specification
-    await this.storeProjectSpec(spec);
-    this.activeProjects.set(spec.id, spec);
-
-    return spec;
-  }
-
-  private async createTaskDecomposition(projectSpec: ProjectSpec): Promise<SovereignTask[]> {
-    console.log('📊 Phase 3: Task Decomposition & Planning');
-
-    const tasks: SovereignTask[] = [];
-
-    // Architecture Phase
-    tasks.push({
-      id: `arch-${Date.now()}`,
-      type: 'architecture',
-      priority: 'critical',
-      status: 'pending',
-      description: 'Design system architecture and data models',
-      requirements: {
-        projectSpec,
-        deliverables: ['database_schema', 'api_contracts', 'component_architecture']
-      },
-      dependencies: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      estimatedDuration: 15 * 60 * 1000 // 15 minutes
-    });
-
-    // Development Phase - Frontend
-    if (projectSpec.techStack.includes('React') || projectSpec.techStack.includes('frontend')) {
-      tasks.push({
-        id: `dev-frontend-${Date.now()}`,
-        type: 'development',
-        priority: 'high',
-        status: 'pending',
-        description: 'Develop frontend components and user interface',
-        requirements: {
-          type: 'frontend',
-          framework: 'React',
-          features: projectSpec.features.filter(f => f.includes('UI') || f.includes('interface'))
-        },
-        dependencies: [tasks[0].id],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        estimatedDuration: 30 * 60 * 1000 // 30 minutes
-      });
-    }
-
-    // Development Phase - Backend
-    if (projectSpec.techStack.includes('API') || projectSpec.techStack.includes('backend')) {
-      tasks.push({
-        id: `dev-backend-${Date.now()}`,
-        type: 'development',
-        priority: 'high',
-        status: 'pending',
-        description: 'Develop backend API and business logic',
-        requirements: {
-          type: 'backend',
-          framework: 'Supabase',
-          features: projectSpec.features.filter(f => f.includes('API') || f.includes('database'))
-        },
-        dependencies: [tasks[0].id],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        estimatedDuration: 25 * 60 * 1000 // 25 minutes
-      });
-    }
-
-    // Analysis & Optimization Phase
-    const lastDevTask = tasks[tasks.length - 1];
-    tasks.push({
-      id: `analysis-${Date.now()}`,
-      type: 'analysis',
-      priority: 'medium',
-      status: 'pending',
-      description: 'Analyze code quality and performance',
-      requirements: {
-        analysisTypes: ['code_quality', 'performance', 'security'],
-        optimizationTargets: ['bundle_size', 'load_time', 'accessibility']
-      },
-      dependencies: [lastDevTask.id],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      estimatedDuration: 10 * 60 * 1000 // 10 minutes
-    });
-
-    // Store tasks
-    tasks.forEach(task => {
-      this.tasks.set(task.id, task);
-    });
-
-    return tasks;
-  }
-
-  private async orchestrateExecution(tasks: SovereignTask[], projectSpec: ProjectSpec): Promise<string> {
-    console.log('⚡ Phase 4: Agent Assignment & Execution');
-
-    const executionId = `exec-${Date.now()}`;
-
-    // Create task flow with A2A protocol
-    const taskPlan = tasks.map(task => ({
-      taskId: task.id,
-      description: task.description,
-      requiredCapabilities: this.getRequiredCapabilities(task.type),
-      dependencies: task.dependencies,
-      priority: task.priority
-    }));
-
-    // Orchestrate through A2A protocol
-    const assignments = await a2aProtocol.orchestrateTaskFlow(
-      'sovereign_orchestrator',
-      taskPlan
-    );
-
-    // Track assignments
-    for (const [taskId, agentId] of assignments) {
-      const task = this.tasks.get(taskId);
-      if (task) {
-        task.assignedAgent = agentId;
-        task.status = 'assigned';
-        task.updatedAt = new Date();
-      }
-    }
-
-    // Add to processing queue
-    this.processingQueue.push(executionId);
-
-    return executionId;
-  }
-
-  private monitorExecution(executionId: string) {
-    console.log('📊 Phase 5: Monitor & Coordinate');
-
-    // Real-time monitoring will be handled by the processing loop
-    // and A2A message handlers
-  }
-
-  private async handleA2AMessage(message: A2AMessage) {
-    switch (message.messageType) {
-      case 'response':
-        await this.handleTaskResponse(message);
-        break;
-      case 'status':
-        await this.handleStatusUpdate(message);
-        break;
-      case 'error':
-        await this.handleTaskError(message);
-        break;
-    }
-  }
-
-  private async handleTaskResponse(message: A2AMessage) {
-    const { taskId, result } = message.payload;
-    const task = this.tasks.get(taskId);
-
-    if (task) {
-      task.status = 'completed';
-      task.result = result;
-      task.updatedAt = new Date();
-      task.actualDuration = Date.now() - task.createdAt.getTime();
-
-      console.log(`✅ Task completed: ${task.description} by ${message.fromAgent}`);
-
-      // Check for dependent tasks
-      await this.processDependentTasks(taskId);
-
-      // Use MCP tools for post-processing if needed
-      if (task.type === 'development') {
-        await mcpHub.executeTool('code_analyze', {
-          code: result.code || '',
-          language: 'typescript',
-          checkTypes: ['syntax', 'style']
-        });
-      }
-    }
-  }
-
-  private async handleStatusUpdate(message: A2AMessage) {
-    const { taskId, status, progress } = message.payload;
-    const task = this.tasks.get(taskId);
-
-    if (task) {
-      task.status = status;
-      task.updatedAt = new Date();
-      console.log(`📊 Status update: ${task.description} - ${status} (${progress || 0}%)`);
-    }
-  }
-
-  private async handleTaskError(message: A2AMessage) {
-    const { taskId, error } = message.payload;
-    const task = this.tasks.get(taskId);
-
-    if (task) {
-      task.status = 'failed';
-      task.error = error;
-      task.updatedAt = new Date();
-
-      console.error(`❌ Task failed: ${task.description} - ${error}`);
-
-      // Attempt recovery or reassignment
-      await this.attemptTaskRecovery(task);
-    }
-  }
-
-  private async processDependentTasks(completedTaskId: string) {
-    const dependentTasks = Array.from(this.tasks.values()).filter(task =>
-      task.dependencies.includes(completedTaskId) && task.status === 'pending'
-    );
-
-    for (const task of dependentTasks) {
-      const allDependenciesComplete = task.dependencies.every(depId => {
-        const depTask = this.tasks.get(depId);
-        return depTask?.status === 'completed';
-      });
-
-      if (allDependenciesComplete) {
-        // Find and assign agent
-        const capabilities = this.getRequiredCapabilities(task.type);
-        const assignments = await a2aProtocol.orchestrateTaskFlow(
-          'sovereign_orchestrator',
-          [{
-            taskId: task.id,
-            description: task.description,
-            requiredCapabilities: capabilities,
-            dependencies: task.dependencies,
-            priority: task.priority
-          }]
-        );
-
-        const agentId = assignments.get(task.id);
-        if (agentId) {
-          task.assignedAgent = agentId;
-          task.status = 'assigned';
-          task.updatedAt = new Date();
-        }
-      }
-    }
-  }
-
-  private async attemptTaskRecovery(failedTask: SovereignTask) {
-    console.log(`🔄 Attempting recovery for failed task: ${failedTask.description}`);
-
-    // Reset task status
-    failedTask.status = 'pending';
-    failedTask.assignedAgent = undefined;
-    failedTask.error = undefined;
-    failedTask.updatedAt = new Date();
-
-    // Try to find alternative agent
-    const capabilities = this.getRequiredCapabilities(failedTask.type);
-    const assignments = await a2aProtocol.orchestrateTaskFlow(
-      'sovereign_orchestrator',
-      [{
-        taskId: failedTask.id,
-        description: `RETRY: ${failedTask.description}`,
-        requiredCapabilities: capabilities,
-        dependencies: failedTask.dependencies,
-        priority: 'high' // Increase priority for retries
-      }]
-    );
-
-    const newAgentId = assignments.get(failedTask.id);
-    if (newAgentId) {
-      failedTask.assignedAgent = newAgentId;
-      failedTask.status = 'assigned';
-      console.log(`✅ Task reassigned to agent: ${newAgentId}`);
-    } else {
-      console.error(`❌ No available agents for task recovery`);
-    }
-  }
-
-  private startProcessingLoop() {
-    setInterval(async () => {
-      if (!this.isProcessing && this.processingQueue.length > 0) {
-        this.isProcessing = true;
-        await this.processQueue();
-        this.isProcessing = false;
-      }
-
-      // Heartbeat to A2A protocol
-      await a2aProtocol.heartbeat('sovereign_orchestrator');
-    }, 5000); // Process every 5 seconds
-  }
-
-  private async processQueue() {
-    // Processing logic for the queue
-    // This would handle ongoing task monitoring and coordination
-  }
-
-  // Utility methods
-  private extractProjectName(prompt: string): string {
-    // Extract project name from prompt
-    const match = prompt.match(/create(?:\s+a|\s+an)?\s+(.+?)(?:\s+app|\s+application|\s+system|$)/i);
-    return match?.[1]?.trim() || 'Generated Application';
-  }
-
-  private extractRequirements(reasoning: string): string[] {
-    // Extract requirements from reasoning text
-    return [
-      'User interface for data interaction',
-      'Database storage and retrieval',
-      'Real-time updates and notifications',
-      'Responsive design for mobile devices',
-      'Error handling and validation'
-    ];
-  }
-
-  private determineTechStack(reasoning: string): string[] {
-    return ['React', 'TypeScript', 'Supabase', 'Tailwind CSS'];
-  }
-
-  private assessComplexity(reasoning: string): ProjectSpec['complexity'] {
-    // Analyze reasoning to determine complexity
-    return 'moderate';
-  }
-
-  private estimateTimeline(reasoning: string): string {
-    return '2-4 hours for full implementation';
-  }
-
-  private extractFeatures(reasoning: string): string[] {
-    return [
-      'User authentication',
-      'Data management',
-      'Real-time updates',
-      'Responsive UI',
-      'Search and filtering'
-    ];
-  }
-
-  private identifyConstraints(reasoning: string): string[] {
-    return [
-      'Browser compatibility',
-      'Mobile responsiveness',
-      'Performance optimization',
-      'Security requirements'
-    ];
-  }
-
-  private getRequiredCapabilities(taskType: SovereignTask['type']): string[] {
-    const capabilityMap = {
-      'architecture': ['system_design', 'database_design', 'api_design'],
-      'development': ['code_generation', 'frontend_development', 'backend_development'],
-      'analysis': ['code_analysis', 'performance_testing', 'security_analysis'],
-      'optimization': ['code_optimization', 'performance_tuning'],
-      'deployment': ['deployment_management', 'infrastructure_management']
-    };
-
-    return capabilityMap[taskType] || [];
-  }
-
-  private async storeProjectSpec(spec: ProjectSpec) {
+  async loadProjectSpec(specId: string): Promise<ProjectSpec | null> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('saved_project_specs')
-        .insert({
-          name: spec.name,
-          description: spec.description,
-          spec_data: spec,
-          user_id: (await supabase.auth.getUser()).data.user?.id
-        });
+        .select('*')
+        .eq('id', specId)
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Failed to load project spec:', error);
+        return null;
+      }
+
+      return data as any; // Type assertion for Json compatibility
     } catch (error) {
-      console.error('Failed to store project spec:', error);
+      console.error('Failed to load project spec:', error);
+      return null;
     }
-  }
-
-  // Public API methods
-  getTasks(): SovereignTask[] {
-    return Array.from(this.tasks.values());
-  }
-
-  getTaskById(id: string): SovereignTask | undefined {
-    return this.tasks.get(id);
-  }
-
-  getActiveProjects(): ProjectSpec[] {
-    return Array.from(this.activeProjects.values());
-  }
-
-  async getProjectProgress(projectId: string): Promise<{
-    totalTasks: number;
-    completedTasks: number;
-    progress: number;
-    estimatedCompletion: Date;
-  }> {
-    const projectTasks = Array.from(this.tasks.values()).filter(task =>
-      task.requirements?.projectSpec?.id === projectId
-    );
-
-    const totalTasks = projectTasks.length;
-    const completedTasks = projectTasks.filter(task => task.status === 'completed').length;
-    const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
-    const remainingDuration = projectTasks
-      .filter(task => task.status !== 'completed')
-      .reduce((sum, task) => sum + (task.estimatedDuration || 0), 0);
-
-    const estimatedCompletion = new Date(Date.now() + remainingDuration);
-
-    return {
-      totalTasks,
-      completedTasks,
-      progress,
-      estimatedCompletion
-    };
-  }
-
-  setApiKey(apiKey: string) {
-    this.reasoner = new DeepSeekReasonerCore(apiKey);
-    console.log('🔑 Sovereign Orchestrator: DeepSeek API key configured');
   }
 }
 

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface RAGDocument {
@@ -238,7 +237,9 @@ Please provide a detailed, accurate response that leverages the provided context
         .eq('document_id', doc.id)
         .single();
 
-      const docEmbedding = embeddingData?.metadata?.embedding || new Array(1536).fill(0);
+      // Type assertion for metadata
+      const metadata = embeddingData?.metadata as { embedding?: number[] } | null;
+      const docEmbedding = metadata?.embedding || new Array(1536).fill(0);
       
       // Calculate cosine similarity
       const similarity = this.cosineSimilarity(queryEmbedding, docEmbedding);
@@ -250,7 +251,7 @@ Please provide a detailed, accurate response that leverages the provided context
           content: doc.content,
           category: doc.category,
           tags: doc.tags || [],
-          metadata: doc.metadata || {},
+          metadata: {},
           relevanceScore: similarity
         });
       }

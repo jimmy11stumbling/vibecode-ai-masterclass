@@ -283,7 +283,9 @@ export class MCPHubCore {
   private async handleDatabaseQuery(params: { query?: string; table?: string; filters?: any }): Promise<any> {
     try {
       if (params.table) {
-        let query = supabase.from(params.table).select('*');
+        // Use type assertion for known table names
+        const tableName = params.table as any;
+        let query = supabase.from(tableName).select('*');
         
         if (params.filters) {
           Object.entries(params.filters).forEach(([key, value]) => {
@@ -305,8 +307,10 @@ export class MCPHubCore {
 
   private async handleDatabaseInsert(params: { table: string; data: any }): Promise<any> {
     try {
+      // Use type assertion for known table names
+      const tableName = params.table as any;
       const { data, error } = await supabase
-        .from(params.table)
+        .from(tableName)
         .insert(params.data)
         .select();
 
