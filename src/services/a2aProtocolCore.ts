@@ -8,6 +8,8 @@ interface A2AAgent {
   status: 'active' | 'idle' | 'busy' | 'offline';
   lastActivity: Date;
   currentTasks?: string[];
+  role: string;
+  description: string;
 }
 
 interface A2AMessage {
@@ -28,32 +30,123 @@ class A2AProtocolCore {
   async initialize() {
     if (this.isInitialized) return;
 
-    console.log('🤝 A2A Protocol: Initializing Agent-to-Agent communication');
+    console.log('🤝 A2A Protocol: Initializing Sovereign AI Agent Swarm');
     
-    // Register default system agents
+    // Register the Sovereign AI Development Environment agents as per the blueprint
     await this.registerAgent({
       name: 'Orchestrator Agent',
       type: 'orchestrator',
-      capabilities: ['task_coordination', 'resource_management', 'priority_scheduling'],
+      role: '🧠 Project Manager',
+      description: 'The project manager. Receives user prompts, uses DeepSeek for high-level reasoning to decompose goals into task trees, and assigns tasks to other agents via A2A.',
+      capabilities: [
+        'task_decomposition', 
+        'deepseek_reasoning', 
+        'project_management', 
+        'task_assignment', 
+        'priority_scheduling',
+        'workflow_orchestration'
+      ],
       status: 'active'
     });
 
     await this.registerAgent({
-      name: 'Code Generator Agent',
-      type: 'code_generator',
-      capabilities: ['code_generation', 'refactoring', 'testing'],
+      name: 'Architect Agent',
+      type: 'architect',
+      role: '🏗️ System Designer',
+      description: 'Designs application structure. Creates file/folder layouts, defines database schemas, and outlines API contracts.',
+      capabilities: [
+        'system_architecture', 
+        'database_design', 
+        'api_contracts', 
+        'file_structure_design',
+        'schema_creation',
+        'component_planning'
+      ],
       status: 'active'
     });
 
     await this.registerAgent({
-      name: 'UI Designer Agent',
-      type: 'ui_designer',
-      capabilities: ['ui_design', 'component_creation', 'styling'],
+      name: 'Frontend Builder Agent',
+      type: 'frontend_builder',
+      role: '🛠️ Frontend Coder',
+      description: 'Specialized coder for frontend development. Writes, modifies, and deletes React/TypeScript code based on architectural specs.',
+      capabilities: [
+        'react_development', 
+        'typescript_coding', 
+        'component_creation', 
+        'ui_implementation',
+        'frontend_logic',
+        'styling_implementation'
+      ],
+      status: 'active'
+    });
+
+    await this.registerAgent({
+      name: 'Backend Builder Agent',
+      type: 'backend_builder',
+      role: '🛠️ Backend Coder',
+      description: 'Specialized coder for backend development. Creates APIs, database operations, and server-side logic.',
+      capabilities: [
+        'api_development', 
+        'database_operations', 
+        'server_logic', 
+        'authentication_systems',
+        'backend_integration',
+        'supabase_integration'
+      ],
+      status: 'active'
+    });
+
+    await this.registerAgent({
+      name: 'Validator Agent',
+      type: 'validator',
+      role: '🔎 Quality Assurance Expert',
+      description: 'The QA expert. Runs linters, type-checkers, unit tests, and validates code against requirements. Checks for build errors.',
+      capabilities: [
+        'code_validation', 
+        'linting', 
+        'type_checking', 
+        'unit_testing',
+        'build_validation',
+        'error_detection'
+      ],
+      status: 'active'
+    });
+
+    await this.registerAgent({
+      name: 'Optimizer Agent',
+      type: 'optimizer',
+      role: '✨ Refactoring Specialist',
+      description: 'Reviews code for performance improvements, better readability, and security vulnerabilities.',
+      capabilities: [
+        'performance_optimization', 
+        'code_refactoring', 
+        'security_analysis', 
+        'readability_improvement',
+        'best_practices_enforcement',
+        'vulnerability_detection'
+      ],
+      status: 'active'
+    });
+
+    await this.registerAgent({
+      name: 'Librarian Agent',
+      type: 'librarian',
+      role: '📚 Knowledge Manager',
+      description: 'Manages the RAG knowledge base. Ingests new documentation and provides relevant context to other agents when requested.',
+      capabilities: [
+        'knowledge_management', 
+        'rag_operations', 
+        'documentation_analysis', 
+        'context_provision',
+        'information_retrieval',
+        'learning_coordination'
+      ],
       status: 'active'
     });
 
     this.isInitialized = true;
-    console.log('🤝 A2A Protocol: Agent communication system initialized');
+    console.log('🤝 A2A Protocol: Sovereign AI Agent Swarm initialized with 7 specialized agents');
   }
 
   async registerAgent(agentData: Omit<A2AAgent, 'id' | 'lastActivity'>): Promise<string> {
@@ -67,7 +160,7 @@ class A2AProtocolCore {
 
     this.agents.set(agentId, agent);
     
-    console.log(`🤝 A2A Protocol: Registered agent ${agent.name} (${agentId})`);
+    console.log(`🤝 A2A Protocol: Registered ${agent.role} - ${agent.name} (${agentId})`);
     return agentId;
   }
 
