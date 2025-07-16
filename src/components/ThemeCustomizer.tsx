@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,59 +173,51 @@ const defaultTheme: ThemeConfig = {
   },
 };
 
-const createDarkTheme = (): ThemeConfig => {
-  return {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(210, 40%, 98%)',
-      background: 'hsl(222.2, 84%, 4.9%)',
-      foreground: 'hsl(210, 40%, 98%)',
-      muted: 'hsl(217.2, 32.6%, 17.5%)',
-      border: 'hsl(217.2, 32.6%, 17.5%)',
-    },
-  };
+const darkTheme: ThemeConfig = {
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(210, 40%, 98%)',
+    background: 'hsl(222.2, 84%, 4.9%)',
+    foreground: 'hsl(210, 40%, 98%)',
+    muted: 'hsl(217.2, 32.6%, 17.5%)',
+    border: 'hsl(217.2, 32.6%, 17.5%)',
+  },
 };
 
-const createBlueTheme = (): ThemeConfig => {
-  return {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(221.2, 83.2%, 53.3%)',
-      accent: 'hsl(221.2, 83.2%, 93%)',
-    },
-  };
+const blueTheme: ThemeConfig = {
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(221.2, 83.2%, 53.3%)',
+    accent: 'hsl(221.2, 83.2%, 93%)',
+  },
 };
 
-const createGreenTheme = (): ThemeConfig => {
-  return {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(142, 76%, 36%)',
-      accent: 'hsl(142, 76%, 93%)',
-    },
-  };
+const greenTheme: ThemeConfig = {
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(142, 76%, 36%)',
+    accent: 'hsl(142, 76%, 93%)',
+  },
 };
 
-const createPurpleTheme = (): ThemeConfig => {
-  return {
-    ...defaultTheme,
-    colors: {
-      ...defaultTheme.colors,
-      primary: 'hsl(262.1, 83.3%, 57.8%)',
-      accent: 'hsl(262.1, 83.3%, 93%)',
-    },
-  };
+const purpleTheme: ThemeConfig = {
+  ...defaultTheme,
+  colors: {
+    ...defaultTheme.colors,
+    primary: 'hsl(262.1, 83.3%, 57.8%)',
+    accent: 'hsl(262.1, 83.3%, 93%)',
+  },
 };
 
 const presetThemes: Record<string, ThemeConfig> = {
   default: defaultTheme,
-  dark: createDarkTheme(),
-  blue: createBlueTheme(),
-  green: createGreenTheme(),
-  purple: createPurpleTheme(),
+  dark: darkTheme,
+  blue: blueTheme,
+  green: greenTheme,
+  purple: purpleTheme,
 };
 
 export const ThemeCustomizer: React.FC = () => {
@@ -682,3 +675,4 @@ export const ThemeCustomizer: React.FC = () => {
     </div>
   );
 };
+
