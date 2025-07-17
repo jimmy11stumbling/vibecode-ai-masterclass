@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +13,11 @@ import { sovereignOrchestrator, type SovereignTask, type ProjectSpec } from '@/s
 import { a2aProtocol } from '@/services/a2aProtocolCore';
 import { mcpHub } from '@/services/mcpHubCore';
 import { ragDatabase } from '@/services/ragDatabaseCore';
+
 interface SovereignIDEProps {
   onProjectGenerated?: (project: any) => void;
 }
+
 export const SovereignIDE: React.FC<SovereignIDEProps> = ({
   onProjectGenerated
 }) => {
@@ -31,14 +34,15 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
     ragDatabase: 'active',
     deepSeekReasoner: 'pending'
   });
-  const {
-    toast
-  } = useToast();
+
+  const { toast } = useToast();
+
   useEffect(() => {
     initializeSystem();
     const interval = setInterval(refreshStatus, 5000);
     return () => clearInterval(interval);
   }, []);
+
   const initializeSystem = async () => {
     console.log('👑 Initializing Sovereign IDE System');
 
@@ -62,14 +66,17 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       description: isAnonymousMode ? "Running in demo mode - full features available with authentication" : "All systems initialized and ready for autonomous development"
     });
   };
+
   const refreshStatus = async () => {
     try {
       const projectTasks = await sovereignOrchestrator.getTasks();
       const activeAgents = a2aProtocol.getAgents();
       const activeProjects = await sovereignOrchestrator.getActiveProjects();
+
       setTasks(projectTasks);
       setAgents(activeAgents);
       setIsAnonymousMode(sovereignOrchestrator.isAnonymousMode());
+
       if (activeProjects.length > 0 && !currentProject) {
         setCurrentProject(activeProjects[0]);
       }
@@ -77,6 +84,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       console.error('Status refresh failed:', error);
     }
   };
+
   const handleGenerateApplication = async () => {
     if (!userPrompt.trim()) {
       toast({
@@ -86,6 +94,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       });
       return;
     }
+
     if (!localStorage.getItem('deepseek_api_key')) {
       toast({
         title: "API Key Required",
@@ -94,13 +103,18 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       });
       return;
     }
+
     setIsProcessing(true);
+
     try {
       console.log('👑 Sovereign IDE: Starting autonomous application generation');
       const executionId = await sovereignOrchestrator.processUserRequest(userPrompt);
+
       toast({
         title: "Generation Started",
-        description: isAnonymousMode ? `Demo generation initiated. Execution ID: ${executionId}` : `Autonomous development initiated. Execution ID: ${executionId}`
+        description: isAnonymousMode 
+          ? `Demo generation initiated. Execution ID: ${executionId}` 
+          : `Autonomous development initiated. Execution ID: ${executionId}`
       });
 
       // Start monitoring
@@ -108,13 +122,17 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
         await refreshStatus();
         const projectTasks = await sovereignOrchestrator.getTasks(executionId);
         const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+
         if (completedTasks === projectTasks.length && projectTasks.length > 0) {
           clearInterval(monitorInterval);
           setIsProcessing(false);
           toast({
             title: "Application Generated",
-            description: isAnonymousMode ? "Demo generation completed successfully!" : "Autonomous development completed successfully!"
+            description: isAnonymousMode 
+              ? "Demo generation completed successfully!" 
+              : "Autonomous development completed successfully!"
           });
+
           if (onProjectGenerated) {
             onProjectGenerated({
               executionId,
@@ -130,6 +148,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
         clearInterval(monitorInterval);
         setIsProcessing(false);
       }, 30 * 60 * 1000);
+
     } catch (error) {
       setIsProcessing(false);
       toast({
@@ -139,6 +158,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
       });
     }
   };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
@@ -151,6 +171,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
         return <Activity className="w-4 h-4 text-gray-500" />;
     }
   };
+
   const getTaskStatusColor = (status: SovereignTask['status']) => {
     switch (status) {
       case 'completed':
@@ -165,8 +186,16 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
         return 'bg-gray-500';
     }
   };
-  const samplePrompts = ["Create a modern task management application with real-time collaboration, user authentication, and project organization features", "Build a comprehensive e-commerce platform with product catalog, shopping cart, payment processing, and admin dashboard", "Develop a social media dashboard that aggregates content from multiple platforms with analytics and scheduling capabilities", "Create a knowledge management system with document upload, AI-powered search, and collaborative editing features"];
-  return <div className="h-full flex flex-col bg-slate-900 text-white">
+
+  const samplePrompts = [
+    "Create a modern task management application with real-time collaboration, user authentication, and project organization features",
+    "Build a comprehensive e-commerce platform with product catalog, shopping cart, payment processing, and admin dashboard",
+    "Develop a social media dashboard that aggregates content from multiple platforms with analytics and scheduling capabilities",
+    "Create a knowledge management system with document upload, AI-powered search, and collaborative editing features"
+  ];
+
+  return (
+    <div className="h-full flex flex-col bg-slate-900 text-white">
       {/* Header */}
       <div className="border-b border-slate-700 p-4">
         <div className="flex items-center justify-between">
@@ -177,7 +206,9 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
             <div>
               <h1 className="text-xl font-bold">Sovereign IDE</h1>
               <p className="text-sm text-slate-400">
-                {isAnonymousMode ? 'Demo Mode - Autonomous AI Development' : 'Autonomous AI Development Environment'}
+                {isAnonymousMode 
+                  ? 'Demo Mode - Autonomous AI Development' 
+                  : 'Autonomous AI Development Environment'}
               </p>
             </div>
           </div>
@@ -185,12 +216,14 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
           <div className="flex items-center space-x-4">
             {/* System Status */}
             <div className="flex items-center space-x-2">
-              {Object.entries(systemStatus).map(([system, status]) => <div key={system} className="flex items-center space-x-1">
+              {Object.entries(systemStatus).map(([system, status]) => (
+                <div key={system} className="flex items-center space-x-1">
                   {getStatusIcon(status)}
                   <span className="text-xs text-slate-400 capitalize">
                     {system.replace(/([A-Z])/g, ' $1').toLowerCase()}
                   </span>
-                </div>)}
+                </div>
+              ))}
             </div>
 
             <Button variant="outline" size="sm">
@@ -201,13 +234,15 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
         </div>
 
         {/* Anonymous Mode Alert */}
-        {isAnonymousMode && <Alert className="mt-4 bg-blue-900/20 border-blue-700">
+        {isAnonymousMode && (
+          <Alert className="mt-4 bg-blue-900/20 border-blue-700">
             <Info className="w-4 h-4" />
             <AlertDescription>
               Running in demo mode. All features are available, but data won't be permanently stored. 
               Authenticate for full persistence and collaboration features.
             </AlertDescription>
-          </Alert>}
+          </Alert>
+        )}
       </div>
 
       {/* Main Content */}
@@ -248,23 +283,48 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Textarea placeholder="Describe the application you want to create..." value={userPrompt} onChange={e => setUserPrompt(e.target.value)} className="min-h-[200px] bg-slate-700 border-slate-600 text-white" disabled={isProcessing} />
+                  <Textarea
+                    placeholder="Describe the application you want to create..."
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value)}
+                    className="min-h-[200px] bg-slate-700 border-slate-600 text-white"
+                    disabled={isProcessing}
+                  />
 
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-slate-300">Quick Start Examples:</p>
                     <div className="grid grid-cols-1 gap-2">
-                      {samplePrompts.map((prompt, index) => {})}
+                      {samplePrompts.map((prompt, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          className="text-left h-auto p-3 bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300"
+                          onClick={() => setUserPrompt(prompt)}
+                          disabled={isProcessing}
+                        >
+                          <span className="text-xs leading-relaxed">{prompt}</span>
+                        </Button>
+                      ))}
                     </div>
                   </div>
 
-                  <Button onClick={handleGenerateApplication} disabled={isProcessing || !userPrompt.trim()} className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-                    {isProcessing ? <>
+                  <Button
+                    onClick={handleGenerateApplication}
+                    disabled={isProcessing || !userPrompt.trim()}
+                    className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                  >
+                    {isProcessing ? (
+                      <>
                         <Activity className="w-4 h-4 mr-2 animate-spin" />
                         {isAnonymousMode ? 'Generating Demo...' : 'Generating Autonomously...'}
-                      </> : <>
+                      </>
+                    ) : (
+                      <>
                         <Play className="w-4 h-4 mr-2" />
                         {isAnonymousMode ? 'Generate Demo Application' : 'Generate Application'}
-                      </>}
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
@@ -277,25 +337,32 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                     <span>Real-time Development Monitor</span>
                   </CardTitle>
                   <CardDescription>
-                    {isAnonymousMode ? 'Demo monitoring of autonomous development progress' : 'Live monitoring of autonomous development progress'}
+                    {isAnonymousMode 
+                      ? 'Demo monitoring of autonomous development progress' 
+                      : 'Live monitoring of autonomous development progress'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
-                    {currentProject && <div className="space-y-4">
+                    {currentProject && (
+                      <div className="space-y-4">
                         <div className="p-3 bg-slate-700 rounded-lg">
                           <h3 className="font-medium text-white">{currentProject.name}</h3>
                           <p className="text-sm text-slate-400">{currentProject.description}</p>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {currentProject.tech_stack && currentProject.tech_stack.map(tech => <Badge key={tech} variant="secondary" className="text-xs">
+                            {currentProject.tech_stack && currentProject.tech_stack.map((tech) => (
+                              <Badge key={tech} variant="secondary" className="text-xs">
                                 {tech}
-                              </Badge>)}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
 
                         <div className="space-y-2">
                           <h4 className="font-medium text-white">Active Tasks</h4>
-                          {tasks.length > 0 ? tasks.map(task => <div key={task.id} className="flex items-center space-x-3 p-2 bg-slate-700 rounded">
+                          {tasks.length > 0 ? (
+                            tasks.map((task) => (
+                              <div key={task.id} className="flex items-center space-x-3 p-2 bg-slate-700 rounded">
                                 <div className={`w-3 h-3 rounded-full ${getTaskStatusColor(task.status)}`} />
                                 <div className="flex-1">
                                   <p className="text-sm text-white">{task.description}</p>
@@ -306,19 +373,28 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                                 <Badge variant="outline" className="text-xs">
                                   {task.status}
                                 </Badge>
-                              </div>) : <p className="text-slate-400 text-sm">No active tasks</p>}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-slate-400 text-sm">No active tasks</p>
+                          )}
                         </div>
-                      </div>}
+                      </div>
+                    )}
 
-                    {!currentProject && !isProcessing && <div className="flex items-center justify-center h-full text-slate-400">
+                    {!currentProject && !isProcessing && (
+                      <div className="flex items-center justify-center h-full text-slate-400">
                         <div className="text-center">
                           <Crown className="w-12 h-12 mx-auto mb-4 opacity-50" />
                           <p>Ready for autonomous development</p>
                           <p className="text-sm">
-                            {isAnonymousMode ? 'Describe your application to begin demo' : 'Describe your application to begin'}
+                            {isAnonymousMode 
+                              ? 'Describe your application to begin demo' 
+                              : 'Describe your application to begin'}
                           </p>
                         </div>
-                      </div>}
+                      </div>
+                    )}
                   </ScrollArea>
                 </CardContent>
               </Card>
@@ -329,7 +405,8 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
           <TabsContent value="tasks" className="flex-1 p-6">
             <ScrollArea className="h-full">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tasks.map(task => <Card key={task.id} className="bg-slate-800 border-slate-700">
+                {tasks.map((task) => (
+                  <Card key={task.id} className="bg-slate-800 border-slate-700">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm">{task.type}</CardTitle>
@@ -347,7 +424,8 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                         </span>
                       </div>
                     </CardContent>
-                  </Card>)}
+                  </Card>
+                ))}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -355,7 +433,8 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
           {/* Agents Tab */}
           <TabsContent value="agents" className="flex-1 p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {agents.map(agent => <Card key={agent.id} className="bg-slate-800 border-slate-700">
+              {agents.map((agent) => (
+                <Card key={agent.id} className="bg-slate-800 border-slate-700">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">{agent.name}</CardTitle>
                     <CardDescription className="text-xs">{agent.type}</CardDescription>
@@ -364,7 +443,10 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-400">Status</span>
-                        <Badge variant={agent.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                        <Badge 
+                          variant={agent.status === 'active' ? 'default' : 'secondary'} 
+                          className="text-xs"
+                        >
                           {agent.status}
                         </Badge>
                       </div>
@@ -373,13 +455,16 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                         <span className="text-xs text-white">{agent.currentTasks?.length || 0}</span>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {(agent.capabilities || []).slice(0, 3).map((cap: string) => <Badge key={cap} variant="secondary" className="text-xs">
+                        {(agent.capabilities || []).slice(0, 3).map((cap: string) => (
+                          <Badge key={cap} variant="secondary" className="text-xs">
                             {cap}
-                          </Badge>)}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </CardContent>
-                </Card>)}
+                </Card>
+              ))}
             </div>
           </TabsContent>
 
@@ -395,17 +480,19 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {Object.entries({
-                  'DeepSeek Reasoner': 'Core AI reasoning engine',
-                  'A2A Protocol': 'Agent-to-agent communication',
-                  'MCP Hub': 'Tool coordination and execution',
-                  'RAG Database': 'Knowledge base and context'
-                }).map(([system, description]) => <div key={system} className="flex items-center space-x-3">
+                    'DeepSeek Reasoner': 'Core AI reasoning engine',
+                    'A2A Protocol': 'Agent-to-agent communication',
+                    'MCP Hub': 'Tool coordination and execution',
+                    'RAG Database': 'Knowledge base and context'
+                  }).map(([system, description]) => (
+                    <div key={system} className="flex items-center space-x-3">
                       {getStatusIcon(systemStatus[system.toLowerCase().replace(/\s+/g, '')] || 'active')}
                       <div>
                         <p className="text-sm font-medium text-white">{system}</p>
                         <p className="text-xs text-slate-400">{description}</p>
                       </div>
-                    </div>)}
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
@@ -440,17 +527,20 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({
                     </div>
                   </div>
                   
-                  {isAnonymousMode && <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-700">
+                  {isAnonymousMode && (
+                    <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-700">
                       <p className="text-xs text-blue-300">
                         Demo Mode: Metrics shown are for demonstration. 
                         Authenticate for real-time performance tracking.
                       </p>
-                    </div>}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
         </Tabs>
       </div>
-    </div>;
+    </div>
+  );
 };
