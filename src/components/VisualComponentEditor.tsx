@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Layout, 
   Plus, 
@@ -20,13 +21,20 @@ import {
   Palette,
   Monitor,
   Smartphone,
-  Tablet
+  Tablet,
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Italic,
+  Underline
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ComponentElement {
   id: string;
-  type: 'div' | 'button' | 'input' | 'text' | 'image' | 'card' | 'grid' | 'flex';
+  type: 'div' | 'button' | 'input' | 'text' | 'image' | 'card' | 'grid' | 'flex' | 'heading';
   props: Record<string, any>;
   children: ComponentElement[];
   styles: Record<string, string>;
@@ -39,6 +47,7 @@ interface VisualEditorState {
   selectedElement: string | null;
   viewport: 'desktop' | 'tablet' | 'mobile';
   zoom: number;
+  editingText: string | null;
 }
 
 export const VisualComponentEditor: React.FC = () => {
@@ -46,18 +55,22 @@ export const VisualComponentEditor: React.FC = () => {
     elements: [],
     selectedElement: null,
     viewport: 'desktop',
-    zoom: 1
+    zoom: 1,
+    editingText: null
   });
   
   const [isDragging, setIsDragging] = useState(false);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
+  const [tempText, setTempText] = useState('');
   const canvasRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const componentLibrary = [
     { type: 'text', label: 'Text', icon: '📝' },
+    { type: 'heading', label: 'Heading', icon: '📰' },
     { type: 'button', label: 'Button', icon: '🔘' },
     { type: 'input', label: 'Input', icon: '📝' },
     { type: 'image', label: 'Image', icon: '🖼️' },
@@ -75,7 +88,7 @@ export const VisualComponentEditor: React.FC = () => {
       children: [],
       styles: getDefaultStyles(type),
       position,
-      size: { width: 200, height: 100 }
+      size: { width: 200, height: 50 }
     };
     
     setEditorState(prev => ({
@@ -93,11 +106,13 @@ export const VisualComponentEditor: React.FC = () => {
   const getDefaultProps = (type: ComponentElement['type']): Record<string, any> => {
     switch (type) {
       case 'button':
-        return { children: 'Click me', variant: 'default' };
+        return { children: 'Button', variant: 'default' };
       case 'input':
         return { placeholder: 'Enter text...', type: 'text' };
       case 'text':
-        return { children: 'Sample Text', as: 'p' };
+        return { children: 'Text', as: 'p' };
+      case 'heading':
+        return { children: 'Heading', level: 'h1' };
       case 'image':
         return { src: '/placeholder.svg', alt: 'Placeholder Image' };
       case 'card':
@@ -126,7 +141,10 @@ export const VisualComponentEditor: React.FC = () => {
           fontSize: '14px',
           fontWeight: '500',
           textAlign: 'center',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
         };
       case 'input':
         return { 
@@ -142,13 +160,30 @@ export const VisualComponentEditor: React.FC = () => {
           ...baseStyles, 
           color: '#1f2937', 
           fontSize: '16px',
-          padding: '4px'
+          padding: '4px',
+          cursor: 'text',
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: '24px'
+        };
+      case 'heading':
+        return { 
+          ...baseStyles, 
+          color: '#1f2937', 
+          fontSize: '24px',
+          fontWeight: 'bold',
+          padding: '4px',
+          cursor: 'text',
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: '32px'
         };
       case 'image':
         return { 
           ...baseStyles, 
           borderRadius: '6px',
-          objectFit: 'cover'
+          objectFit: 'cover',
+          backgroundColor: '#f3f4f6'
         };
       case 'card':
         return { 
@@ -189,6 +224,40 @@ export const VisualComponentEditor: React.FC = () => {
     }
   };
 
+  const startTextEditing = useCallback((elementId: string) => {
+    const element = editorState.elements.find(el => el.id === elementId);
+    if (element && (element.type === 'text' || element.type === 'heading' || element.type === 'button')) {
+      setEditorState(prev => ({ ...prev, editingText: elementId }));
+      setTempText(element.props.children || '');
+      setTimeout(() => {
+        textInputRef.current?.focus();
+        textInputRef.current?.select();
+      }, 0);
+    }
+  }, [editorState.elements]);
+
+  const finishTextEditing = useCallback(() => {
+    if (editorState.editingText) {
+      setEditorState(prev => ({
+        ...prev,
+        elements: prev.elements.map(el => 
+          el.id === prev.editingText ? { ...el, props: { ...el.props, children: tempText } } : el
+        ),
+        editingText: null
+      }));
+      setTempText('');
+    }
+  }, [editorState.editingText, tempText]);
+
+  const handleTextKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      finishTextEditing();
+    } else if (e.key === 'Escape') {
+      setEditorState(prev => ({ ...prev, editingText: null }));
+      setTempText('');
+    }
+  }, [finishTextEditing]);
+
   const handleDragStart = useCallback((e: React.DragEvent, componentType: ComponentElement['type']) => {
     e.dataTransfer.setData('componentType', componentType);
     e.dataTransfer.effectAllowed = 'copy';
@@ -202,7 +271,7 @@ export const VisualComponentEditor: React.FC = () => {
     if (rect && componentType) {
       const position = {
         x: Math.max(0, (e.clientX - rect.left) / editorState.zoom - 100),
-        y: Math.max(0, (e.clientY - rect.top) / editorState.zoom - 50)
+        y: Math.max(0, (e.clientY - rect.top) / editorState.zoom - 25)
       };
       createNewElement(componentType, position);
     }
@@ -230,6 +299,12 @@ export const VisualComponentEditor: React.FC = () => {
       y: e.clientY - rect.top
     });
   }, [editorState.elements]);
+
+  const handleElementDoubleClick = useCallback((e: React.MouseEvent, elementId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startTextEditing(elementId);
+  }, [startTextEditing]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !draggedElement || !canvasRef.current) return;
@@ -326,6 +401,7 @@ export const VisualComponentEditor: React.FC = () => {
   };
 
   const selectedElement = editorState.elements.find(el => el.id === editorState.selectedElement);
+  const editingElement = editorState.elements.find(el => el.id === editorState.editingText);
 
   const generateCode = () => {
     const code = `import React from 'react';
@@ -365,6 +441,8 @@ export const GeneratedComponent = () => {
         return `${indent}<input ${propsString} ${style} />`;
       case 'text':
         return `${indent}<${element.props.as || 'p'} ${style}>${element.props.children || 'Text'}</${element.props.as || 'p'}>`;
+      case 'heading':
+        return `${indent}<${element.props.level || 'h1'} ${style}>${element.props.children || 'Heading'}</${element.props.level || 'h1'}>`;
       case 'image':
         return `${indent}<img ${propsString} ${style} />`;
       case 'card':
@@ -379,22 +457,55 @@ ${indent}</div>`;
 
   const renderElement = (element: ComponentElement) => {
     const isSelected = editorState.selectedElement === element.id;
+    const isEditing = editorState.editingText === element.id;
+    
     const elementStyle = {
       ...element.styles,
       left: `${element.position.x}px`,
       top: `${element.position.y}px`,
       width: `${element.size.width}px`,
-      height: `${element.size.height}px`,
+      height: element.type === 'text' || element.type === 'heading' ? 'auto' : `${element.size.height}px`,
+      minHeight: element.type === 'text' || element.type === 'heading' ? `${element.size.height}px` : 'auto',
       border: isSelected ? '2px solid #3b82f6' : element.styles.border || '2px solid transparent',
-      zIndex: isSelected ? 1000 : 1
+      zIndex: isSelected ? 1000 : 1,
+      outline: isEditing ? '2px solid #10b981' : 'none'
     };
 
     const commonProps = {
       key: element.id,
       style: elementStyle,
       onMouseDown: (e: React.MouseEvent) => handleElementMouseDown(e, element.id),
+      onDoubleClick: (e: React.MouseEvent) => handleElementDoubleClick(e, element.id),
       onClick: (e: React.MouseEvent) => e.stopPropagation()
     };
+
+    if (isEditing && (element.type === 'text' || element.type === 'heading' || element.type === 'button')) {
+      return (
+        <div key={element.id} style={elementStyle}>
+          <input
+            ref={textInputRef}
+            type="text"
+            value={tempText}
+            onChange={(e) => setTempText(e.target.value)}
+            onKeyDown={handleTextKeyDown}
+            onBlur={finishTextEditing}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              background: 'transparent',
+              fontSize: element.styles.fontSize || '16px',
+              fontWeight: element.styles.fontWeight || 'normal',
+              color: element.styles.color || '#1f2937',
+              textAlign: (element.styles.textAlign as any) || 'left',
+              padding: '0',
+              outline: 'none'
+            }}
+            className="text-editing-input"
+          />
+        </div>
+      );
+    }
 
     switch (element.type) {
       case 'button':
@@ -408,6 +519,12 @@ ${indent}</div>`;
           <input {...commonProps} {...element.props} />
         );
       case 'text':
+        return (
+          <div {...commonProps}>
+            {element.props.children}
+          </div>
+        );
+      case 'heading':
         return (
           <div {...commonProps}>
             {element.props.children}
@@ -528,11 +645,13 @@ ${indent}</div>`;
               }}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              onClick={() => setEditorState(prev => ({ ...prev, selectedElement: null }))}
+              onClick={() => setEditorState(prev => ({ ...prev, selectedElement: null, editingText: null }))}
             >
               {editorState.elements.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-lg">
                   Drag components here to start building
+                  <br />
+                  <span className="text-sm mt-2">Double-click text elements to edit</span>
                 </div>
               )}
               
@@ -569,17 +688,39 @@ ${indent}</div>`;
               <Separator />
               
               <div className="space-y-3">
-                {Object.entries(selectedElement.props).map(([key, value]) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-white text-sm capitalize">{key}</Label>
-                    <Input
-                      value={value?.toString() || ''}
-                      onChange={(e) => updateElementProps(selectedElement.id, { [key]: e.target.value })}
+                {selectedElement.type === 'text' || selectedElement.type === 'heading' || selectedElement.type === 'button' ? (
+                  <div className="space-y-1">
+                    <Label className="text-white text-sm">Text Content</Label>
+                    <Textarea
+                      value={selectedElement.props.children || ''}
+                      onChange={(e) => updateElementProps(selectedElement.id, { children: e.target.value })}
                       className="bg-slate-700 border-slate-600 text-white"
-                      placeholder={`Enter ${key}...`}
+                      placeholder="Enter text content..."
+                      rows={3}
                     />
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => startTextEditing(selectedElement.id)}
+                      className="w-full"
+                    >
+                      <Edit3 className="w-3 h-3 mr-2" />
+                      Edit Inline
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  Object.entries(selectedElement.props).map(([key, value]) => (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-white text-sm capitalize">{key}</Label>
+                      <Input
+                        value={value?.toString() || ''}
+                        onChange={(e) => updateElementProps(selectedElement.id, { [key]: e.target.value })}
+                        className="bg-slate-700 border-slate-600 text-white"
+                        placeholder={`Enter ${key}...`}
+                      />
+                    </div>
+                  ))
+                )}
               </div>
             </TabsContent>
             
@@ -596,7 +737,7 @@ ${indent}</div>`;
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-white text-sm">Color</Label>
+                  <Label className="text-white text-sm">Text Color</Label>
                   <Input
                     value={selectedElement.styles.color || ''}
                     onChange={(e) => updateElementStyles(selectedElement.id, { color: e.target.value })}
@@ -613,6 +754,51 @@ ${indent}</div>`;
                     className="bg-slate-700 border-slate-600 text-white"
                     placeholder="16px"
                   />
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-white text-sm">Font Weight</Label>
+                  <Select 
+                    value={selectedElement.styles.fontWeight || 'normal'}
+                    onValueChange={(value) => updateElementStyles(selectedElement.id, { fontWeight: value })}
+                  >
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="bold">Bold</SelectItem>
+                      <SelectItem value="lighter">Lighter</SelectItem>
+                      <SelectItem value="bolder">Bolder</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-white text-sm">Text Align</Label>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      variant={selectedElement.styles.textAlign === 'left' ? 'default' : 'outline'}
+                      onClick={() => updateElementStyles(selectedElement.id, { textAlign: 'left' })}
+                    >
+                      <AlignLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedElement.styles.textAlign === 'center' ? 'default' : 'outline'}
+                      onClick={() => updateElementStyles(selectedElement.id, { textAlign: 'center' })}
+                    >
+                      <AlignCenter className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedElement.styles.textAlign === 'right' ? 'default' : 'outline'}
+                      onClick={() => updateElementStyles(selectedElement.id, { textAlign: 'right' })}
+                    >
+                      <AlignRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="space-y-1">
@@ -641,7 +827,8 @@ ${indent}</div>`;
           <div className="text-center text-slate-400 mt-8">
             <Layout className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Select an element to edit its properties</p>
-            <p className="text-sm mt-2">Drag components from the left panel to get started</p>
+            <p className="text-sm mt-2">Double-click text elements to edit inline</p>
+            <p className="text-sm">Drag components from the left panel to get started</p>
           </div>
         )}
       </div>
