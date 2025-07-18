@@ -271,26 +271,46 @@ export const ThemeCustomizer: React.FC = () => {
   }, [currentTheme]);
 
   const applyThemeToDocument = (theme: ThemeConfig) => {
+    if (!theme || !theme.colors) return;
+    
     const root = document.documentElement;
     
-    // Apply CSS custom properties
-    Object.entries(theme.colors).forEach(([key, value]) => {
-      root.style.setProperty(`--color-${key}`, value);
-    });
+    // Apply CSS custom properties with null checks
+    if (theme.colors) {
+      Object.entries(theme.colors).forEach(([key, value]) => {
+        if (value) {
+          root.style.setProperty(`--color-${key}`, value);
+        }
+      });
+    }
 
-    Object.entries(theme.typography.fontSize).forEach(([key, value]) => {
-      root.style.setProperty(`--font-size-${key}`, value);
-    });
+    if (theme.typography?.fontSize) {
+      Object.entries(theme.typography.fontSize).forEach(([key, value]) => {
+        if (value) {
+          root.style.setProperty(`--font-size-${key}`, value);
+        }
+      });
+    }
 
-    Object.entries(theme.spacing).forEach(([key, value]) => {
-      root.style.setProperty(`--spacing-${key}`, value);
-    });
+    if (theme.spacing) {
+      Object.entries(theme.spacing).forEach(([key, value]) => {
+        if (value) {
+          root.style.setProperty(`--spacing-${key}`, value);
+        }
+      });
+    }
 
-    Object.entries(theme.borderRadius).forEach(([key, value]) => {
-      root.style.setProperty(`--border-radius-${key}`, value);
-    });
+    if (theme.borderRadius) {
+      Object.entries(theme.borderRadius).forEach(([key, value]) => {
+        if (value) {
+          root.style.setProperty(`--border-radius-${key}`, value);
+        }
+      });
+    }
 
-    root.style.setProperty('--font-family', theme.typography.fontFamily);
+    if (theme.typography?.fontFamily) {
+      root.style.setProperty('--font-family', theme.typography.fontFamily);
+    }
   };
 
   const handleColorChange = (colorKey: string, value: string) => {
@@ -374,13 +394,19 @@ export const ThemeCustomizer: React.FC = () => {
       reader.onload = (e) => {
         try {
           const themeData = JSON.parse(e.target?.result as string);
-          setCurrentTheme(themeData);
-          setSelectedPreset('custom');
-          toast({
-            title: "Theme Imported",
-            description: "Theme configuration has been loaded",
-          });
+          // Validate the theme data structure
+          if (themeData && themeData.colors && themeData.typography && themeData.spacing) {
+            setCurrentTheme(themeData);
+            setSelectedPreset('custom');
+            toast({
+              title: "Theme Imported",
+              description: "Theme configuration has been loaded",
+            });
+          } else {
+            throw new Error('Invalid theme structure');
+          }
         } catch (error) {
+          console.error('Import error:', error);
           toast({
             title: "Import Failed",
             description: "Invalid theme configuration file",
@@ -404,19 +430,33 @@ export const ThemeCustomizer: React.FC = () => {
   const generateCSSVariables = () => {
     let css = ':root {\n';
     
-    Object.entries(currentTheme.colors).forEach(([key, value]) => {
-      css += `  --color-${key}: ${value};\n`;
-    });
+    if (currentTheme.colors) {
+      Object.entries(currentTheme.colors).forEach(([key, value]) => {
+        if (value) {
+          css += `  --color-${key}: ${value};\n`;
+        }
+      });
+    }
     
-    Object.entries(currentTheme.typography.fontSize).forEach(([key, value]) => {
-      css += `  --font-size-${key}: ${value};\n`;
-    });
+    if (currentTheme.typography?.fontSize) {
+      Object.entries(currentTheme.typography.fontSize).forEach(([key, value]) => {
+        if (value) {
+          css += `  --font-size-${key}: ${value};\n`;
+        }
+      });
+    }
     
-    Object.entries(currentTheme.spacing).forEach(([key, value]) => {
-      css += `  --spacing-${key}: ${value};\n`;
-    });
+    if (currentTheme.spacing) {
+      Object.entries(currentTheme.spacing).forEach(([key, value]) => {
+        if (value) {
+          css += `  --spacing-${key}: ${value};\n`;
+        }
+      });
+    }
     
-    css += `  --font-family: ${currentTheme.typography.fontFamily};\n`;
+    if (currentTheme.typography?.fontFamily) {
+      css += `  --font-family: ${currentTheme.typography.fontFamily};\n`;
+    }
     css += '}';
     
     navigator.clipboard.writeText(css);
@@ -425,6 +465,15 @@ export const ThemeCustomizer: React.FC = () => {
       description: "CSS variables copied to clipboard",
     });
   };
+
+  // Safety check for currentTheme
+  if (!currentTheme || !currentTheme.colors) {
+    return (
+      <div className="h-full bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading theme customizer...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-slate-900 flex">
@@ -496,16 +545,16 @@ export const ThemeCustomizer: React.FC = () => {
 
           <ScrollArea className="h-[calc(100vh-280px)] mt-4">
             <TabsContent value="colors" className="space-y-4">
-              {Object.entries(currentTheme.colors).map(([key, value]) => (
+              {currentTheme.colors && Object.entries(currentTheme.colors).map(([key, value]) => (
                 <div key={key} className="space-y-2">
                   <Label className="text-white text-sm capitalize">{key}</Label>
                   <div className="flex space-x-2">
                     <div 
                       className="w-8 h-8 rounded border border-slate-600"
-                      style={{ backgroundColor: value }}
+                      style={{ backgroundColor: value || '#000000' }}
                     />
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => handleColorChange(key, e.target.value)}
                       className="bg-slate-700 border-slate-600 text-white flex-1"
                       placeholder="hsl(0, 0%, 0%)"
@@ -519,7 +568,7 @@ export const ThemeCustomizer: React.FC = () => {
               <div className="space-y-2">
                 <Label className="text-white text-sm">Font Family</Label>
                 <Select 
-                  value={currentTheme.typography.fontFamily}
+                  value={currentTheme.typography?.fontFamily || 'Inter, sans-serif'}
                   onValueChange={(value) => handleTypographyChange('fontFamily', '', value)}
                 >
                   <SelectTrigger className="bg-slate-700 border-slate-600">
@@ -540,11 +589,11 @@ export const ThemeCustomizer: React.FC = () => {
               
               <div className="space-y-3">
                 <h4 className="text-white font-medium">Font Sizes</h4>
-                {Object.entries(currentTheme.typography.fontSize).map(([key, value]) => (
+                {currentTheme.typography?.fontSize && Object.entries(currentTheme.typography.fontSize).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <Label className="text-white text-sm">{key}</Label>
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => handleTypographyChange('fontSize', key, e.target.value)}
                       className="bg-slate-700 border-slate-600 text-white w-20"
                     />
@@ -556,11 +605,11 @@ export const ThemeCustomizer: React.FC = () => {
               
               <div className="space-y-3">
                 <h4 className="text-white font-medium">Font Weights</h4>
-                {Object.entries(currentTheme.typography.fontWeight).map(([key, value]) => (
+                {currentTheme.typography?.fontWeight && Object.entries(currentTheme.typography.fontWeight).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <Label className="text-white text-sm">{key}</Label>
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => handleTypographyChange('fontWeight', key, e.target.value)}
                       className="bg-slate-700 border-slate-600 text-white w-20"
                     />
@@ -570,11 +619,11 @@ export const ThemeCustomizer: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="spacing" className="space-y-4">
-              {Object.entries(currentTheme.spacing).map(([key, value]) => (
+              {currentTheme.spacing && Object.entries(currentTheme.spacing).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between">
                   <Label className="text-white text-sm">{key}</Label>
                   <Input
-                    value={value}
+                    value={value || ''}
                     onChange={(e) => handleSpacingChange(key, e.target.value)}
                     className="bg-slate-700 border-slate-600 text-white w-24"
                   />
@@ -585,11 +634,11 @@ export const ThemeCustomizer: React.FC = () => {
               
               <div className="space-y-3">
                 <h4 className="text-white font-medium">Border Radius</h4>
-                {Object.entries(currentTheme.borderRadius).map(([key, value]) => (
+                {currentTheme.borderRadius && Object.entries(currentTheme.borderRadius).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <Label className="text-white text-sm">{key}</Label>
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => setCurrentTheme(prev => ({
                         ...prev,
                         borderRadius: { ...prev.borderRadius, [key]: e.target.value }
@@ -604,11 +653,11 @@ export const ThemeCustomizer: React.FC = () => {
             <TabsContent value="effects" className="space-y-4">
               <div className="space-y-3">
                 <h4 className="text-white font-medium">Shadows</h4>
-                {Object.entries(currentTheme.shadows).map(([key, value]) => (
+                {currentTheme.shadows && Object.entries(currentTheme.shadows).map(([key, value]) => (
                   <div key={key} className="space-y-2">
                     <Label className="text-white text-sm">{key}</Label>
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => setCurrentTheme(prev => ({
                         ...prev,
                         shadows: { ...prev.shadows, [key]: e.target.value }
@@ -623,11 +672,11 @@ export const ThemeCustomizer: React.FC = () => {
               
               <div className="space-y-3">
                 <h4 className="text-white font-medium">Animation Duration</h4>
-                {Object.entries(currentTheme.animations.duration).map(([key, value]) => (
+                {currentTheme.animations?.duration && Object.entries(currentTheme.animations.duration).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <Label className="text-white text-sm">{key}</Label>
                     <Input
-                      value={value}
+                      value={value || ''}
                       onChange={(e) => setCurrentTheme(prev => ({
                         ...prev,
                         animations: {
@@ -708,11 +757,11 @@ export const ThemeCustomizer: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(currentTheme.colors).map(([key, value]) => (
+                    {currentTheme.colors && Object.entries(currentTheme.colors).map(([key, value]) => (
                       <div key={key} className="flex items-center space-x-2">
                         <div 
                           className="w-4 h-4 rounded"
-                          style={{ backgroundColor: value }}
+                          style={{ backgroundColor: value || '#000000' }}
                         />
                         <span className="text-sm capitalize">{key}</span>
                       </div>
