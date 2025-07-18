@@ -120,7 +120,7 @@ export const AgentCommunicationPanel: React.FC = () => {
   return <div className="space-y-4">
       {/* System Status */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 bg-slate-400">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -137,7 +137,7 @@ export const AgentCommunicationPanel: React.FC = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-slate-900">
           <div className="flex gap-2">
             <Button onClick={triggerAgentCommunication} disabled={!isActive} size="sm">
               <PlayCircle className="w-4 h-4 mr-2" />
@@ -152,13 +152,13 @@ export const AgentCommunicationPanel: React.FC = () => {
 
       {/* Agent Status Grid */}
       <Card>
-        <CardHeader>
+        <CardHeader className="bg-gray-400">
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
             Active Agents ({agents.filter(a => a.status === 'active').length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-slate-900">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {agents.map(agent => <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
@@ -183,7 +183,7 @@ export const AgentCommunicationPanel: React.FC = () => {
 
       {/* Message Stream */}
       <Card>
-        <CardHeader>
+        <CardHeader className="bg-slate-400">
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
             Live Communication ({messages.length})
