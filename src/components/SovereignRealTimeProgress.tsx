@@ -20,31 +20,20 @@ import {
   Crown
 } from 'lucide-react';
 import { useRealTimeMetrics } from '@/hooks/useRealTimeMetrics';
-
-interface ProgressStep {
-  id: string;
-  name: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  progress: number;
-  estimatedTime?: number;
-  actualTime?: number;
-  agentId?: string;
-}
+import type { SovereignTask, WorkflowExecution } from '@/services/sovereignOrchestrator';
 
 interface SovereignRealTimeProgressProps {
-  isActive: boolean;
-  currentOperation?: string;
-  steps?: ProgressStep[];
-  onStepClick?: (stepId: string) => void;
+  execution: WorkflowExecution | null;
+  tasks: SovereignTask[];
+  isProcessing: boolean;
 }
 
 export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps> = ({
-  isActive,
-  currentOperation = 'Idle',
-  steps = [],
-  onStepClick
+  execution,
+  tasks,
+  isProcessing
 }) => {
-  const [selectedStep, setSelectedStep] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [operationStartTime, setOperationStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   
@@ -53,7 +42,7 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
     historicalData, 
     startCollection, 
     stopCollection 
-  } = useRealTimeMetrics(isActive, {
+  } = useRealTimeMetrics(isProcessing, {
     updateInterval: 1000,
     maxDataPoints: 60,
     enableHistoricalData: true
@@ -61,19 +50,19 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
 
   // Track operation timing
   useEffect(() => {
-    if (isActive && !operationStartTime) {
+    if (isProcessing && !operationStartTime) {
       setOperationStartTime(new Date());
       startCollection();
-    } else if (!isActive && operationStartTime) {
+    } else if (!isProcessing && operationStartTime) {
       setOperationStartTime(null);
       stopCollection();
     }
-  }, [isActive, operationStartTime, startCollection, stopCollection]);
+  }, [isProcessing, operationStartTime, startCollection, stopCollection]);
 
   // Update elapsed time
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isActive && operationStartTime) {
+    if (isProcessing && operationStartTime) {
       interval = setInterval(() => {
         setElapsedTime(Date.now() - operationStartTime.getTime());
       }, 1000);
@@ -81,58 +70,11 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, operationStartTime]);
+  }, [isProcessing, operationStartTime]);
 
-  // Default steps if none provided
-  const defaultSteps: ProgressStep[] = [
-    {
-      id: 'init',
-      name: 'Initialize Sovereign AI',
-      status: 'completed',
-      progress: 100,
-      agentId: 'orchestrator'
-    },
-    {
-      id: 'analyze',
-      name: 'Analyze Requirements',
-      status: isActive ? 'in_progress' : 'pending',
-      progress: isActive ? 65 : 0,
-      agentId: 'architect'
-    },
-    {
-      id: 'plan',
-      name: 'Generate Build Plan',
-      status: 'pending',
-      progress: 0,
-      agentId: 'architect'
-    },
-    {
-      id: 'code',
-      name: 'Generate Code',
-      status: 'pending',
-      progress: 0,
-      agentId: 'builder'
-    },
-    {
-      id: 'validate',
-      name: 'Validate & Test',
-      status: 'pending',
-      progress: 0,
-      agentId: 'validator'
-    },
-    {
-      id: 'deploy',
-      name: 'Deploy Application',
-      status: 'pending',
-      progress: 0,
-      agentId: 'optimizer'
-    }
-  ];
-
-  const progressSteps = steps.length > 0 ? steps : defaultSteps;
-  const completedSteps = progressSteps.filter(step => step.status === 'completed').length;
-  const totalSteps = progressSteps.length;
-  const overallProgress = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
+  const completedTasks = tasks.filter(task => task.status === 'completed').length;
+  const totalTasks = tasks.length;
+  const overallProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -184,7 +126,7 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const selectedStepData = progressSteps.find(step => step.id === selectedStep);
+  const selectedTaskData = tasks.find(task => task.id === selectedTask);
 
   return (
     <div className="h-full flex flex-col bg-slate-950 text-white">
@@ -194,16 +136,16 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
           <div className="flex items-center space-x-2">
             <Crown className="w-5 h-5 text-yellow-400" />
             <h3 className="text-lg font-semibold">Sovereign Progress</h3>
-            <Badge variant="outline" className={isActive ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}>
-              {isActive ? 'Active' : 'Idle'}
+            <Badge variant="outline" className={isProcessing ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}>
+              {isProcessing ? 'Active' : 'Idle'}
             </Badge>
           </div>
           
           <div className="flex items-center space-x-4 text-sm">
             <div className="text-slate-400">
-              Operation: <span className="text-white">{currentOperation}</span>
+              Status: <span className="text-white">{execution?.status || 'Idle'}</span>
             </div>
-            {isActive && (
+            {isProcessing && (
               <div className="text-slate-400">
                 Elapsed: <span className="text-white">{formatTime(elapsedTime)}</span>
               </div>
@@ -219,7 +161,7 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
           </div>
           <Progress value={overallProgress} className="h-2" />
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>{completedSteps}/{totalSteps} steps completed</span>
+            <span>{completedTasks}/{totalTasks} tasks completed</span>
             <span>
               Tokens/sec: {currentMetrics.tokensPerSecond.toFixed(1)} | 
               Response: {currentMetrics.responseTime.toFixed(0)}ms
@@ -230,19 +172,18 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Steps List */}
+        {/* Tasks List */}
         <div className="flex-1 p-4">
           <ScrollArea className="h-full">
             <div className="space-y-3">
-              {progressSteps.map((step, index) => (
+              {tasks.map((task, index) => (
                 <Card 
-                  key={step.id}
+                  key={task.id}
                   className={`bg-slate-800 border-slate-600 cursor-pointer transition-all duration-200 hover:bg-slate-700 ${
-                    selectedStep === step.id ? 'border-blue-500 bg-slate-700' : ''
+                    selectedTask === task.id ? 'border-blue-500 bg-slate-700' : ''
                   }`}
                   onClick={() => {
-                    setSelectedStep(selectedStep === step.id ? null : step.id);
-                    onStepClick?.(step.id);
+                    setSelectedTask(selectedTask === task.id ? null : task.id);
                   }}
                 >
                   <CardContent className="p-3">
@@ -250,33 +191,27 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1">
                           <span className="text-xs text-slate-500 w-6">{index + 1}</span>
-                          {getStatusIcon(step.status)}
-                          {step.agentId && getAgentIcon(step.agentId)}
+                          {getStatusIcon(task.status)}
+                          {task.assigned_agent && getAgentIcon(task.assigned_agent)}
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-sm font-medium text-white">{step.name}</h4>
-                          {step.agentId && (
-                            <p className="text-xs text-slate-400">Agent: {step.agentId}</p>
+                          <h4 className="text-sm font-medium text-white">{task.description}</h4>
+                          {task.assigned_agent && (
+                            <p className="text-xs text-slate-400">Agent: {task.assigned_agent}</p>
                           )}
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-3">
-                        {step.progress > 0 && (
-                          <div className="text-right">
-                            <div className="text-xs text-slate-400">{step.progress}%</div>
-                            <Progress value={step.progress} className="w-16 h-1" />
-                          </div>
-                        )}
-                        <Badge variant="outline" className={`text-xs ${getStatusColor(step.status)}`}>
-                          {step.status}
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)}`}>
+                          {task.status}
                         </Badge>
                       </div>
                     </div>
                     
-                    {step.status === 'in_progress' && step.progress > 0 && (
-                      <div className="mt-2">
-                        <Progress value={step.progress} className="h-1" />
+                    {task.dependencies && task.dependencies.length > 0 && (
+                      <div className="text-xs text-slate-400 mt-2">
+                        Dependencies: {task.dependencies.join(', ')}
                       </div>
                     )}
                   </CardContent>
@@ -322,51 +257,37 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
                 </CardContent>
               </Card>
 
-              {/* Selected Step Details */}
-              {selectedStepData && (
+              {/* Selected Task Details */}
+              {selectedTaskData && (
                 <Card className="bg-slate-800 border-slate-600">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Step Details</CardTitle>
+                    <CardTitle className="text-sm">Task Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <h4 className="text-sm font-medium text-white">{selectedStepData.name}</h4>
+                      <h4 className="text-sm font-medium text-white">{selectedTaskData.description}</h4>
                       <div className="flex items-center space-x-2 mt-1">
-                        {getStatusIcon(selectedStepData.status)}
-                        <Badge variant="outline" className={`text-xs ${getStatusColor(selectedStepData.status)}`}>
-                          {selectedStepData.status}
+                        {getStatusIcon(selectedTaskData.status)}
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(selectedTaskData.status)}`}>
+                          {selectedTaskData.status}
                         </Badge>
-                        {selectedStepData.agentId && (
+                        {selectedTaskData.assigned_agent && (
                           <Badge variant="outline" className="text-xs">
-                            {selectedStepData.agentId}
+                            {selectedTaskData.assigned_agent}
                           </Badge>
                         )}
                       </div>
                     </div>
                     
-                    {selectedStepData.progress > 0 && (
-                      <div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Progress</span>
-                          <span className="text-white">{selectedStepData.progress}%</span>
-                        </div>
-                        <Progress value={selectedStepData.progress} className="h-2" />
-                      </div>
-                    )}
-                    
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      {selectedStepData.estimatedTime && (
-                        <div>
-                          <div className="text-slate-400">Est. Time</div>
-                          <div className="text-white">{selectedStepData.estimatedTime}s</div>
-                        </div>
-                      )}
-                      {selectedStepData.actualTime && (
-                        <div>
-                          <div className="text-slate-400">Actual Time</div>
-                          <div className="text-white">{selectedStepData.actualTime}s</div>
-                        </div>
-                      )}
+                      <div>
+                        <div className="text-slate-400">Priority</div>
+                        <div className="text-white">{selectedTaskData.priority}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">Type</div>
+                        <div className="text-white">{selectedTaskData.type}</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -381,11 +302,11 @@ export const SovereignRealTimeProgress: React.FC<SovereignRealTimeProgressProps>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
                       <span className="text-slate-400">Status:</span>
-                      <span className="text-white">{isActive ? 'Running' : 'Idle'}</span>
+                      <span className="text-white">{execution?.status || 'Idle'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Steps:</span>
-                      <span className="text-white">{completedSteps}/{totalSteps}</span>
+                      <span className="text-slate-400">Tasks:</span>
+                      <span className="text-white">{completedTasks}/{totalTasks}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Duration:</span>
