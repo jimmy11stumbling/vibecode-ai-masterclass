@@ -130,7 +130,7 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ context, onCodeGenerated }
 
       {!apiKey && (
         <div className="p-4 border-b border-slate-700">
-          <ApiKeyInput onApiKeyChange={setApiKey} />
+          <ApiKeyInput onApiKeySubmit={setApiKey} />
         </div>
       )}
 

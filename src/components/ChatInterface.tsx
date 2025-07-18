@@ -139,7 +139,7 @@ export const ChatInterface = () => {
         </div>
 
         {/* API Key Input */}
-        <ApiKeyInput onApiKeyChange={setApiKey} />
+        <ApiKeyInput onApiKeySubmit={setApiKey} />
       </div>
 
       {/* Main Content with Tabs */}
