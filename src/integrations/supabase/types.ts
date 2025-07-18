@@ -922,7 +922,9 @@ export type Database = {
         Row: {
           assigned_agent: string | null
           created_at: string
+          dependencies: string[] | null
           description: string
+          estimated_duration: number | null
           execution_id: string
           id: string
           metadata: Json | null
@@ -936,7 +938,9 @@ export type Database = {
         Insert: {
           assigned_agent?: string | null
           created_at?: string
+          dependencies?: string[] | null
           description: string
+          estimated_duration?: number | null
           execution_id: string
           id?: string
           metadata?: Json | null
@@ -950,7 +954,9 @@ export type Database = {
         Update: {
           assigned_agent?: string | null
           created_at?: string
+          dependencies?: string[] | null
           description?: string
+          estimated_duration?: number | null
           execution_id?: string
           id?: string
           metadata?: Json | null

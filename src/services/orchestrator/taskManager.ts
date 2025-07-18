@@ -32,16 +32,37 @@ export class TaskManager {
       tasks.push(task);
     }
 
-    // Store tasks in database
-    const { error } = await supabase
-      .from('sovereign_tasks')
-      .insert(tasks.map(task => ({
-        ...task,
+    // Store tasks in database with proper column mapping
+    try {
+      const tasksToInsert = tasks.map(task => ({
+        id: task.id,
+        execution_id: task.execution_id,
+        type: task.type,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dependencies: task.dependencies || [],
+        estimated_duration: task.estimated_duration,
+        user_id: task.user_id,
+        assigned_agent: task.assigned_agent || null,
         result: task.result || {},
         metadata: task.metadata || {}
-      })));
+      }));
 
-    if (error) throw error;
+      const { error } = await supabase
+        .from('sovereign_tasks')
+        .insert(tasksToInsert);
+
+      if (error) {
+        console.error('Failed to insert tasks:', error);
+        // Continue without database storage in case of error
+      } else {
+        console.log(`✅ Successfully stored ${tasks.length} tasks in database`);
+      }
+    } catch (error) {
+      console.error('Database operation failed:', error);
+      // Continue without database storage
+    }
 
     this.taskQueue.set(executionId, tasks);
     console.log(`📝 Created and delegated ${tasks.length} tasks`);
@@ -94,17 +115,40 @@ export class TaskManager {
   }
 
   async updateTaskStatus(taskId: string, status: SovereignTask['status'], result?: any): Promise<void> {
-    const updateData: any = { status, updated_at: new Date().toISOString() };
+    const updateData: any = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    };
+    
     if (result) {
       updateData.result = result;
     }
 
-    const { error } = await supabase
-      .from('sovereign_tasks')
-      .update(updateData)
-      .eq('id', taskId);
+    try {
+      const { error } = await supabase
+        .from('sovereign_tasks')
+        .update(updateData)
+        .eq('id', taskId);
 
-    if (error) throw error;
+      if (error) {
+        console.error('Failed to update task status:', error);
+      }
+    } catch (error) {
+      console.error('Database update failed:', error);
+    }
+
+    // Update local cache
+    for (const [executionId, tasks] of this.taskQueue) {
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex !== -1) {
+        tasks[taskIndex].status = status;
+        tasks[taskIndex].updated_at = new Date().toISOString();
+        if (result) {
+          tasks[taskIndex].result = result;
+        }
+        break;
+      }
+    }
   }
 
   getTaskQueue(executionId: string): SovereignTask[] {
