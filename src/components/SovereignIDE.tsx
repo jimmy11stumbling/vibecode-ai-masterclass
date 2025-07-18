@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,12 +61,8 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({ onProjectGenerated }
     try {
       console.log('👑 Initializing Sovereign IDE System');
       
-      // Configure API key from secrets if available
-      const deepSeekKey = process.env.DEEPSEEK_API_KEY || '';
-      if (deepSeekKey) {
-        sovereignOrchestrator.setApiKey(deepSeekKey);
-        console.log('🔑 DeepSeek API key configured');
-      }
+      // Initialize without accessing process.env directly
+      // The API key will be handled by the orchestrator when needed
       
       setSystemStatus('ready');
       
