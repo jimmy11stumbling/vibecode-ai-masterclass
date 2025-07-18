@@ -15,7 +15,8 @@ import {
   Layout,
   Zap,
   Database,
-  Monitor
+  Monitor,
+  MessageSquare
 } from 'lucide-react';
 
 import { SovereignIDE } from '@/components/SovereignIDE';
@@ -28,6 +29,7 @@ import { VisualComponentEditor } from '@/components/VisualComponentEditor';
 import { ThemeCustomizer } from '@/components/ThemeCustomizer';
 import { ProjectTemplateManager } from '@/components/ProjectTemplateManager';
 import { DatabaseTools } from '@/components/DatabaseTools';
+import { AgentCommunicationPanel } from '@/components/AgentCommunicationPanel';
 
 export default function FullIDE() {
   const [selectedFile, setSelectedFile] = useState<any>(null);
@@ -47,7 +49,8 @@ export default function FullIDE() {
   };
 
   const toolbarButtons = [
-    { id: 'sovereign', label: 'Sovereign AI', icon: Crown, description: 'AI-powered development' },
+    { id: 'sovereign', label: 'Sovereign AI', icon: Crown, description: 'AI-powered autonomous development' },
+    { id: 'agents', label: 'Agent Hub', icon: MessageSquare, description: 'Agent communication & coordination' },
     { id: 'code', label: 'Code Editor', icon: Code, description: 'Write and edit code' },
     { id: 'visual', label: 'Visual Editor', icon: Layout, description: 'Drag & drop interface builder' },
     { id: 'templates', label: 'Templates', icon: GitBranch, description: 'Project templates & starters' },
@@ -67,7 +70,7 @@ export default function FullIDE() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">Sovereign IDE</h1>
-            <p className="text-xs text-slate-400">Production-Ready Development Environment</p>
+            <p className="text-xs text-slate-400">Autonomous AI Development Environment</p>
           </div>
         </div>
         
@@ -133,6 +136,12 @@ export default function FullIDE() {
               <div className="flex-1 overflow-hidden">
                 {activeTab === 'sovereign' && (
                   <SovereignIDE onProjectGenerated={handleProjectGenerated} />
+                )}
+                
+                {activeTab === 'agents' && (
+                  <div className="h-full p-6 bg-slate-900">
+                    <AgentCommunicationPanel />
+                  </div>
                 )}
                 
                 {activeTab === 'code' && (
