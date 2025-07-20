@@ -164,7 +164,7 @@ export const AgentCommunicationPanel: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${getStatusColor(agent.status)}`} />
                   <div>
-                    <div className="font-medium text-sm">{agent.name}</div>
+                    <div className="font-medium text-sm bg-zinc-300">{agent.name}</div>
                     {agent.currentTask && <div className="text-xs text-muted-foreground truncate max-w-32">
                         {agent.currentTask}
                       </div>}
