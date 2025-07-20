@@ -172,7 +172,7 @@ export const AgentCommunicationPanel: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   {getStatusIcon(agent.status)}
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs bg-zinc-300">
                     {agent.status}
                   </Badge>
                 </div>
