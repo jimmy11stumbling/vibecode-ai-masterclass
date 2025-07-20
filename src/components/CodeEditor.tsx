@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { MonacoCodeEditor } from './MonacoCodeEditor';
@@ -6,6 +5,7 @@ import { FileTabs } from './FileTabs';
 import { BuildOutput } from './BuildOutput';
 import { PackageManager } from './PackageManager';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 
 interface CodeFile {
   id: string;
@@ -83,15 +83,22 @@ export default App;`,
 
   // Update active file when selectedFile changes
   useEffect(() => {
-    if (selectedFile && selectedFile.type === 'file' && selectedFile.content) {
+    if (selectedFile && selectedFile.type === 'file' && selectedFile.content !== undefined) {
       const existingFile = files.find(f => f.name === selectedFile.name);
       if (existingFile) {
+        // Update existing file content
+        setFiles(prev => prev.map(f => 
+          f.id === existingFile.id 
+            ? { ...f, content: selectedFile.content || '' }
+            : f
+        ));
         setActiveFileId(existingFile.id);
       } else {
+        // Add new file
         const newFile: CodeFile = {
           id: Date.now().toString(),
           name: selectedFile.name,
-          content: selectedFile.content,
+          content: selectedFile.content || '',
           language: getLanguageFromFileName(selectedFile.name)
         };
         setFiles(prev => [...prev, newFile]);
@@ -104,6 +111,16 @@ export default App;`,
   useEffect(() => {
     onCodeChange?.(files);
   }, [files, onCodeChange]);
+
+  // Sync files with dynamic code modifier
+  useEffect(() => {
+    const syncFiles = async () => {
+      for (const file of files) {
+        await dynamicCodeModifier.writeFile(`/src/${file.name}`, file.content);
+      }
+    };
+    syncFiles();
+  }, [files]);
 
   const getLanguageFromFileName = (fileName: string): string => {
     const ext = fileName.split('.').pop()?.toLowerCase();
@@ -127,11 +144,17 @@ export default App;`,
     }
   };
 
-  const updateFileContent = (fileId: string, content: string) => {
+  const updateFileContent = async (fileId: string, content: string) => {
     const updatedFiles = files.map(file =>
       file.id === fileId ? { ...file, content } : file
     );
     setFiles(updatedFiles);
+    
+    // Sync with dynamic code modifier
+    const file = files.find(f => f.id === fileId);
+    if (file) {
+      await dynamicCodeModifier.updateFile(`/src/${file.name}`, content);
+    }
   };
 
   const createNewFile = (fileName: string) => {
@@ -147,6 +170,9 @@ export default App;`,
     
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newFile.id);
+    
+    // Sync with dynamic code modifier
+    dynamicCodeModifier.createFile(`/src/${fileName}`, template);
   };
 
   const getFileTemplate = (language: string, fileName: string): string => {
@@ -198,8 +224,13 @@ export default ${componentName};`;
     return `// ${fileName}\n\n`;
   };
 
-  const deleteFile = (fileId: string) => {
+  const deleteFile = async (fileId: string) => {
     if (files.length <= 1) return;
+    
+    const fileToDelete = files.find(f => f.id === fileId);
+    if (fileToDelete) {
+      await dynamicCodeModifier.deleteFile(`/src/${fileToDelete.name}`);
+    }
     
     const updatedFiles = files.filter(file => file.id !== fileId);
     setFiles(updatedFiles);
@@ -209,9 +240,14 @@ export default ${componentName};`;
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     console.log('Saving files...', files);
     localStorage.setItem('ide_files', JSON.stringify(files));
+    
+    // Sync all files with dynamic code modifier
+    for (const file of files) {
+      await dynamicCodeModifier.writeFile(`/src/${file.name}`, file.content);
+    }
   };
 
   return (

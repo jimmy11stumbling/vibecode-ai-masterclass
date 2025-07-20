@@ -10,8 +10,11 @@ import {
   Trash2, 
   Edit3,
   Save,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
+import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 
 interface ProjectFile {
   id: string;
@@ -20,6 +23,9 @@ interface ProjectFile {
   content?: string;
   children?: ProjectFile[];
   parentId?: string;
+  path: string;
+  size?: number;
+  lastModified?: Date;
 }
 
 interface ProjectFileManagerProps {
@@ -37,39 +43,63 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'components', 'pages']));
 
-  const handleCreateFile = (parentId?: string) => {
+  const toggleFolder = (id: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCreateFile = async (parentId?: string) => {
+    const timestamp = Date.now().toString();
     const newFile: ProjectFile = {
-      id: `file-${Date.now()}`,
+      id: `file-${timestamp}`,
       name: 'new-file.tsx',
       type: 'file',
       content: '',
-      parentId
+      parentId,
+      path: parentId ? `/${parentId}/new-file.tsx` : '/new-file.tsx',
+      lastModified: new Date()
     };
 
     if (parentId) {
       const updatedFiles = addFileToParent(files, parentId, newFile);
       onFilesChange(updatedFiles);
+      setExpandedFolders(prev => new Set(prev).add(parentId));
     } else {
       onFilesChange([...files, newFile]);
     }
+    
+    // Sync with dynamic code modifier
+    await dynamicCodeModifier.createFile(newFile.path, newFile.content || '');
     
     setEditingId(newFile.id);
     setEditingName(newFile.name);
   };
 
-  const handleCreateFolder = (parentId?: string) => {
+  const handleCreateFolder = async (parentId?: string) => {
+    const timestamp = Date.now().toString();
     const newFolder: ProjectFile = {
-      id: `folder-${Date.now()}`,
+      id: `folder-${timestamp}`,
       name: 'new-folder',
       type: 'folder',
       children: [],
-      parentId
+      parentId,
+      path: parentId ? `/${parentId}/new-folder` : '/new-folder',
+      lastModified: new Date()
     };
 
     if (parentId) {
       const updatedFiles = addFileToParent(files, parentId, newFolder);
       onFilesChange(updatedFiles);
+      setExpandedFolders(prev => new Set(prev).add(parentId));
     } else {
       onFilesChange([...files, newFolder]);
     }
@@ -96,13 +126,32 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
     });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (editingId && editingName.trim()) {
       const updatedFiles = updateFileName(files, editingId, editingName.trim());
       onFilesChange(updatedFiles);
+      
+      // Update in dynamic code modifier
+      const file = findFileById(files, editingId);
+      if (file) {
+        const oldPath = file.path;
+        const newPath = file.path.replace(file.name, editingName.trim());
+        await dynamicCodeModifier.renameFile(oldPath, newPath);
+      }
     }
     setEditingId(null);
     setEditingName('');
+  };
+
+  const findFileById = (files: ProjectFile[], id: string): ProjectFile | null => {
+    for (const file of files) {
+      if (file.id === id) return file;
+      if (file.children) {
+        const found = findFileById(file.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   const updateFileName = (files: ProjectFile[], fileId: string, newName: string): ProjectFile[] => {
@@ -120,7 +169,12 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
     });
   };
 
-  const handleDeleteFile = (fileId: string) => {
+  const handleDeleteFile = async (fileId: string) => {
+    const file = findFileById(files, fileId);
+    if (file) {
+      await dynamicCodeModifier.deleteFile(file.path);
+    }
+    
     const updatedFiles = removeFile(files, fileId);
     onFilesChange(updatedFiles);
   };
@@ -134,10 +188,26 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
 
   const renderFileTree = (files: ProjectFile[], level = 0) => {
     return files.map(file => (
-      <div key={file.id} style={{ marginLeft: `${level * 16}px` }}>
-        <div className={`flex items-center p-2 hover:bg-slate-800 rounded cursor-pointer ${
-          selectedFileId === file.id ? 'bg-slate-700' : ''
-        }`}>
+      <div key={file.id}>
+        <div 
+          className={`flex items-center p-2 hover:bg-slate-800 rounded cursor-pointer ${
+            selectedFileId === file.id ? 'bg-slate-700' : ''
+          }`}
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
+        >
+          {file.type === 'folder' && (
+            <button
+              onClick={() => toggleFolder(file.id)}
+              className="mr-1 p-0 hover:bg-slate-700 rounded"
+            >
+              {expandedFolders.has(file.id) ? (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+          )}
+          
           {file.type === 'folder' ? (
             <Folder className="w-4 h-4 mr-2 text-blue-400" />
           ) : (
@@ -164,32 +234,62 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
             <>
               <span 
                 className="flex-1 text-sm text-white"
-                onClick={() => file.type === 'file' && onFileSelect(file)}
+                onClick={() => {
+                  if (file.type === 'file') {
+                    onFileSelect(file);
+                  } else {
+                    toggleFolder(file.id);
+                  }
+                }}
               >
                 {file.name}
               </span>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => {
-                  setEditingId(file.id);
-                  setEditingName(file.name);
-                }}
-              >
-                <Edit3 className="w-3 h-3" />
-              </Button>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => handleDeleteFile(file.id)}
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
+              <div className="flex items-center opacity-0 group-hover:opacity-100">
+                {file.type === 'folder' && (
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => handleCreateFile(file.id)}
+                      title="Add file"
+                    >
+                      <FileText className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => handleCreateFolder(file.id)}
+                      title="Add folder"
+                    >
+                      <Folder className="w-3 h-3" />
+                    </Button>
+                  </>
+                )}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => {
+                    setEditingId(file.id);
+                    setEditingName(file.name);
+                  }}
+                  title="Rename"
+                >
+                  <Edit3 className="w-3 h-3" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => handleDeleteFile(file.id)}
+                  title="Delete"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
             </>
           )}
         </div>
         
-        {file.type === 'folder' && file.children && (
+        {file.type === 'folder' && file.children && expandedFolders.has(file.id) && (
           <div>
             {renderFileTree(file.children, level + 1)}
           </div>
@@ -199,12 +299,12 @@ export const ProjectFileManager: React.FC<ProjectFileManagerProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900">
+    <div className="h-full flex flex-col bg-slate-900 group">
       <div className="flex items-center justify-between p-3 border-b border-slate-700">
         <h3 className="text-sm font-semibold text-white">Files</h3>
         <div className="flex space-x-1">
           <Button size="sm" variant="ghost" onClick={() => handleCreateFile()}>
-            <Plus className="w-4 h-4" />
+            <FileText className="w-4 h-4" />
           </Button>
           <Button size="sm" variant="ghost" onClick={() => handleCreateFolder()}>
             <Folder className="w-4 h-4" />
