@@ -2,7 +2,7 @@
 import { PipelineConfigManager, PipelineConfig, DeploymentPipeline, PipelineStage } from './pipelineConfig';
 import { PipelineStageExecutor } from './pipelineStages';
 
-export { PipelineStage, DeploymentPipeline, PipelineConfig };
+export type { PipelineStage, DeploymentPipeline, PipelineConfig };
 
 export class DeploymentPipelineManager {
   private pipelines: Map<string, DeploymentPipeline> = new Map();
