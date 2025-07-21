@@ -1,17 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { Brain, Zap, Settings, Play, Pause, RotateCcw, Crown, AlertCircle } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { sovereignOrchestrator } from '@/services/sovereignOrchestrator';
 import type { SovereignTask, WorkflowExecution } from '@/services/sovereignOrchestrator';
 import { SovereignRealTimeProgress } from './SovereignRealTimeProgress';
 import { ApiKeyInput } from './ApiKeyInput';
 import { GeneratedAppViewer } from './GeneratedAppViewer';
+import { SovereignHeader } from './sovereign/SovereignHeader';
+import { PromptInput } from './sovereign/PromptInput';
+import { TaskPipeline } from './sovereign/TaskPipeline';
+import { EmptyState } from './sovereign/EmptyState';
 
 interface SovereignIDEProps {
   onProjectGenerated?: (project: any) => void;
@@ -32,7 +31,6 @@ export const SovereignIDE = ({ onProjectGenerated }: SovereignIDEProps) => {
   useEffect(() => {
     const checkApiKey = async () => {
       try {
-        // Try to use the edge function to get the API key
         const response = await fetch('/api/get-deepseek-key');
         if (response.ok) {
           const data = await response.json();
@@ -83,18 +81,15 @@ export const SovereignIDE = ({ onProjectGenerated }: SovereignIDEProps) => {
       
       const executionId = await sovereignOrchestrator.processUserRequest(userPrompt);
       
-      // Get the execution details
       const execution = sovereignOrchestrator.getWorkflowExecution(executionId);
       if (execution) {
         setCurrentExecution(execution);
         setExecutionHistory(prev => [execution, ...prev]);
       }
 
-      // Get the tasks
       const executionTasks = await sovereignOrchestrator.getTasks(executionId);
       setTasks(executionTasks);
 
-      // Generate actual app files
       const files = await generateAppFiles(userPrompt, executionTasks);
       setGeneratedFiles(files);
       setShowGeneratedApp(true);
@@ -120,7 +115,6 @@ export const SovereignIDE = ({ onProjectGenerated }: SovereignIDEProps) => {
   }, [userPrompt, apiKey, showApiKeyInput, onProjectGenerated]);
 
   const generateAppFiles = async (prompt: string, tasks: any[]) => {
-    // Generate actual React app files based on the prompt
     const appName = prompt.split(' ').slice(0, 3).join('') + 'App';
     
     const mainAppFile = {
@@ -216,7 +210,6 @@ export default ${appName};`;
   };
 
   const generateComponentFiles = (prompt: string) => {
-    // Generate additional component files based on prompt analysis
     const files = [];
 
     if (prompt.toLowerCase().includes('button') || prompt.toLowerCase().includes('form')) {
@@ -301,7 +294,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
   };
 
   const handleRunGeneratedApp = () => {
-    // This would typically deploy or run the generated app
     toast.success('App is ready to run! Download the files to run locally.');
   };
 
@@ -326,25 +318,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     setIsProcessing(false);
     toast.info('Execution reset');
   }, []);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-500';
-      case 'in_progress': return 'bg-blue-500';
-      case 'failed': return 'bg-red-500';
-      case 'pending': return 'bg-gray-400';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   if (showApiKeyInput) {
     return (
@@ -373,109 +346,23 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-900 text-white overflow-hidden">
-      {/* Header */}
       <div className="flex-shrink-0 p-6 border-b border-slate-700">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-              <Crown className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Sovereign AI Development</h1>
-              <p className="text-slate-400">Autonomous code generation and project orchestration</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {currentExecution && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={pauseExecution}
-                  disabled={currentExecution.status !== 'running'}
-                  className="border-slate-600"
-                >
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resumeExecution}
-                  disabled={currentExecution.status !== 'paused'}
-                  className="border-slate-600"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume
-                </Button>
-              </>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetExecution}
-              className="border-slate-600"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowApiKeyInput(true)}
-              className="border-slate-600"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
+        <SovereignHeader
+          currentExecution={currentExecution}
+          onPause={pauseExecution}
+          onResume={resumeExecution}
+          onReset={resetExecution}
+          onSettings={() => setShowApiKeyInput(true)}
+        />
 
-        {/* Prompt Input */}
-        <div className="space-y-4">
-          <Textarea
-            placeholder="Describe your project... (e.g., 'Create a task management app with user authentication, real-time updates, and a modern dashboard')"
-            value={userPrompt}
-            onChange={(e) => setUserPrompt(e.target.value)}
-            className="min-h-[100px] bg-slate-800 border-slate-600 text-white placeholder-slate-400"
-            disabled={isProcessing}
-          />
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 text-sm text-slate-400">
-              <div className="flex items-center space-x-2">
-                <Brain className="w-4 h-4" />
-                <span>DeepSeek Reasoner</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Zap className="w-4 h-4" />
-                <span>Multi-Agent System</span>
-              </div>
-            </div>
-            
-            <Button
-              onClick={startAutonomousGeneration}
-              disabled={isProcessing || !userPrompt.trim()}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Crown className="w-4 h-4 mr-2" />
-                  Start Autonomous Generation
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+        <PromptInput
+          userPrompt={userPrompt}
+          setUserPrompt={setUserPrompt}
+          isProcessing={isProcessing}
+          onStartGeneration={startAutonomousGeneration}
+        />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {showGeneratedApp && generatedFiles.length > 0 ? (
           <div className="h-full p-6">
@@ -487,7 +374,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
           </div>
         ) : (
           <>
-            {/* Real-time Progress */}
             {(isProcessing || currentExecution) && (
               <div className="p-6 border-b border-slate-700">
                 <SovereignRealTimeProgress
@@ -498,76 +384,12 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
               </div>
             )}
 
-            {/* Tasks Overview */}
-            {tasks.length > 0 && (
+            {tasks.length > 0 ? (
               <div className="flex-1 overflow-auto p-6">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Task Execution Pipeline</h3>
-                    <Badge variant="outline" className="border-slate-600">
-                      {tasks.filter(t => t.status === 'completed').length} / {tasks.length} Completed
-                    </Badge>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {tasks.map((task) => (
-                      <Card key={task.id} className="bg-slate-800 border-slate-700">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-3 h-3 rounded-full ${getStatusColor(task.status)}`} />
-                              <span className="font-medium">{task.description}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge className={getPriorityColor(task.priority)}>
-                                {task.priority}
-                              </Badge>
-                              <Badge variant="outline" className="border-slate-600">
-                                {task.type}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          {task.dependencies && task.dependencies.length > 0 && (
-                            <div className="text-sm text-slate-400 mb-2">
-                              Dependencies: {task.dependencies.join(', ')}
-                            </div>
-                          )}
-                          
-                          {task.progress && (
-                            <Progress value={task.progress} className="h-2" />
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
+                <TaskPipeline tasks={tasks} />
               </div>
-            )}
-
-            {/* Empty State */}
-            {!isProcessing && !currentExecution && tasks.length === 0 && (
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div className="text-center max-w-md">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-                    <Crown className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Ready for Autonomous Development</h3>
-                  <p className="text-slate-400 mb-4">
-                    Describe your project and let the Sovereign AI system handle the entire development process.
-                  </p>
-                  <div className="flex items-center justify-center space-x-4 text-sm text-slate-500">
-                    <div className="flex items-center space-x-2">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>AI-Powered Architecture</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Zap className="w-4 h-4" />
-                      <span>Multi-Agent Coordination</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            ) : (
+              !isProcessing && !currentExecution && <EmptyState />
             )}
           </>
         )}
