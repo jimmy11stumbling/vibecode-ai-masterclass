@@ -31,21 +31,17 @@ export class EnhancedAgentManager {
   private async initializeCoordination() {
     console.log('🎯 Initializing Enhanced Agent Coordination');
     
-    // Subscribe to A2A protocol events
     this.subscribeToA2AEvents();
     
     console.log('✅ Enhanced Agent Manager initialized');
   }
 
   private subscribeToA2AEvents() {
-    // This would typically involve setting up event listeners
-    // For now, we'll poll for updates
     setInterval(() => {
       this.eventManager.processCoordinationEvents();
     }, 5000);
   }
 
-  // Delegation methods
   async createMultiAgentSession(participants: string[], mode: 'sequential' | 'parallel' | 'hierarchical'): Promise<string> {
     return await this.sessionManager.createMultiAgentSession(participants, mode);
   }
@@ -58,7 +54,6 @@ export class EnhancedAgentManager {
     return await this.eventManager.sendCoordinationEvent(eventData);
   }
 
-  // Event management
   addEventListener(event: string, listener: (data: any) => void): void {
     this.eventManager.addEventListener(event, listener);
   }
@@ -67,7 +62,6 @@ export class EnhancedAgentManager {
     this.eventManager.removeEventListener(event, listener);
   }
 
-  // Session management
   async pauseSession(sessionId: string): Promise<void> {
     await this.sessionManager.pauseSession(sessionId);
   }
@@ -76,7 +70,6 @@ export class EnhancedAgentManager {
     await this.sessionManager.resumeSession(sessionId);
   }
 
-  // Getters
   getActiveSessions(): MultiAgentSession[] {
     return this.sessionManager.getActiveSessions();
   }
@@ -106,5 +99,4 @@ export class EnhancedAgentManager {
   }
 }
 
-// Export singleton instance
 export const enhancedAgentManager = new EnhancedAgentManager();
