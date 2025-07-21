@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { VirtualizedList } from '@/components/VirtualizedList';
+import { deploymentPipelineManager, DeploymentPipeline, PipelineStage } from '@/services/cicd/deploymentPipeline';
+import { deploymentOrchestrator } from '@/services/deploymentOrchestrator';
+import { usePerformanceOptimization } from '@/hooks/usePerformanceOptimization';
 import { 
   Cloud, 
   Server, 
@@ -20,108 +22,62 @@ import {
   GitBranch,
   Globe,
   Container,
-  Database
+  Play,
+  Pause,
+  Square
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { deploymentOrchestrator } from '@/services/deploymentOrchestrator';
-
-interface DeploymentConfig {
-  platform: 'vercel' | 'netlify' | 'aws' | 'docker' | 'kubernetes';
-  environment: 'development' | 'staging' | 'production';
-  domain?: string;
-  environmentVariables: Record<string, string>;
-  buildCommand?: string;
-  deploymentPath?: string;
-}
 
 export const ProductionDeploymentManager: React.FC = () => {
-  const [deploymentConfig, setDeploymentConfig] = useState<DeploymentConfig>({
-    platform: 'vercel',
-    environment: 'production',
-    environmentVariables: {},
-    buildCommand: 'npm run build',
-    deploymentPath: 'dist'
-  });
-  
+  const [pipelines, setPipelines] = useState<DeploymentPipeline[]>([]);
+  const [selectedPipeline, setSelectedPipeline] = useState<DeploymentPipeline | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deploymentProgress, setDeploymentProgress] = useState(0);
-  const [deploymentLogs, setDeploymentLogs] = useState<string[]>([]);
-  const [deploymentTargets, setDeploymentTargets] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('configure');
+  const [activeTab, setActiveTab] = useState('pipelines');
+  const { measureRenderTime, measureMemoryUsage } = usePerformanceOptimization();
   const { toast } = useToast();
 
   useEffect(() => {
-    loadDeploymentTargets();
-  }, []);
+    const endMeasure = measureRenderTime('ProductionDeploymentManager');
+    measureMemoryUsage();
+    
+    loadPipelines();
+    
+    // Poll for pipeline updates
+    const interval = setInterval(loadPipelines, 5000);
+    
+    return () => {
+      endMeasure();
+      clearInterval(interval);
+    };
+  }, [measureRenderTime, measureMemoryUsage]);
 
-  const loadDeploymentTargets = async () => {
-    try {
-      const targets = deploymentOrchestrator.getDeploymentTargets();
-      setDeploymentTargets(targets);
-    } catch (error) {
-      console.error('Failed to load deployment targets:', error);
-    }
+  const loadPipelines = () => {
+    const allPipelines = deploymentPipelineManager.getAllPipelines();
+    setPipelines(allPipelines);
   };
 
-  const handleDeploy = async () => {
-    if (!deploymentConfig.platform) {
-      toast({
-        title: "Configuration Required",
-        description: "Please select a deployment platform",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const createNewPipeline = async (environment: 'development' | 'staging' | 'production') => {
     setIsDeploying(true);
-    setDeploymentProgress(0);
-    setDeploymentLogs([]);
-
+    
     try {
-      // Create deployment target if it doesn't exist
-      const targetId = await deploymentOrchestrator.addDeploymentTarget({
-        name: `${deploymentConfig.platform}-${deploymentConfig.environment}`,
-        type: deploymentConfig.platform,
-        status: 'idle',
-        config: {
-          environment: deploymentConfig.environment,
-          domain: deploymentConfig.domain,
-          buildCommand: deploymentConfig.buildCommand,
-          deploymentPath: deploymentConfig.deploymentPath,
-          environmentVariables: deploymentConfig.environmentVariables
-        }
-      });
-
-      // Simulate deployment progress
-      const progressInterval = setInterval(() => {
-        setDeploymentProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(progressInterval);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 500);
-
-      // Start deployment
-      const deploymentUrl = await deploymentOrchestrator.deploy(targetId, [], deploymentConfig);
-      
-      setDeploymentLogs(prev => [...prev, `✅ Deployment successful: ${deploymentUrl}`]);
+      const pipelineId = await deploymentPipelineManager.createPipeline(
+        'main',
+        environment,
+        'user',
+        'latest'
+      );
       
       toast({
-        title: "Deployment Successful",
-        description: `Your application is now live at ${deploymentUrl}`,
+        title: "Pipeline Created",
+        description: `${environment} deployment pipeline started`,
       });
-
-      // Refresh targets
-      await loadDeploymentTargets();
+      
+      loadPipelines();
       
     } catch (error) {
-      setDeploymentLogs(prev => [...prev, `❌ Deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`]);
-      
       toast({
-        title: "Deployment Failed",
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: "Pipeline Creation Failed",
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive"
       });
     } finally {
@@ -129,351 +85,291 @@ export const ProductionDeploymentManager: React.FC = () => {
     }
   };
 
-  const addEnvironmentVariable = () => {
-    const key = prompt('Environment variable name:');
-    const value = prompt('Environment variable value:');
-    
-    if (key && value) {
-      setDeploymentConfig(prev => ({
-        ...prev,
-        environmentVariables: {
-          ...prev.environmentVariables,
-          [key]: value
-        }
-      }));
+  const getStageIcon = (stage: PipelineStage) => {
+    switch (stage.status) {
+      case 'completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'failed': return <AlertCircle className="w-4 h-4 text-red-400" />;
+      case 'running': return <Clock className="w-4 h-4 text-blue-400 animate-spin" />;
+      default: return <Clock className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  const removeEnvironmentVariable = (key: string) => {
-    setDeploymentConfig(prev => ({
-      ...prev,
-      environmentVariables: Object.fromEntries(
-        Object.entries(prev.environmentVariables).filter(([k]) => k !== key)
-      )
-    }));
-  };
-
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'vercel': return <Globe className="w-4 h-4" />;
-      case 'netlify': return <Globe className="w-4 h-4" />;
-      case 'aws': return <Cloud className="w-4 h-4" />;
-      case 'kubernetes': return <Cloud className="w-4 h-4" />;
-      case 'docker': return <Container className="w-4 h-4" />;
-      default: return <Server className="w-4 h-4" />;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-400 border-green-400';
+      case 'failed': return 'text-red-400 border-red-400';
+      case 'running': return 'text-blue-400 border-blue-400';
+      default: return 'text-gray-400 border-gray-400';
     }
   };
 
   return (
-    <div className="h-full bg-slate-900 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <Rocket className="w-6 h-6 text-blue-400" />
-          <h2 className="text-xl font-bold text-white">Production Deployment</h2>
+    <ErrorBoundary>
+      <div className="h-full bg-slate-900 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <Rocket className="w-6 h-6 text-blue-400" />
+            <h2 className="text-xl font-bold text-white">Production Deployment Manager</h2>
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => createNewPipeline('development')}
+              disabled={isDeploying}
+              variant="outline"
+            >
+              Deploy Dev
+            </Button>
+            <Button
+              onClick={() => createNewPipeline('staging')}
+              disabled={isDeploying}
+              variant="outline"
+            >
+              Deploy Staging
+            </Button>
+            <Button
+              onClick={() => createNewPipeline('production')}
+              disabled={isDeploying}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isDeploying ? (
+                <Clock className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Rocket className="w-4 h-4 mr-2" />
+              )}
+              Deploy Production
+            </Button>
+          </div>
         </div>
-        <Badge variant="outline" className="text-green-400 border-green-400">
-          Production Ready
-        </Badge>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-800">
-          <TabsTrigger value="configure">Configure</TabsTrigger>
-          <TabsTrigger value="deploy">Deploy</TabsTrigger>
-          <TabsTrigger value="environments">Environments</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-800">
+            <TabsTrigger value="pipelines">Pipelines</TabsTrigger>
+            <TabsTrigger value="stages">Stages</TabsTrigger>
+            <TabsTrigger value="environments">Environments</TabsTrigger>
+            <TabsTrigger value="config">Configuration</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="configure" className="space-y-6 mt-6">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Deployment Configuration</CardTitle>
-              <CardDescription>Configure your deployment settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="platform" className="text-white">Platform</Label>
-                  <Select 
-                    value={deploymentConfig.platform} 
-                    onValueChange={(value: any) => setDeploymentConfig(prev => ({ ...prev, platform: value }))}
-                  >
-                    <SelectTrigger className="bg-slate-700 border-slate-600">
-                      <SelectValue placeholder="Select platform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vercel">Vercel</SelectItem>
-                      <SelectItem value="netlify">Netlify</SelectItem>
-                      <SelectItem value="aws">AWS S3 + CloudFront</SelectItem>
-                      <SelectItem value="kubernetes">Kubernetes</SelectItem>
-                      <SelectItem value="docker">Docker Container</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="environment" className="text-white">Environment</Label>
-                  <Select 
-                    value={deploymentConfig.environment} 
-                    onValueChange={(value: any) => setDeploymentConfig(prev => ({ ...prev, environment: value }))}
-                  >
-                    <SelectTrigger className="bg-slate-700 border-slate-600">
-                      <SelectValue placeholder="Select environment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="development">Development</SelectItem>
-                      <SelectItem value="staging">Staging</SelectItem>
-                      <SelectItem value="production">Production</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="domain" className="text-white">Custom Domain (Optional)</Label>
-                <Input
-                  id="domain"
-                  placeholder="yourdomain.com"
-                  value={deploymentConfig.domain || ''}
-                  onChange={(e) => setDeploymentConfig(prev => ({ ...prev, domain: e.target.value }))}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="buildCommand" className="text-white">Build Command</Label>
-                  <Input
-                    id="buildCommand"
-                    placeholder="npm run build"
-                    value={deploymentConfig.buildCommand || ''}
-                    onChange={(e) => setDeploymentConfig(prev => ({ ...prev, buildCommand: e.target.value }))}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="deploymentPath" className="text-white">Output Directory</Label>
-                  <Input
-                    id="deploymentPath"
-                    placeholder="dist"
-                    value={deploymentConfig.deploymentPath || ''}
-                    onChange={(e) => setDeploymentConfig(prev => ({ ...prev, deploymentPath: e.target.value }))}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                Environment Variables
-                <Button onClick={addEnvironmentVariable} size="sm" variant="outline">
-                  Add Variable
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(deploymentConfig.environmentVariables).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between p-2 bg-slate-700 rounded">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono text-white">{key}</span>
-                      <span className="text-sm text-slate-400">=</span>
-                      <span className="text-sm font-mono text-green-400">{value}</span>
-                    </div>
-                    <Button
-                      onClick={() => removeEnvironmentVariable(key)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-                {Object.keys(deploymentConfig.environmentVariables).length === 0 && (
-                  <p className="text-slate-400 text-sm">No environment variables configured</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="deploy" className="mt-6">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Deploy Application</CardTitle>
-              <CardDescription>Deploy your application to the configured platform</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isDeploying && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-300">Deploying...</span>
-                    <span className="text-sm text-slate-300">{deploymentProgress}%</span>
-                  </div>
-                  <Progress value={deploymentProgress} className="h-2" />
-                </div>
-              )}
-
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  {getPlatformIcon(deploymentConfig.platform)}
-                  <span className="text-white capitalize">{deploymentConfig.platform}</span>
-                </div>
-                <Badge variant="outline" className="capitalize">
-                  {deploymentConfig.environment}
-                </Badge>
-              </div>
-
-              <Button
-                onClick={handleDeploy}
-                disabled={isDeploying}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                {isDeploying ? (
-                  <>
-                    <Clock className="w-4 h-4 mr-2 animate-spin" />
-                    Deploying...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="w-4 h-4 mr-2" />
-                    Deploy to {deploymentConfig.platform}
-                  </>
-                )}
-              </Button>
-
-              {deploymentLogs.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-white">Deployment Logs</h4>
-                  <ScrollArea className="h-32 w-full bg-slate-700 rounded p-2">
-                    {deploymentLogs.map((log, index) => (
-                      <div key={index} className="text-xs font-mono text-slate-300 mb-1">
-                        {log}
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="environments" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {deploymentTargets.map((target) => (
-              <Card key={target.id} className="bg-slate-800 border-slate-700">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {getPlatformIcon(target.type)}
-                      <CardTitle className="text-sm text-white">{target.name}</CardTitle>
-                    </div>
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        target.status === 'deployed' ? 'text-green-400 border-green-400' :
-                        target.status === 'deploying' ? 'text-blue-400 border-blue-400' :
-                        target.status === 'failed' ? 'text-red-400 border-red-400' :
-                        'text-gray-400 border-gray-400'
-                      }
-                    >
-                      {target.status}
-                    </Badge>
-                  </div>
+          <TabsContent value="pipelines" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pipelines List */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white">Recent Pipelines</CardTitle>
+                  <CardDescription>CI/CD pipeline execution history</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {target.url && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">URL:</span>
-                      <a 
-                        href={target.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                <CardContent>
+                  <VirtualizedList
+                    items={pipelines}
+                    itemHeight={80}
+                    containerHeight={400}
+                    renderItem={(pipeline, index) => (
+                      <div
+                        key={pipeline.id}
+                        className={`p-3 border border-slate-700 rounded-lg cursor-pointer transition-all ${
+                          selectedPipeline?.id === pipeline.id ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        onClick={() => setSelectedPipeline(pipeline)}
                       >
-                        Visit
-                        <ExternalLink className="w-3 h-3 ml-1" />
-                      </a>
-                    </div>
-                  )}
-                  
-                  {target.lastDeployed && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Last deployed:</span>
-                      <span className="text-xs text-slate-300">
-                        {new Date(target.lastDeployed).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex space-x-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1 border-slate-600">
-                      Redeploy
-                    </Button>
-                    <Button size="sm" variant="outline" className="border-slate-600">
-                      <Settings className="w-3 h-3" />
-                    </Button>
-                  </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <GitBranch className="w-4 h-4 text-blue-400" />
+                            <span className="text-white font-medium">{pipeline.name}</span>
+                          </div>
+                          <Badge variant="outline" className={getStatusColor(pipeline.status)}>
+                            {pipeline.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-slate-400">
+                          <span>{pipeline.branch} • {pipeline.environment}</span>
+                          <span>{pipeline.createdAt.toLocaleTimeString()}</span>
+                        </div>
+                      </div>
+                    )}
+                  />
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="history" className="mt-6">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">Deployment History</CardTitle>
-              <CardDescription>Recent deployment activity</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {deploymentOrchestrator.getDeploymentHistory().slice(0, 10).map((deployment) => (
-                  <div key={deployment.id} className="flex items-center justify-between p-3 bg-slate-700 rounded">
-                    <div className="flex items-center space-x-3">
-                      {deployment.status === 'success' ? (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      ) : deployment.status === 'failed' ? (
-                        <AlertCircle className="w-4 h-4 text-red-500" />
-                      ) : (
-                        <GitBranch className="w-4 h-4 text-blue-500" />
-                      )}
-                      <div>
-                        <span className="text-sm font-medium text-white">
-                          {deploymentTargets.find(t => t.id === deployment.targetId)?.name || deployment.targetId}
-                        </span>
-                        <p className="text-xs text-slate-400">
-                          {deployment.timestamp.toLocaleString()}
-                        </p>
+              {/* Pipeline Details */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white">Pipeline Details</CardTitle>
+                  <CardDescription>
+                    {selectedPipeline ? `Pipeline: ${selectedPipeline.name}` : 'Select a pipeline to view details'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {selectedPipeline ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-400">Environment:</span>
+                          <Badge className="ml-2 capitalize">{selectedPipeline.environment}</Badge>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Branch:</span>
+                          <span className="ml-2 text-white">{selectedPipeline.branch}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Triggered by:</span>
+                          <span className="ml-2 text-white">{selectedPipeline.triggeredBy}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Status:</span>
+                          <Badge variant="outline" className={`ml-2 ${getStatusColor(selectedPipeline.status)}`}>
+                            {selectedPipeline.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-white font-medium">Stages Progress</h4>
+                        {selectedPipeline.stages.map((stage, index) => (
+                          <div key={stage.id} className="flex items-center space-x-3 p-2 bg-slate-700 rounded">
+                            {getStageIcon(stage)}
+                            <span className="text-white flex-1">{stage.name}</span>
+                            {stage.duration && (
+                              <span className="text-slate-400 text-sm">{stage.duration}ms</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex space-x-2 pt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deploymentPipelineManager.cancelPipeline(selectedPipeline.id)}
+                          disabled={selectedPipeline.status === 'completed'}
+                        >
+                          <Square className="w-4 h-4 mr-1" />
+                          Cancel
+                        </Button>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge 
-                        variant="outline" 
-                        className={
-                          deployment.status === 'success' ? 'text-green-400 border-green-400' :
-                          deployment.status === 'failed' ? 'text-red-400 border-red-400' :
-                          'text-blue-400 border-blue-400'
-                        }
-                      >
-                        {deployment.status}
-                      </Badge>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {Math.round(deployment.duration / 1000)}s
-                      </p>
+                  ) : (
+                    <div className="text-center text-slate-400 py-8">
+                      <GitBranch className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Select a pipeline to view details</p>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="stages" className="mt-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Pipeline Stages</CardTitle>
+                <CardDescription>Detailed view of each stage in the deployment process</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedPipeline ? (
+                  <ScrollArea className="h-[450px]">
+                    <div className="space-y-4">
+                      {selectedPipeline.stages.map((stage) => (
+                        <div key={stage.id} className="p-4 bg-slate-700 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              {getStageIcon(stage)}
+                              <h4 className="text-white font-medium">{stage.name}</h4>
+                            </div>
+                            <Badge variant="outline" className={getStatusColor(stage.status)}>
+                              {stage.status}
+                            </Badge>
+                          </div>
+                          <p className="text-slate-400 text-sm">
+                            {stage.startTime ? stage.startTime.toLocaleString() : 'Pending'}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {stage.logs.map((log, index) => (
+                              <p key={index} className="text-xs text-slate-300 font-mono">
+                                {log}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center text-slate-400 py-8">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Select a pipeline to view stage details</p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="environments" className="mt-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Deployment Environments</CardTitle>
+                <CardDescription>Manage and monitor your deployment environments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {['development', 'staging', 'production'].map((env) => (
+                    <div key={env} className="p-4 bg-slate-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-white font-medium capitalize">{env}</h4>
+                        <Badge variant="outline" className="text-green-400 border-green-400">
+                          Active
+                        </Badge>
+                      </div>
+                      <p className="text-slate-400 text-sm">
+                        Last deployed: {new Date().toLocaleTimeString()}
+                      </p>
+                      <div className="flex space-x-2 pt-4">
+                        <Button size="sm" variant="outline">
+                          <Play className="w-4 h-4 mr-1" />
+                          Deploy
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <Pause className="w-4 h-4 mr-1" />
+                          Pause
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="config" className="mt-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Pipeline Configuration</CardTitle>
+                <CardDescription>Customize your deployment pipeline settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white">Enable Tests</span>
+                    <Button size="sm" variant="outline">
+                      Toggle
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white">Enable Linting</span>
+                    <Button size="sm" variant="outline">
+                      Toggle
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white">Deployment Targets</span>
+                    <Button size="sm" variant="outline">
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ErrorBoundary>
   );
 };
