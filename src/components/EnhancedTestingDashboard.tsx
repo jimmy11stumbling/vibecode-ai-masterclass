@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +27,8 @@ import {
   BarChart3,
   Target,
   Code2,
-  Users
+  Users,
+  Layers
 } from 'lucide-react';
 
 export const EnhancedTestingDashboard: React.FC = () => {
@@ -253,9 +255,7 @@ export const EnhancedTestingDashboard: React.FC = () => {
                       renderItem={(test, index) => (
                         <div className="flex items-center justify-between p-3 border-b border-slate-700">
                           <div className="flex items-center space-x-3">
-                            {test.status === 'passed' && <CheckCircle className="w-4 h-4 text-green-400" />}
-                            {test.status === 'failed' && <XCircle className="w-4 h-4 text-red-400" />}
-                            {test.status === 'running' && <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />}
+                            {getStatusIcon(test.status)}
                             <div>
                               <p className="text-white font-medium">{test.name}</p>
                               <p className="text-slate-400 text-sm">{test.file}</p>
@@ -421,44 +421,46 @@ export const EnhancedTestingDashboard: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </ScrollArea>
-          </TabsContent>
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-          <TabsContent value="performance" className="h-full m-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-4">
-                <Card className="bg-slate-800 border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="text-white">Performance Analysis</CardTitle>
-                    <CardDescription>Component render times and memory usage</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-300">Render Time</span>
-                        <span className="text-slate-300">{metrics.renderTime.toFixed(2)}ms</span>
+            <TabsContent value="performance" className="h-full m-0">
+              <ScrollArea className="h-full">
+                <div className="p-4 space-y-4">
+                  <Card className="bg-slate-800 border-slate-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">Performance Analysis</CardTitle>
+                      <CardDescription>Component render times and memory usage</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-300">Render Time</span>
+                            <span className="text-slate-300">{metrics.renderTime.toFixed(2)}ms</span>
+                          </div>
+                          <Progress value={Math.min(metrics.renderTime / 50 * 100, 100)} className="h-2" />
+                        </div>
+                        
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-300">Memory Usage</span>
+                            <span className="text-slate-300">{metrics.memoryUsage.toFixed(2)} MB</span>
+                          </div>
+                          <Progress value={Math.min(metrics.memoryUsage / 200 * 100, 100)} className="h-2" />
+                        </div>
                       </div>
-                      <Progress value={Math.min(metrics.renderTime / 50, 100)} className="h-2" />
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-300">Memory Usage</span>
-                        <span className="text-slate-300">{metrics.memoryUsage.toFixed(2)} MB</span>
-                      </div>
-                      <Progress value={Math.min(metrics.memoryUsage / 200, 100)} className="h-2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        </div>
-      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
     </ErrorBoundary>
   );
 };
