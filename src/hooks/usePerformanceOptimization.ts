@@ -13,6 +13,7 @@ export interface VirtualScrollResult {
   visibleItems: any[];
   totalHeight: number;
   offsetY: number;
+  handleScroll: (event: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export const useVirtualScroll = <T>(
@@ -165,4 +166,9 @@ export const usePerformanceMonitor = () => {
     measureRenderTime,
     measureMemoryUsage
   };
+};
+
+// Export the main hook that components are trying to import
+export const usePerformanceOptimization = () => {
+  return usePerformanceMonitor();
 };

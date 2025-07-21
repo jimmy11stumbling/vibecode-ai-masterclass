@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TestResult {
@@ -10,6 +9,7 @@ export interface TestResult {
   coverage?: number;
   file: string;
   line?: number;
+  type: 'unit' | 'integration' | 'e2e' | 'visual' | 'performance' | 'security';
 }
 
 export interface TestSuite {
@@ -57,21 +57,24 @@ export class TestRunner {
         name: 'SovereignIDE renders correctly',
         status: 'running',
         duration: 0,
-        file: 'SovereignIDE.test.tsx'
+        file: 'SovereignIDE.test.tsx',
+        type: 'unit'
       },
       {
         id: 'comp-2', 
         name: 'RealTimeChat handles messages',
         status: 'running',
         duration: 0,
-        file: 'RealTimeChat.test.tsx'
+        file: 'RealTimeChat.test.tsx',
+        type: 'unit'
       },
       {
         id: 'comp-3',
         name: 'DeploymentManager manages deployments',
         status: 'running',
         duration: 0,
-        file: 'DeploymentManager.test.tsx'
+        file: 'DeploymentManager.test.tsx',
+        type: 'unit'
       }
     ];
 
@@ -101,21 +104,24 @@ export class TestRunner {
         name: 'A2A Protocol communication',
         status: 'running',
         duration: 0,
-        file: 'a2aProtocol.test.ts'
+        file: 'a2aProtocol.test.ts',
+        type: 'integration'
       },
       {
         id: 'int-2',
         name: 'RAG system retrieval',
         status: 'running', 
         duration: 0,
-        file: 'ragSystem.test.ts'
+        file: 'ragSystem.test.ts',
+        type: 'integration'
       },
       {
         id: 'int-3',
         name: 'Database operations',
         status: 'running',
         duration: 0,
-        file: 'database.test.ts'
+        file: 'database.test.ts',
+        type: 'integration'
       }
     ];
 
@@ -144,14 +150,16 @@ export class TestRunner {
         name: 'Component render performance',
         status: 'running',
         duration: 0,
-        file: 'performance.test.ts'
+        file: 'performance.test.ts',
+        type: 'performance'
       },
       {
         id: 'perf-2',
         name: 'Memory usage optimization',
         status: 'running',
         duration: 0,
-        file: 'memory.test.ts'
+        file: 'memory.test.ts',
+        type: 'performance'
       }
     ];
 
@@ -180,14 +188,16 @@ export class TestRunner {
         name: 'API key security validation',
         status: 'running',
         duration: 0,
-        file: 'security.test.ts'
+        file: 'security.test.ts',
+        type: 'security'
       },
       {
         id: 'sec-2',
         name: 'Input sanitization',
         status: 'running',
         duration: 0,
-        file: 'sanitization.test.ts'
+        file: 'sanitization.test.ts',
+        type: 'security'
       }
     ];
 
