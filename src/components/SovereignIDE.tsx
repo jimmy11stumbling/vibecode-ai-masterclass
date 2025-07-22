@@ -20,7 +20,7 @@ import {
   Upload, 
   LayoutDashboard, 
   Play, 
-  FolderTemplate, 
+  Folder, 
   BarChart3, 
   Settings,
   User,
@@ -165,7 +165,7 @@ export const SovereignIDE: React.FC<SovereignIDEProps> = ({ onProjectGenerated }
               </TabsTrigger>
               
               <TabsTrigger value="templates" className="flex items-center space-x-2">
-                <FolderTemplate className="h-4 w-4" />
+                <Folder className="h-4 w-4" />
                 <span>Templates</span>
               </TabsTrigger>
               
