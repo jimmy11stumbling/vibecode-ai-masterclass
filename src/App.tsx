@@ -19,9 +19,12 @@ function App() {
         <Router>
           <div className="min-h-screen bg-background">
             <Routes>
-              <Route path="/login" element={<AuthPage />} />
-              <Route path="/register" element={<AuthPage />} />
+              {/* Auth routes */}
+              <Route path="/login/*" element={<AuthPage />} />
+              <Route path="/register" element={<Navigate to="/login" replace />} />
+              <Route path="/forgot-password" element={<Navigate to="/login/forgot-password" replace />} />
               
+              {/* Protected routes */}
               <Route path="/" element={
                 <ProtectedRoute>
                   <SovereignIDE />
@@ -52,6 +55,7 @@ function App() {
                 </ProtectedRoute>
               } />
               
+              {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Toaster />

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const LoginForm: React.FC = () => {
@@ -17,8 +17,31 @@ export const LoginForm: React.FC = () => {
   const { signIn } = useAuth();
   const { toast } = useToast();
 
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isValidEmail(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Invalid Password",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -27,9 +50,11 @@ export const LoginForm: React.FC = () => {
       if (error) {
         let errorMessage = 'Failed to sign in';
         if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password';
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
         } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Please check your email and confirm your account';
+          errorMessage = 'Please check your email and confirm your account before signing in.';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Too many login attempts. Please wait a moment before trying again.';
         }
         
         toast({
@@ -46,7 +71,7 @@ export const LoginForm: React.FC = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -57,7 +82,7 @@ export const LoginForm: React.FC = () => {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle>Sign In</CardTitle>
+        <CardTitle className="text-2xl">Sign In</CardTitle>
         <CardDescription>
           Enter your credentials to access your account
         </CardDescription>
@@ -66,26 +91,32 @@ export const LoginForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-              disabled={loading}
-            />
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="pl-10"
+                required
+                disabled={loading}
+              />
+            </div>
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
+                className="pl-10"
                 required
                 disabled={loading}
               />
@@ -106,7 +137,7 @@ export const LoginForm: React.FC = () => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || !email || !password}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -118,15 +149,18 @@ export const LoginForm: React.FC = () => {
           </Button>
         </form>
 
-        <div className="mt-4 text-center space-y-2">
-          <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+        <div className="mt-6 text-center space-y-4">
+          <Link 
+            to="/login/forgot-password" 
+            className="text-sm text-blue-600 hover:underline block"
+          >
             Forgot your password?
           </Link>
           <div className="text-sm text-gray-600">
             Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:underline">
-              Sign up
-            </Link>
+            <span className="text-blue-600 hover:underline cursor-pointer">
+              Sign up below
+            </span>
           </div>
         </div>
       </CardContent>
