@@ -48,20 +48,22 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     };
 
     try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadedFiles(prev => 
+          prev.map(f => 
+            f.id === fileId 
+              ? { ...f, progress: Math.min(f.progress + 10, 90) }
+              : f
+          )
+        );
+      }, 100);
+
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .upload(fileName, file, {
-          onUploadProgress: (progress) => {
-            const percentage = (progress.loaded / progress.total) * 100;
-            setUploadedFiles(prev => 
-              prev.map(f => 
-                f.id === fileId 
-                  ? { ...f, progress: percentage }
-                  : f
-              )
-            );
-          }
-        });
+        .upload(fileName, file);
+
+      clearInterval(progressInterval);
 
       if (error) throw error;
 

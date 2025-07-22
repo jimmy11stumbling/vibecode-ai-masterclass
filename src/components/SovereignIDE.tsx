@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,9 @@ import {
   Code, 
   FileText, 
   Upload, 
-  Dashboard, 
+  LayoutDashboard, 
   Play, 
-  Template, 
+  FolderTemplate, 
   BarChart3, 
   Settings,
   User,
@@ -31,7 +30,11 @@ import {
   WifiOff
 } from 'lucide-react';
 
-export const SovereignIDE: React.FC = () => {
+interface SovereignIDEProps {
+  onProjectGenerated?: (project: any) => void;
+}
+
+export const SovereignIDE: React.FC<SovereignIDEProps> = ({ onProjectGenerated }) => {
   const [activeTab, setActiveTab] = useState('chat');
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -147,7 +150,7 @@ export const SovereignIDE: React.FC = () => {
               </TabsTrigger>
               
               <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-                <Dashboard className="h-4 w-4" />
+                <LayoutDashboard className="h-4 w-4" />
                 <span>Dashboard</span>
               </TabsTrigger>
               
@@ -162,7 +165,7 @@ export const SovereignIDE: React.FC = () => {
               </TabsTrigger>
               
               <TabsTrigger value="templates" className="flex items-center space-x-2">
-                <Template className="h-4 w-4" />
+                <FolderTemplate className="h-4 w-4" />
                 <span>Templates</span>
               </TabsTrigger>
               
