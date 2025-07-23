@@ -64,14 +64,20 @@ export const RegisterForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password);
+      const { error } = await signUp(email, password, fullName.trim() || undefined);
       
       if (error) {
+        console.error('Registration error:', error);
         let errorMessage = 'Failed to create account';
-        if (error.message.includes('already registered')) {
+        
+        if (error.message?.includes('already registered')) {
           errorMessage = 'An account with this email already exists. Try signing in instead.';
-        } else if (error.message.includes('Invalid email')) {
+        } else if (error.message?.includes('Invalid email')) {
           errorMessage = 'Please enter a valid email address.';
+        } else if (error.message?.includes('Password should be at least')) {
+          errorMessage = 'Password should be at least 6 characters long.';
+        } else if (error.message) {
+          errorMessage = error.message;
         }
         
         toast({
@@ -91,6 +97,7 @@ export const RegisterForm: React.FC = () => {
         setFullName('');
       }
     } catch (error) {
+      console.error('Unexpected registration error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",

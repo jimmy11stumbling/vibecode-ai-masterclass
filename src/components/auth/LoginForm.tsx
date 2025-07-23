@@ -48,13 +48,19 @@ export const LoginForm: React.FC = () => {
       const { error } = await signIn(email, password);
       
       if (error) {
+        console.error('Login error:', error);
         let errorMessage = 'Failed to sign in';
-        if (error.message.includes('Invalid login credentials')) {
+        
+        if (error.message?.includes('Invalid login credentials')) {
           errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = 'Please check your email and confirm your account before signing in.';
-        } else if (error.message.includes('Too many requests')) {
+        } else if (error.message?.includes('Too many requests')) {
           errorMessage = 'Too many login attempts. Please wait a moment before trying again.';
+        } else if (error.message?.includes('signup_disabled')) {
+          errorMessage = 'Account creation is currently disabled. Please contact support.';
+        } else if (error.message) {
+          errorMessage = error.message;
         }
         
         toast({
@@ -69,6 +75,7 @@ export const LoginForm: React.FC = () => {
         });
       }
     } catch (error) {
+      console.error('Unexpected login error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
