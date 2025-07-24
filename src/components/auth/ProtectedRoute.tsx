@@ -14,14 +14,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
+    console.log('User not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('User authenticated, showing protected content');
   return <>{children}</>;
 };

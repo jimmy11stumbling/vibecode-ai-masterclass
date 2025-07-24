@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -16,6 +16,7 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -73,6 +74,8 @@ export const LoginForm: React.FC = () => {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        // Navigate to main app after successful login
+        navigate('/', { replace: true });
       }
     } catch (error) {
       console.error('Unexpected login error:', error);
@@ -166,7 +169,7 @@ export const LoginForm: React.FC = () => {
           <div className="text-sm text-gray-600">
             Don't have an account?{' '}
             <span className="text-blue-600 hover:underline cursor-pointer">
-              Sign up below
+              Sign up above
             </span>
           </div>
         </div>
