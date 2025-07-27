@@ -14,6 +14,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { CodeExecutorPage } from '@/pages/CodeExecutorPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
+import { AIBuilderPage } from '@/pages/AIBuilderPage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                 </ProtectedRoute>
               }>
                 <Route index element={<HomePage />} />
+                <Route path="ai-builder" element={<AIBuilderPage />} />
                 <Route path="chat" element={<ChatPage />} />
                 <Route path="editor" element={<EditorPage />} />
                 <Route path="projects" element={<DashboardPage />} />

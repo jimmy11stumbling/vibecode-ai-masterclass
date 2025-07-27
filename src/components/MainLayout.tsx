@@ -52,6 +52,7 @@ const navigationItems = [
     title: "Main",
     items: [
       { title: "Dashboard", url: "/", icon: Home },
+      { title: "AI Builder", url: "/ai-builder", icon: Zap },
       { title: "AI Chat", url: "/chat", icon: Bot },
       { title: "Code Editor", url: "/editor", icon: Code },
       { title: "Projects", url: "/projects", icon: FileText },
