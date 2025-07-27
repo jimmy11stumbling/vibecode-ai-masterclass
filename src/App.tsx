@@ -15,6 +15,7 @@ import { CodeExecutorPage } from '@/pages/CodeExecutorPage';
 import { TemplatesPage } from '@/pages/TemplatesPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { AIBuilderPage } from '@/pages/AIBuilderPage';
+import { ProductionTestPage } from '@/pages/ProductionTestPage';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
                 <Route path="code-executor" element={<CodeExecutorPage />} />
                 <Route path="templates" element={<TemplatesPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="production-test" element={<ProductionTestPage />} />
                 <Route path="dashboard" element={<Navigate to="/" replace />} />
               </Route>
               

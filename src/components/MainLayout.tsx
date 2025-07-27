@@ -88,6 +88,7 @@ const navigationItems = [
   {
     title: "System",
     items: [
+      { title: "Production Test", url: "/production-test", icon: Settings },
       { title: "Settings", url: "/settings", icon: Settings },
       { title: "Help", url: "/help", icon: HelpCircle },
     ]
