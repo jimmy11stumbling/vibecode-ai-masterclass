@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 
 interface ProjectFile {
@@ -20,16 +20,61 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
+  // Real-time sync with dynamic code modifier
+  useEffect(() => {
+    const syncFromDynamicModifier = async () => {
+      try {
+        const structure = await dynamicCodeModifier.getProjectStructure();
+        const fileList: ProjectFile[] = [];
+        
+        const convertNode = (node: any, parentId?: string): ProjectFile => {
+          const file: ProjectFile = {
+            id: node.path.replace(/[^a-zA-Z0-9]/g, '_'),
+            name: node.path.split('/').pop() || node.path,
+            type: node.type,
+            parentId,
+            path: node.path,
+            lastModified: new Date()
+          };
+          
+          if (node.type === 'file') {
+            // We'll load content on demand
+            file.content = '';
+          } else if (node.children) {
+            file.children = node.children.map((child: any) => convertNode(child, file.id));
+          }
+          
+          return file;
+        };
+        
+        for (const node of structure) {
+          fileList.push(convertNode(node));
+        }
+        
+        setFiles(fileList);
+        onProjectChange?.(fileList);
+      } catch (error) {
+        console.error('Failed to sync files:', error);
+      }
+    };
+
+    // Initial load
+    syncFromDynamicModifier();
+    
+    // Set up real-time file watching
+    const handleFileChange = () => {
+      console.log('📁 File system changed - syncing...');
+      syncFromDynamicModifier();
+    };
+    
+    const unsubscribe = dynamicCodeModifier.onFileChange(handleFileChange);
+    
+    return unsubscribe;
+  }, [onProjectChange]);
+
   const updateFiles = useCallback(async (newFiles: ProjectFile[]) => {
     setFiles(newFiles);
     onProjectChange?.(newFiles);
-    
-    // Sync with dynamic code modifier
-    for (const file of newFiles) {
-      if (file.type === 'file' && file.content !== undefined) {
-        await dynamicCodeModifier.writeFile(file.path, file.content);
-      }
-    }
   }, [onProjectChange]);
 
   const toggleFolder = useCallback((id: string) => {

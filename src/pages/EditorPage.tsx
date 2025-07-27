@@ -11,7 +11,7 @@ import { MonacoCodeEditor } from '@/components/MonacoCodeEditor';
 import { LivePreview } from '@/components/LivePreview';
 import { Terminal } from '@/components/Terminal';
 import { useProjectFiles } from '@/hooks/useProjectFiles';
-import { RealAICodeGenerator } from '@/services/realAICodeGenerator';
+import { realTimeAIAgent } from '@/services/realTimeAIAgent';
 import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -36,6 +36,7 @@ import {
   Lightbulb,
   Wand2
 } from 'lucide-react';
+import { FileTree } from '@/components/FileTree';
 
 interface Message {
   id: string;
@@ -79,7 +80,7 @@ export default function EditorPage() {
     setTimeout(() => setIsRunning(true), 100);
   });
 
-  const [aiGenerator] = useState(() => new RealAICodeGenerator());
+  // Remove old AI generator - using new real-time agent now
 
   // Initialize with a comprehensive project structure
   useEffect(() => {
@@ -374,120 +375,65 @@ Built with ❤️ by Sovereign IDE AI`;
 
       const validFiles = projectFiles.filter(f => f !== null) as any[];
 
-      // Stream AI response with real-time updates
+      // Stream AI response with REAL-TIME file creation
       let streamedContent = '';
       let generatedFiles: any[] = [];
 
-      await aiGenerator.streamChatResponse([
-        {
-          id: '1',
-          role: 'system',
-          content: `You are a world-class full-stack developer and AI coding assistant. You have access to MCP (Model Context Protocol) tools for file operations.
+      console.log('🚀 Starting real-time AI code generation...');
 
-Available MCP Tools:
-- createFile(path, content): Create new files
-- updateFile(path, content): Update existing files
-- deleteFile(path): Delete files
-- readFile(path): Read file contents
-
-Project Context:
-- Type: ${projectType.toUpperCase()}
-- Current Files: ${validFiles.map(f => f.name).join(', ')}
-- Framework: ${projectType === 'fullstack' ? 'React + Node.js + PostgreSQL' : projectType === 'web' ? 'React' : 'Node.js/Express'}
-
-Instructions:
-1. Analyze the user's request carefully
-2. Generate complete, production-ready code
-3. Use MCP tools to create/modify files
-4. Explain your changes clearly
-5. Follow best practices for ${projectType} development
-
-When creating files, use this format:
-🔧 Creating: /path/to/file
-[file content]
-
-When modifying files, use this format:
-🔧 Updating: /path/to/file
-[file content]`,
-          timestamp: new Date()
-        },
-        {
-          id: '2',
-          role: 'user',
-          content: prompt,
-          timestamp: new Date()
-        }
-      ], (token: string) => {
-        streamedContent += token;
-        
-        // Update the assistant message in real-time
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, content: streamedContent }
-            : msg
-        ));
-
-        // Parse for file operations in real-time
-        const fileCreateMatches = streamedContent.match(/🔧 Creating: (\/[^\n]+)\n([\s\S]*?)(?=🔧|$)/g);
-        const fileUpdateMatches = streamedContent.match(/🔧 Updating: (\/[^\n]+)\n([\s\S]*?)(?=🔧|$)/g);
-        
-        if (fileCreateMatches || fileUpdateMatches) {
-          const newFiles: any[] = [];
+      await realTimeAIAgent.streamCodeGeneration(
+        prompt,
+        (token: string) => {
+          streamedContent += token;
           
-          // Process file creations
-          fileCreateMatches?.forEach(match => {
-            const lines = match.split('\n');
-            const path = lines[0].replace('🔧 Creating: ', '');
-            const content = lines.slice(1).join('\n').trim();
-            
-            if (path && content) {
-              newFiles.push({ path, content, operation: 'create' });
-              dynamicCodeModifier.createFile(path, content);
-            }
+          // Update the assistant message in real-time as AI types
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: streamedContent }
+              : msg
+          ));
+        },
+        (fileOperation: { type: 'create' | 'update' | 'delete', path: string, content?: string }) => {
+          console.log(`🔧 File operation: ${fileOperation.type} ${fileOperation.path}`);
+          
+          // Track generated files
+          generatedFiles.push({
+            path: fileOperation.path,
+            content: fileOperation.content || '',
+            operation: fileOperation.type
           });
 
-          // Process file updates
-          fileUpdateMatches?.forEach(match => {
-            const lines = match.split('\n');
-            const path = lines[0].replace('🔧 Updating: ', '');
-            const content = lines.slice(1).join('\n').trim();
-            
-            if (path && content) {
-              newFiles.push({ path, content, operation: 'update' });
-              dynamicCodeModifier.updateFile(path, content);
-            }
-          });
-
-          if (newFiles.length > 0) {
-            generatedFiles = [...generatedFiles, ...newFiles];
-            
-            // Update file explorer
-            updateFiles(files);
-            
-            // Update selected file if it matches
-            if (selectedFile && newFiles.some(f => f.path.includes(selectedFile.name))) {
-              const matchingFile = newFiles.find(f => f.path.includes(selectedFile.name));
-              if (matchingFile) {
-                setSelectedFile(prev => prev ? {
-                  ...prev,
-                  content: matchingFile.content
-                } : null);
-              }
+          // Update selected file if it matches the created/updated file
+          if (fileOperation.type !== 'delete' && fileOperation.content) {
+            const fileName = fileOperation.path.split('/').pop() || 'file';
+            if (!selectedFile || selectedFile.name === fileName) {
+              setSelectedFile({
+                id: fileOperation.path,
+                name: fileName,
+                content: fileOperation.content,
+                language: getLanguageFromPath(fileOperation.path)
+              });
             }
           }
-        }
-      });
 
-      // Final update with files
-      setMessages(prev => prev.map(msg => 
-        msg.id === assistantMessageId 
-          ? { ...msg, content: streamedContent, files: generatedFiles }
-          : msg
-      ));
+          // Update the message with file operations
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, files: [...generatedFiles] }
+              : msg
+          ));
+        },
+        (stats) => {
+          // Optional progress updates
+          if (stats.status === 'complete') {
+            console.log(`✅ Streaming complete: ${stats.tokensReceived} tokens in ${stats.responseTime}ms`);
+          }
+        }
+      );
 
       toast({
-        title: "🚀 AI Development Complete",
-        description: `Generated ${generatedFiles.length} files with streaming response`,
+        title: "🚀 AI Development Complete", 
+        description: `Generated ${generatedFiles.length} files with real-time streaming`,
       });
     } catch (error) {
       console.error('AI Generation error:', error);
