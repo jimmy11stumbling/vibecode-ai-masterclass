@@ -107,6 +107,101 @@ export class RealAICodeGenerator {
     }
   }
 
+  async streamChatResponse(
+    messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; timestamp: Date }>,
+    onToken: (token: string) => void,
+    onProgress?: (stats: any) => void
+  ): Promise<void> {
+    if (!this.apiKey) {
+      await this.loadApiKey();
+      if (!this.apiKey) {
+        throw new Error('DeepSeek API key not configured');
+      }
+    }
+
+    try {
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          temperature: 0.7,
+          max_tokens: 8000,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response stream available');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let tokenCount = 0;
+      const startTime = Date.now();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i].trim();
+          if (part.startsWith('data: ')) {
+            const jsonStr = part.slice(6).trim();
+            if (jsonStr === '[DONE]') {
+              onProgress?.({
+                tokensReceived: tokenCount,
+                responseTime: Date.now() - startTime,
+                status: 'complete'
+              });
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const token = parsed.choices?.[0]?.delta?.content;
+              if (token) {
+                onToken(token);
+                tokenCount++;
+                
+                if (onProgress && tokenCount % 10 === 0) {
+                  onProgress({
+                    tokensReceived: tokenCount,
+                    responseTime: Date.now() - startTime,
+                    status: 'streaming'
+                  });
+                }
+              }
+            } catch (e) {
+              console.warn('JSON parse error:', e);
+            }
+          }
+        }
+        
+        buffer = parts[parts.length - 1];
+      }
+
+    } catch (error) {
+      console.error('Streaming error:', error);
+      throw error;
+    }
+  }
+
   private buildSystemPrompt(request: CodeGenerationRequest): string {
     return `You are an expert software engineer specializing in ${request.context.framework} development.
 

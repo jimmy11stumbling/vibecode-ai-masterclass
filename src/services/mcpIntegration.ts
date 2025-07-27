@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { MessageProcessor } from './mcp/messageProcessor';
 import { MCPAgent, MCPMessage, MCPTool, MCPServer } from './mcp/types';
+import { mcpFileServer } from './mcpFileServer';
 
 class MCPIntegrationService {
   private agents: Map<string, MCPAgent> = new Map();
@@ -12,6 +13,7 @@ class MCPIntegrationService {
   constructor() {
     this.messageProcessor = new MessageProcessor();
     this.initializeDefaultAgents();
+    this.initializeFileServer();
   }
 
   private initializeDefaultAgents() {
@@ -53,6 +55,11 @@ class MCPIntegrationService {
     defaultAgents.forEach(agent => {
       this.agents.set(agent.id, agent);
     });
+  }
+
+  private initializeFileServer() {
+    this.servers.set(mcpFileServer.id, mcpFileServer);
+    console.log('🗂️ MCP File Server initialized with', mcpFileServer.tools.length, 'tools');
   }
 
   private async generateAIResponse(prompt: string, config: any): Promise<string> {

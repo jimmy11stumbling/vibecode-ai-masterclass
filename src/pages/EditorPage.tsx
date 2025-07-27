@@ -73,7 +73,11 @@ export default function EditorPage() {
     createNewFile,
     deleteFile,
     updateFileContent
-  } = useProjectFiles();
+  } = useProjectFiles((updatedFiles) => {
+    // Sync changes to live preview
+    setIsRunning(false);
+    setTimeout(() => setIsRunning(true), 100);
+  });
 
   const [aiGenerator] = useState(() => new RealAICodeGenerator());
 
@@ -420,6 +424,19 @@ Built with ❤️ by Sovereign IDE AI Agent`;
 
     setMessages(prev => [...prev, userMessage]);
     setIsGenerating(true);
+    setPrompt('');
+
+    // Create streaming assistant message
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      files: []
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
 
     try {
       // Get current project context
@@ -440,72 +457,121 @@ Built with ❤️ by Sovereign IDE AI Agent`;
 
       const validFiles = projectFiles.filter(f => f !== null) as any[];
 
-      // Enhanced AI context based on project type
-      const contextRequirements = projectType === 'fullstack' 
-        ? ['React', 'TypeScript', 'Node.js', 'Express', 'PostgreSQL', 'Authentication', 'RESTful API']
-        : projectType === 'web'
-        ? ['React', 'TypeScript', 'Responsive Design', 'Modern UI/UX']
-        : ['Node.js', 'Express', 'PostgreSQL', 'Authentication', 'RESTful API'];
+      // Stream AI response with real-time updates
+      let streamedContent = '';
+      let generatedFiles: any[] = [];
 
-      // Generate code with AI
-      const result = await aiGenerator.generateCode({
-        prompt: `${prompt}
+      await aiGenerator.streamChatResponse([
+        {
+          id: '1',
+          role: 'system',
+          content: `You are a world-class full-stack developer and AI coding assistant. You have access to MCP (Model Context Protocol) tools for file operations.
 
-Project Type: ${projectType.toUpperCase()}
-Context: This is a ${projectType === 'fullstack' ? 'full-stack application with frontend (React), backend (Node.js/Express), and database (PostgreSQL)' : projectType === 'web' ? 'frontend web application' : 'backend API application'}.
+Available MCP Tools:
+- createFile(path, content): Create new files
+- updateFile(path, content): Update existing files
+- deleteFile(path): Delete files
+- readFile(path): Read file contents
 
-Please generate complete, production-ready code that follows best practices for ${projectType} development.`,
-        context: {
-          files: validFiles,
-          framework: projectType === 'fullstack' ? 'Full-Stack (React + Node.js + PostgreSQL)' : 
-                    projectType === 'web' ? 'React' : 'Node.js/Express',
-          requirements: contextRequirements
+Project Context:
+- Type: ${projectType.toUpperCase()}
+- Current Files: ${validFiles.map(f => f.name).join(', ')}
+- Framework: ${projectType === 'fullstack' ? 'React + Node.js + PostgreSQL' : projectType === 'web' ? 'React' : 'Node.js/Express'}
+
+Instructions:
+1. Analyze the user's request carefully
+2. Generate complete, production-ready code
+3. Use MCP tools to create/modify files
+4. Explain your changes clearly
+5. Follow best practices for ${projectType} development
+
+When creating files, use this format:
+🔧 Creating: /path/to/file
+[file content]
+
+When modifying files, use this format:
+🔧 Updating: /path/to/file
+[file content]`,
+          timestamp: new Date()
         },
-        operation: 'modify'
-      });
+        {
+          id: '2',
+          role: 'user',
+          content: prompt,
+          timestamp: new Date()
+        }
+      ], (token: string) => {
+        streamedContent += token;
+        
+        // Update the assistant message in real-time
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: streamedContent }
+            : msg
+        ));
 
-      if (result.success && result.files.length > 0) {
-        // Apply file changes
-        for (const file of result.files) {
-          await dynamicCodeModifier.writeFile(file.path, file.content);
+        // Parse for file operations in real-time
+        const fileCreateMatches = streamedContent.match(/🔧 Creating: (\/[^\n]+)\n([\s\S]*?)(?=🔧|$)/g);
+        const fileUpdateMatches = streamedContent.match(/🔧 Updating: (\/[^\n]+)\n([\s\S]*?)(?=🔧|$)/g);
+        
+        if (fileCreateMatches || fileUpdateMatches) {
+          const newFiles: any[] = [];
           
-          // Update selected file if it matches
-          if (selectedFile && file.path.includes(selectedFile.name)) {
-            setSelectedFile(prev => prev ? {
-              ...prev,
-              content: file.content
-            } : null);
+          // Process file creations
+          fileCreateMatches?.forEach(match => {
+            const lines = match.split('\n');
+            const path = lines[0].replace('🔧 Creating: ', '');
+            const content = lines.slice(1).join('\n').trim();
+            
+            if (path && content) {
+              newFiles.push({ path, content, operation: 'create' });
+              dynamicCodeModifier.createFile(path, content);
+            }
+          });
+
+          // Process file updates
+          fileUpdateMatches?.forEach(match => {
+            const lines = match.split('\n');
+            const path = lines[0].replace('🔧 Updating: ', '');
+            const content = lines.slice(1).join('\n').trim();
+            
+            if (path && content) {
+              newFiles.push({ path, content, operation: 'update' });
+              dynamicCodeModifier.updateFile(path, content);
+            }
+          });
+
+          if (newFiles.length > 0) {
+            generatedFiles = [...generatedFiles, ...newFiles];
+            
+            // Update file explorer
+            updateFiles(files);
+            
+            // Update selected file if it matches
+            if (selectedFile && newFiles.some(f => f.path.includes(selectedFile.name))) {
+              const matchingFile = newFiles.find(f => f.path.includes(selectedFile.name));
+              if (matchingFile) {
+                setSelectedFile(prev => prev ? {
+                  ...prev,
+                  content: matchingFile.content
+                } : null);
+              }
+            }
           }
         }
+      });
 
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: typeof result.analysis === 'string' ? result.analysis : 
-            `✅ **Full-Stack Application Updated Successfully!**
+      // Final update with files
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: streamedContent, files: generatedFiles }
+          : msg
+      ));
 
-🔧 **Changes Made:**
-- Modified ${result.files.length} file(s)
-- Enhanced ${projectType} functionality
-- Applied production-ready patterns
-
-📁 **Files Updated:**
-${result.files.map(f => `• ${f.path} (${f.operation})`).join('\n')}
-
-🚀 **Ready to Run:** Your application is now updated with the requested features!`,
-          timestamp: new Date(),
-          files: result.files
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-
-        toast({
-          title: "AI Code Generation Complete",
-          description: `Updated ${result.files.length} file(s) for your ${projectType} application`,
-        });
-      } else {
-        throw new Error(result.errors?.[0] || 'Failed to generate code');
-      }
+      toast({
+        title: "🚀 AI Development Complete",
+        description: `Generated ${generatedFiles.length} files with streaming response`,
+      });
     } catch (error) {
       console.error('AI Generation error:', error);
       
