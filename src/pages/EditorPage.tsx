@@ -84,79 +84,109 @@ export default function EditorPage() {
   // Initialize with a comprehensive project structure
   useEffect(() => {
     const initializeProject = async () => {
-      if (files.length === 0) {
-        // Create full-stack project structure
-        await createNewFile('frontend', 'folder');
-        await createNewFile('backend', 'folder');
-        await createNewFile('database', 'folder');
-        await createNewFile('docs', 'folder');
+      try {
+        // Check if files are already loaded from localStorage
+        const savedFiles = localStorage.getItem('dynamic_code_files');
+        if (savedFiles && Object.keys(JSON.parse(savedFiles)).length > 0) {
+          // Files already exist, load the first one for editing
+          const structure = await dynamicCodeModifier.getProjectStructure();
+          if (structure.length > 0) {
+            const firstFile = structure.find(node => node.type === 'file');
+            if (firstFile) {
+              const content = await dynamicCodeModifier.readFile(firstFile.path);
+              setSelectedFile({
+                id: firstFile.path,
+                name: firstFile.path.split('/').pop() || 'file',
+                content: content || '',
+                language: getLanguageFromPath(firstFile.path)
+              });
+            }
+          }
+          return;
+        }
+
+        // Create initial project structure only if none exists
+        console.log('🏗️ Initializing new project structure...');
         
         // Frontend structure
         const appContent = `import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const [data, setData] = useState(null);
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // API call example
-    fetch('/api/status')
-      .then(response => response.json())
-      .then(data => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setLoading(false);
-      });
+    // Simulate API call
+    setTimeout(() => {
+      setMessage('Welcome to your AI-Generated Application!');
+      setLoading(false);
+    }, 1000);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 to-purple-600">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600">
       <div className="container mx-auto px-4 py-8">
         <header className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">Full-Stack Application</h1>
-          <p className="text-xl opacity-90">Built with AI in Sovereign IDE</p>
+          <h1 className="text-4xl font-bold mb-2">🚀 AI-Generated App</h1>
+          <p className="text-xl opacity-90">Built with Sovereign IDE</p>
         </header>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Frontend</h2>
-            <p className="text-gray-600 mb-4">React application with modern UI</p>
-            <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              Learn More
-            </button>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">✨ Features</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-3xl mb-2">⚛️</div>
+                <h3 className="font-semibold mb-2">React Frontend</h3>
+                <p className="text-gray-600">Modern React with hooks</p>
+              </div>
+              
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-3xl mb-2">🔗</div>
+                <h3 className="font-semibold mb-2">API Ready</h3>
+                <p className="text-gray-600">Backend integration ready</p>
+              </div>
+              
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-3xl mb-2">🎨</div>
+                <h3 className="font-semibold mb-2">Styled</h3>
+                <p className="text-gray-600">Beautiful Tailwind CSS</p>
+              </div>
+            </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Backend API</h2>
-            <p className="text-gray-600 mb-4">RESTful API with authentication</p>
-            <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-              API Docs
-            </button>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Database</h2>
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">{message}</h2>
             <p className="text-gray-600 mb-4">
-              Status: {loading ? 'Connecting...' : (data ? 'Connected' : 'Disconnected')}
+              This application was generated by AI using Sovereign IDE. 
+              You can now ask the AI to add features, modify the design, or build additional functionality.
             </p>
-            <button className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
-              View Schema
-            </button>
+            
+            <div className="flex gap-4">
+              <button 
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+                onClick={() => alert('AI Feature: Ready to add functionality!')}
+              >
+                Add Feature
+              </button>
+              <button 
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
+                onClick={() => alert('AI Feature: Ready to modify design!')}
+              >
+                Modify Design
+              </button>
+            </div>
           </div>
         </div>
-        
-        {data && (
-          <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">API Response</h3>
-            <pre className="bg-gray-100 p-4 rounded overflow-auto">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -173,244 +203,131 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// Health check endpoint
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'online',
     timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    database: {
-      connected: true,
-      type: 'PostgreSQL'
-    },
-    endpoints: [
-      'GET /api/status',
-      'GET /api/users',
-      'POST /api/users',
-      'GET /api/projects',
-      'POST /api/projects'
-    ]
+    message: 'Backend server is running',
+    version: '1.0.0'
   });
 });
 
-app.get('/api/users', (req, res) => {
-  res.json([
-    { id: 1, name: 'John Doe', email: 'john@example.com' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com' }
-  ]);
+// Sample API endpoints
+app.get('/api/hello', (req, res) => {
+  res.json({ message: 'Hello from AI-generated backend!' });
 });
 
-app.post('/api/users', (req, res) => {
-  const { name, email } = req.body;
-  const newUser = {
-    id: Date.now(),
-    name,
-    email,
-    createdAt: new Date().toISOString()
-  };
-  res.status(201).json(newUser);
-});
-
-app.get('/api/projects', (req, res) => {
-  res.json([
-    { id: 1, name: 'E-commerce Site', status: 'active' },
-    { id: 2, name: 'Blog Platform', status: 'development' }
-  ]);
+app.post('/api/data', (req, res) => {
+  const { data } = req.body;
+  res.json({ 
+    received: data, 
+    processed: true,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(\`Server running on port \${PORT}\`);
+  console.log(\`🚀 Server running on port \${PORT}\`);
 });`;
 
-        const databaseSchema = `-- Full-Stack Application Database Schema
--- Created by Sovereign IDE AI Agent
-
--- Users table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Projects table
-CREATE TABLE projects (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(200) NOT NULL,
-    description TEXT,
-    user_id INTEGER REFERENCES users(id),
-    status VARCHAR(50) DEFAULT 'development',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Project files table
-CREATE TABLE project_files (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    filename VARCHAR(255) NOT NULL,
-    content TEXT,
-    file_type VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- API keys table
-CREATE TABLE api_keys (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    key_name VARCHAR(100) NOT NULL,
-    key_value VARCHAR(500) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Insert sample data
-INSERT INTO users (name, email, password_hash) VALUES 
-('John Doe', 'john@example.com', 'hashed_password_123'),
-('Jane Smith', 'jane@example.com', 'hashed_password_456');
-
-INSERT INTO projects (name, description, user_id, status) VALUES 
-('E-commerce Site', 'Full-stack e-commerce application', 1, 'active'),
-('Blog Platform', 'Personal blogging platform', 1, 'development'),
-('Analytics Dashboard', 'Real-time analytics dashboard', 2, 'planning');`;
-
         const packageJsonContent = `{
-  "name": "sovereign-ide-fullstack-app",
+  "name": "ai-generated-fullstack-app",
   "version": "1.0.0",
-  "description": "Full-stack application generated by Sovereign IDE AI Agent",
-  "main": "backend/server.js",
+  "description": "Full-stack application generated by Sovereign IDE AI",
   "scripts": {
     "start": "node backend/server.js",
     "dev": "concurrently \\"npm run server\\" \\"npm run client\\"",
     "server": "nodemon backend/server.js",
     "client": "cd frontend && npm start",
-    "build": "cd frontend && npm run build",
-    "test": "jest",
-    "deploy": "npm run build && node deploy.js"
+    "build": "cd frontend && npm run build"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.0",
-    "pg": "^8.8.0",
-    "dotenv": "^16.0.3",
-    "helmet": "^6.0.1",
-    "morgan": "^1.10.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.20",
-    "concurrently": "^7.6.0",
-    "jest": "^29.3.1"
-  },
-  "keywords": ["fullstack", "ai-generated", "sovereign-ide"],
-  "author": "Sovereign IDE AI Agent",
-  "license": "MIT"
+    "concurrently": "^7.6.0"
+  }
 }`;
 
-        const readmeContent = `# Full-Stack Application
-*Generated by Sovereign IDE AI Agent*
+        const readmeContent = `# 🚀 AI-Generated Full-Stack Application
 
-## 🚀 Features
+Generated by Sovereign IDE's AI Agent
 
-- **Frontend**: Modern React application with responsive design
-- **Backend**: Express.js REST API with authentication
-- **Database**: PostgreSQL with proper schema design
-- **Real-time**: WebSocket support for live features
-- **Security**: JWT authentication, CORS, input validation
-- **Testing**: Jest test suite included
-- **Deployment**: Ready for production deployment
+## Features
+- ⚛️ React Frontend
+- 🔗 Express.js Backend  
+- 🎨 Tailwind CSS Styling
+- 📡 API Integration Ready
 
-## 📁 Project Structure
+## Quick Start
+1. Install dependencies: \`npm install\`
+2. Start development: \`npm run dev\`
+3. Open browser: \`http://localhost:3000\`
 
-\`\`\`
-├── frontend/          # React application
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── backend/           # Express.js API server
-│   ├── routes/
-│   ├── middleware/
-│   ├── models/
-│   └── server.js
-├── database/          # Database schema and migrations
-│   ├── schema.sql
-│   └── migrations/
-└── docs/             # Documentation
-    └── API.md
-\`\`\`
+## Ask the AI to:
+- Add new features
+- Modify the design  
+- Create API endpoints
+- Add database integration
+- Deploy to production
 
-## 🛠️ Quick Start
+Built with ❤️ by Sovereign IDE AI`;
 
-1. **Install Dependencies**
-   \`\`\`bash
-   npm install
-   cd frontend && npm install
-   \`\`\`
-
-2. **Set Up Database**
-   \`\`\`bash
-   createdb your_app_db
-   psql your_app_db < database/schema.sql
-   \`\`\`
-
-3. **Configure Environment**
-   \`\`\`bash
-   cp .env.example .env
-   # Edit .env with your database credentials
-   \`\`\`
-
-4. **Start Development**
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-
-## 🔌 API Endpoints
-
-- \`GET /api/status\` - Server health check
-- \`GET /api/users\` - Get all users
-- \`POST /api/users\` - Create new user
-- \`GET /api/projects\` - Get user projects
-- \`POST /api/projects\` - Create new project
-
-## 🚀 Deployment
-
-The application is ready for deployment to:
-- Heroku
-- Vercel
-- DigitalOcean
-- AWS
-- Google Cloud
-
-Built with ❤️ by Sovereign IDE AI Agent`;
-
-        // Create all files
+        // Create all files using the dynamic code modifier
         await dynamicCodeModifier.createFile('/frontend/App.tsx', appContent);
-        await dynamicCodeModifier.createFile('/backend/server.js', backendContent);
-        await dynamicCodeModifier.createFile('/database/schema.sql', databaseSchema);
+        await dynamicCodeModifier.createFile('/backend/server.js', backendContent);  
         await dynamicCodeModifier.createFile('/package.json', packageJsonContent);
         await dynamicCodeModifier.createFile('/README.md', readmeContent);
 
-        // Load initial file
+        // Set the first file for editing
         setSelectedFile({
-          id: 'app',
+          id: 'app-tsx',
           name: 'App.tsx',
           content: appContent,
           language: 'typescript'
         });
 
+        console.log('✅ Project structure initialized successfully');
+        
         toast({
-          title: "Full-Stack Project Initialized",
-          description: "Complete application structure created with frontend, backend, and database",
+          title: "🚀 Project Initialized",
+          description: "Full-stack application structure created successfully",
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to initialize project:', error);
+        toast({
+          title: "Initialization Failed",
+          description: "Could not create project structure",
+          variant: "destructive"
         });
       }
     };
 
     initializeProject();
-  }, [files.length, createNewFile, toast]);
+  }, [toast]);
+
+  // Helper function to determine language from file path
+  const getLanguageFromPath = (path: string): string => {
+    const ext = path.split('.').pop()?.toLowerCase();
+    const langMap: Record<string, string> = {
+      'tsx': 'typescript',
+      'ts': 'typescript', 
+      'jsx': 'javascript',
+      'js': 'javascript',
+      'css': 'css',
+      'json': 'json',
+      'md': 'markdown',
+      'html': 'html',
+      'sql': 'sql'
+    };
+    return langMap[ext || ''] || 'javascript';
+  };
 
   const handleSendMessage = async () => {
     if (!prompt.trim()) return;
