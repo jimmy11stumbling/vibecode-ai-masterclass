@@ -46,6 +46,7 @@ export const LoginForm: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting login with email:', email);
       const { error } = await signIn(email, password);
       
       if (error) {
@@ -70,12 +71,15 @@ export const LoginForm: React.FC = () => {
           variant: "destructive"
         });
       } else {
+        console.log('Login successful!');
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
         // Navigate to main app after successful login
-        navigate('/', { replace: true });
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 1000);
       }
     } catch (error) {
       console.error('Unexpected login error:', error);
@@ -160,6 +164,26 @@ export const LoginForm: React.FC = () => {
         </form>
 
         <div className="mt-6 text-center space-y-4">
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm font-medium text-blue-900 mb-2">Demo Account</p>
+            <p className="text-xs text-blue-700">
+              Email: demo@sovereignide.com<br />
+              Password: demo123
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 text-xs"
+              onClick={() => {
+                setEmail('demo@sovereignide.com');
+                setPassword('demo123');
+              }}
+            >
+              Use Demo Account
+            </Button>
+          </div>
+          
           <Link 
             to="/login/forgot-password" 
             className="text-sm text-blue-600 hover:underline block"
