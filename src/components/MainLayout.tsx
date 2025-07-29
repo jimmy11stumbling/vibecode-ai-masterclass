@@ -63,34 +63,8 @@ const navigationItems = [
     items: [
       { title: "Code Executor", url: "/code-executor", icon: Play },
       { title: "Templates", url: "/templates", icon: Folder },
-      { title: "File Manager", url: "/files", icon: Upload },
-      { title: "Terminal", url: "/terminal", icon: Terminal },
-    ]
-  },
-  {
-    title: "AI & Agents",
-    items: [
-      { title: "Agent Dashboard", url: "/agents", icon: Brain },
-      { title: "RAG Database", url: "/rag", icon: Database },
-      { title: "MCP Tools", url: "/mcp", icon: Package },
-      { title: "Workflows", url: "/workflows", icon: Layers },
-    ]
-  },
-  {
-    title: "Analytics",
-    items: [
       { title: "Analytics", url: "/analytics", icon: BarChart3 },
-      { title: "Performance", url: "/performance", icon: Activity },
-      { title: "Team", url: "/team", icon: Users },
-      { title: "Learning", url: "/learning", icon: BookOpen },
-    ]
-  },
-  {
-    title: "System",
-    items: [
       { title: "Production Test", url: "/production-test", icon: Settings },
-      { title: "Settings", url: "/settings", icon: Settings },
-      { title: "Help", url: "/help", icon: HelpCircle },
     ]
   }
 ];
@@ -160,7 +134,7 @@ export function MainLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         {/* Global Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-background border-b border-border flex items-center px-4">
+        <header className="sticky top-0 z-50 h-14 bg-background border-b border-border flex items-center px-4">
           <div className="flex items-center space-x-4">
             <SidebarTrigger />
             
@@ -223,7 +197,7 @@ export function MainLayout() {
         <AppSidebar />
 
         {/* Main Content */}
-        <main className="flex-1 pt-14">
+        <main className="flex-1">
           <div className="h-full">
             <Outlet />
           </div>
