@@ -1,262 +1,278 @@
-
-import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { 
-  AlertTriangle, 
+  Play, 
+  Square, 
+  RotateCcw, 
   CheckCircle, 
   XCircle, 
-  Info, 
-  Trash2, 
-  Download,
-  Play,
-  Square
+  AlertTriangle,
+  Zap,
+  Clock
 } from 'lucide-react';
 
-interface BuildMessage {
+interface BuildLog {
   id: string;
-  type: 'error' | 'warning' | 'info' | 'success';
+  type: 'info' | 'warning' | 'error' | 'success';
   message: string;
+  timestamp: Date;
   file?: string;
   line?: number;
-  column?: number;
-  timestamp: Date;
 }
 
-interface BuildOutputProps {
-  isBuilding?: boolean;
-  onBuild?: () => void;
-  onStop?: () => void;
-  onClear?: () => void;
+interface BuildStats {
+  duration: number;
+  errors: number;
+  warnings: number;
+  status: 'idle' | 'building' | 'success' | 'error';
 }
 
-export const BuildOutput: React.FC<BuildOutputProps> = ({
-  isBuilding = false,
-  onBuild,
-  onStop,
-  onClear
-}) => {
-  const [messages, setMessages] = useState<BuildMessage[]>([
-    {
-      id: '1',
-      type: 'success',
-      message: 'Build completed successfully',
-      timestamp: new Date()
-    },
-    {
-      id: '2',
-      type: 'warning',
-      message: 'Unused variable \'count\' in App.tsx',
-      file: 'App.tsx',
-      line: 12,
-      column: 10,
-      timestamp: new Date()
-    },
-    {
-      id: '3',
-      type: 'info',
-      message: 'TypeScript compilation finished',
-      timestamp: new Date()
-    }
-  ]);
-
-  const [activeTab, setActiveTab] = useState('all');
-
-  const getIcon = (type: BuildMessage['type']) => {
-    switch (type) {
-      case 'error':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      case 'success':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'info':
-        return <Info className="w-4 h-4 text-blue-500" />;
-    }
-  };
-
-  const getBadgeVariant = (type: BuildMessage['type']) => {
-    switch (type) {
-      case 'error':
-        return 'destructive';
-      case 'warning':
-        return 'secondary';
-      case 'success':
-        return 'default';
-      case 'info':
-        return 'outline';
-    }
-  };
-
-  const filteredMessages = messages.filter(msg => {
-    if (activeTab === 'all') return true;
-    return msg.type === activeTab;
+export const BuildOutput: React.FC = () => {
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [logs, setLogs] = useState<BuildLog[]>([]);
+  const [stats, setStats] = useState<BuildStats>({
+    duration: 0,
+    errors: 0,
+    warnings: 0,
+    status: 'idle'
   });
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const counts = {
-    errors: messages.filter(m => m.type === 'error').length,
-    warnings: messages.filter(m => m.type === 'warning').length,
-    info: messages.filter(m => m.type === 'info').length,
-    success: messages.filter(m => m.type === 'success').length
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   };
 
-  const handleExport = () => {
-    const output = messages.map(msg => 
-      `[${msg.timestamp.toLocaleTimeString()}] ${msg.type.toUpperCase()}: ${msg.message}${
-        msg.file ? ` (${msg.file}:${msg.line}:${msg.column})` : ''
-      }`
-    ).join('\n');
-    
-    const blob = new Blob([output], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'build-output.log';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  useEffect(() => {
+    scrollToBottom();
+  }, [logs]);
+
+  const addLog = (type: BuildLog['type'], message: string, file?: string, line?: number) => {
+    const log: BuildLog = {
+      id: Date.now().toString(),
+      type,
+      message,
+      timestamp: new Date(),
+      file,
+      line
+    };
+    setLogs(prev => [...prev, log]);
   };
 
-  const simulateBuild = () => {
-    if (isBuilding) return;
-    
-    onBuild?.();
-    
-    // Simulate build messages
-    const buildMessages = [
-      { type: 'info' as const, message: 'Starting TypeScript compilation...' },
-      { type: 'info' as const, message: 'Checking dependencies...' },
-      { type: 'success' as const, message: 'Dependencies resolved successfully' },
-      { type: 'info' as const, message: 'Compiling components...' },
-      { type: 'warning' as const, message: 'Type assertion used in FileManager.tsx', file: 'FileManager.tsx', line: 45, column: 12 },
-      { type: 'success' as const, message: 'Build completed in 2.3s' }
-    ];
-    
-    buildMessages.forEach((msg, index) => {
-      setTimeout(() => {
-        const newMessage: BuildMessage = {
-          id: Date.now().toString() + index,
-          timestamp: new Date(),
-          ...msg
-        };
-        setMessages(prev => [...prev, newMessage]);
-      }, index * 500);
-    });
+  const startBuild = async () => {
+    setIsBuilding(true);
+    setLogs([]);
+    setStats({ duration: 0, errors: 0, warnings: 0, status: 'building' });
+
+    const startTime = Date.now();
+
+    try {
+      // Simulate build process
+      addLog('info', '🚀 Starting build process...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      addLog('info', '📦 Installing dependencies...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      addLog('info', '🔍 Type checking...');
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Simulate some warnings
+      addLog('warning', 'Unused variable "unusedVar" in src/components/Example.tsx:42', 'src/components/Example.tsx', 42);
+      addLog('warning', 'Missing dependency in useEffect hook', 'src/hooks/useExample.ts', 15);
+
+      addLog('info', '⚡ Building for production...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      addLog('info', '🎨 Processing CSS...');
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      addLog('info', '📊 Optimizing assets...');
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      addLog('success', '✅ Build completed successfully!');
+
+      const duration = Date.now() - startTime;
+      const warningCount = logs.filter(log => log.type === 'warning').length;
+
+      setStats({
+        duration,
+        errors: 0,
+        warnings: warningCount,
+        status: 'success'
+      });
+
+    } catch (error) {
+      addLog('error', `❌ Build failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      const duration = Date.now() - startTime;
+      const errorCount = logs.filter(log => log.type === 'error').length;
+      const warningCount = logs.filter(log => log.type === 'warning').length;
+
+      setStats({
+        duration,
+        errors: errorCount,
+        warnings: warningCount,
+        status: 'error'
+      });
+    } finally {
+      setIsBuilding(false);
+    }
+  };
+
+  const stopBuild = () => {
+    setIsBuilding(false);
+    addLog('warning', '⚠️ Build process stopped by user');
+    setStats(prev => ({ ...prev, status: 'idle' }));
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+    setStats({ duration: 0, errors: 0, warnings: 0, status: 'idle' });
+  };
+
+  const getLogIcon = (type: BuildLog['type']) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case 'info':
+      default:
+        return <div className="h-4 w-4" />;
+    }
+  };
+
+  const getLogColor = (type: BuildLog['type']) => {
+    switch (type) {
+      case 'success':
+        return 'text-green-600';
+      case 'error':
+        return 'text-red-600';
+      case 'warning':
+        return 'text-yellow-600';
+      case 'info':
+      default:
+        return 'text-gray-700';
+    }
+  };
+
+  const getStatusBadge = () => {
+    switch (stats.status) {
+      case 'building':
+        return <Badge className="bg-blue-100 text-blue-800">Building...</Badge>;
+      case 'success':
+        return <Badge className="bg-green-100 text-green-800">Success</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Failed</Badge>;
+      case 'idle':
+      default:
+        return <Badge variant="secondary">Ready</Badge>;
+    }
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-2">
-        <div className="flex items-center space-x-2">
-          <h3 className="text-sm font-semibold text-white">Build Output</h3>
-          {isBuilding && (
-            <Badge variant="outline" className="text-blue-400 border-blue-400">
-              Building...
-            </Badge>
-          )}
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Zap className="h-5 w-5" />
+            <h3 className="font-semibold">Build Output</h3>
+            {getStatusBadge()}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={clearLogs}
+              disabled={isBuilding}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Clear
+            </Button>
+            {isBuilding ? (
+              <Button size="sm" variant="outline" onClick={stopBuild}>
+                <Square className="h-4 w-4" />
+                Stop
+              </Button>
+            ) : (
+              <Button size="sm" onClick={startBuild}>
+                <Play className="h-4 w-4" />
+                Build
+              </Button>
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={isBuilding ? onStop : simulateBuild}
-            className="text-slate-400 hover:text-white"
-          >
-            {isBuilding ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleExport}
-            className="text-slate-400 hover:text-white"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setMessages([]);
-              onClear?.();
-            }}
-            className="text-slate-400 hover:text-white"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+
+        {/* Build Stats */}
+        {stats.status !== 'idle' && (
+          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-1">
+              <Clock className="h-4 w-4" />
+              <span>{Math.round(stats.duration / 1000)}s</span>
+            </div>
+            {stats.errors > 0 && (
+              <div className="flex items-center space-x-1 text-red-600">
+                <XCircle className="h-4 w-4" />
+                <span>{stats.errors} errors</span>
+              </div>
+            )}
+            {stats.warnings > 0 && (
+              <div className="flex items-center space-x-1 text-yellow-600">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{stats.warnings} warnings</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b border-slate-700 px-4 py-2">
-          <TabsList className="bg-slate-800 w-full">
-            <TabsTrigger value="all" className="data-[state=active]:bg-slate-700">
-              All ({messages.length})
-            </TabsTrigger>
-            <TabsTrigger value="error" className="data-[state=active]:bg-slate-700">
-              Errors ({counts.errors})
-            </TabsTrigger>
-            <TabsTrigger value="warning" className="data-[state=active]:bg-slate-700">
-              Warnings ({counts.warnings})
-            </TabsTrigger>
-            <TabsTrigger value="info" className="data-[state=active]:bg-slate-700">
-              Info ({counts.info})
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value={activeTab} className="h-full m-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-2">
-                {filteredMessages.length === 0 ? (
-                  <div className="text-center text-slate-500 py-8">
-                    <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No {activeTab === 'all' ? 'build output' : activeTab} messages</p>
+      {/* Build Logs */}
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        {logs.length > 0 ? (
+          <div className="space-y-2 font-mono text-sm">
+            {logs.map((log) => (
+              <div key={log.id} className="flex items-start space-x-2">
+                {getLogIcon(log.type)}
+                <div className="flex-1 min-w-0">
+                  <div className={`${getLogColor(log.type)}`}>
+                    <span className="text-gray-500">
+                      [{log.timestamp.toLocaleTimeString()}]
+                    </span>{' '}
+                    {log.message}
                   </div>
-                ) : (
-                  filteredMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="flex items-start space-x-3 p-3 bg-slate-800 rounded-lg hover:bg-slate-750 transition-colors"
-                    >
-                      {getIcon(message.type)}
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Badge variant={getBadgeVariant(message.type)} className="text-xs">
-                            {message.type.toUpperCase()}
-                          </Badge>
-                          <span className="text-xs text-slate-500">
-                            {message.timestamp.toLocaleTimeString()}
-                          </span>
-                        </div>
-                        
-                        <p className="text-sm text-slate-300 mb-1">
-                          {message.message}
-                        </p>
-                        
-                        {message.file && (
-                          <p className="text-xs text-slate-500">
-                            {message.file}:{message.line}:{message.column}
-                          </p>
-                        )}
-                      </div>
+                  {log.file && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      at {log.file}{log.line && `:${log.line}`}
                     </div>
-                  ))
-                )}
+                  )}
+                </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
-        </div>
-      </Tabs>
+            ))}
+            {isBuilding && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <div className="h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span>Building...</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Zap className="h-12 w-12 text-muted-foreground mb-4" />
+            <h4 className="text-lg font-medium mb-2">No Build Output</h4>
+            <p className="text-muted-foreground mb-4">
+              Click the Build button to start building your project
+            </p>
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
 };

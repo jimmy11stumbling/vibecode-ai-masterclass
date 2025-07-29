@@ -1,325 +1,303 @@
-
-import React, { useState } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Package, 
-  Download, 
-  Trash2, 
-  Search, 
-  RefreshCw, 
-  ExternalLink,
-  AlertTriangle,
-  CheckCircle
-} from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Package, Plus, Trash2, Search, Download, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface PackageInfo {
   name: string;
   version: string;
-  description: string;
+  description?: string;
   installed: boolean;
-  category: 'dependency' | 'devDependency';
-  size?: string;
-  license?: string;
-  homepage?: string;
   latest?: string;
-  outdated?: boolean;
+  type: 'dependency' | 'devDependency';
 }
 
-interface PackageManagerProps {
-  onInstallPackage?: (packageName: string, isDev: boolean) => void;
-  onUninstallPackage?: (packageName: string) => void;
-  onUpdatePackage?: (packageName: string) => void;
-}
+export const PackageManager: React.FC = () => {
+  const [packages, setPackages] = useState<PackageInfo[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [newPackage, setNewPackage] = useState('');
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-export const PackageManager: React.FC<PackageManagerProps> = ({
-  onInstallPackage,
-  onUninstallPackage,
-  onUpdatePackage
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('installed');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const [packages] = useState<PackageInfo[]>([
+  // Mock package data - in a real app, this would come from package.json
+  const defaultPackages: PackageInfo[] = [
     {
       name: 'react',
-      version: '18.3.1',
-      description: 'React is a JavaScript library for building user interfaces',
+      version: '^18.3.1',
+      description: 'A JavaScript library for building user interfaces',
       installed: true,
-      category: 'dependency',
-      size: '2.3MB',
-      license: 'MIT',
-      homepage: 'https://reactjs.org',
-      latest: '18.3.1'
+      latest: '18.3.1',
+      type: 'dependency'
     },
     {
       name: 'typescript',
-      version: '5.0.0',
+      version: '^5.5.3',
       description: 'TypeScript is a language for application scale JavaScript',
       installed: true,
-      category: 'devDependency',
-      size: '45.2MB',
-      license: 'Apache-2.0',
-      homepage: 'https://typescriptlang.org',
-      latest: '5.3.2',
-      outdated: true
+      latest: '5.5.4',
+      type: 'devDependency'
+    },
+    {
+      name: 'vite',
+      version: '^5.4.2',
+      description: 'Next generation frontend tooling',
+      installed: true,
+      latest: '5.4.8',
+      type: 'devDependency'
     },
     {
       name: 'tailwindcss',
-      version: '3.4.0',
-      description: 'A utility-first CSS framework for rapid UI development',
+      version: '^3.4.1',
+      description: 'A utility-first CSS framework',
       installed: true,
-      category: 'devDependency',
-      size: '15.8MB',
-      license: 'MIT',
-      homepage: 'https://tailwindcss.com',
-      latest: '3.4.0'
+      latest: '3.4.14',
+      type: 'devDependency'
     },
     {
-      name: 'lodash',
-      version: '',
-      description: 'A modern JavaScript utility library delivering modularity',
-      installed: false,
-      category: 'dependency',
-      size: '1.4MB',
-      license: 'MIT',
-      homepage: 'https://lodash.com',
-      latest: '4.17.21'
-    },
-    {
-      name: 'axios',
-      version: '',
-      description: 'Promise based HTTP client for the browser and node.js',
-      installed: false,
-      category: 'dependency',
-      size: '485KB',
-      license: 'MIT',
-      homepage: 'https://axios-http.com',
-      latest: '1.6.2'
+      name: 'lucide-react',
+      version: '^0.462.0',
+      description: 'Beautiful & consistent icons',
+      installed: true,
+      latest: '0.462.0',
+      type: 'dependency'
     }
-  ]);
+  ];
 
-  const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         pkg.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    switch (activeTab) {
-      case 'installed':
-        return pkg.installed && matchesSearch;
-      case 'available':
-        return !pkg.installed && matchesSearch;
-      case 'outdated':
-        return pkg.installed && pkg.outdated && matchesSearch;
-      default:
-        return matchesSearch;
-    }
-  });
-
-  const handleInstall = async (packageName: string, isDev: boolean = false) => {
-    setIsLoading(true);
-    try {
-      await onInstallPackage?.(packageName, isDev);
-      // Update package state
-    } catch (error) {
-      console.error('Failed to install package:', error);
-    } finally {
+  useEffect(() => {
+    // Simulate loading packages
+    setTimeout(() => {
+      setPackages(defaultPackages);
       setIsLoading(false);
+    }, 1000);
+  }, []);
+
+  const filteredPackages = packages.filter(pkg =>
+    pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pkg.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleInstallPackage = async (packageName: string) => {
+    if (!packageName.trim()) return;
+
+    setIsInstalling(true);
+    try {
+      // Simulate package installation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const newPkg: PackageInfo = {
+        name: packageName,
+        version: '^1.0.0',
+        description: `Package ${packageName}`,
+        installed: true,
+        latest: '1.0.0',
+        type: 'dependency'
+      };
+
+      setPackages(prev => [...prev, newPkg]);
+      setNewPackage('');
+      
+      toast({
+        title: "Package installed",
+        description: `${packageName} has been successfully installed`,
+      });
+    } catch (error) {
+      toast({
+        title: "Installation failed",
+        description: `Failed to install ${packageName}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsInstalling(false);
     }
   };
 
-  const handleUninstall = async (packageName: string) => {
-    setIsLoading(true);
+  const handleUninstallPackage = async (packageName: string) => {
     try {
-      await onUninstallPackage?.(packageName);
-      // Update package state
+      // Simulate package uninstallation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setPackages(prev => prev.filter(pkg => pkg.name !== packageName));
+      
+      toast({
+        title: "Package uninstalled",
+        description: `${packageName} has been removed`,
+      });
     } catch (error) {
-      console.error('Failed to uninstall package:', error);
-    } finally {
-      setIsLoading(false);
+      toast({
+        title: "Uninstallation failed",
+        description: `Failed to remove ${packageName}`,
+        variant: "destructive",
+      });
     }
   };
 
-  const handleUpdate = async (packageName: string) => {
-    setIsLoading(true);
+  const handleUpdatePackage = async (packageName: string) => {
     try {
-      await onUpdatePackage?.(packageName);
-      // Update package state
+      // Simulate package update
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setPackages(prev => prev.map(pkg => 
+        pkg.name === packageName 
+          ? { ...pkg, version: pkg.latest || pkg.version }
+          : pkg
+      ));
+      
+      toast({
+        title: "Package updated",
+        description: `${packageName} has been updated to the latest version`,
+      });
     } catch (error) {
-      console.error('Failed to update package:', error);
-    } finally {
-      setIsLoading(false);
+      toast({
+        title: "Update failed",
+        description: `Failed to update ${packageName}`,
+        variant: "destructive",
+      });
     }
   };
 
-  const installedCount = packages.filter(p => p.installed).length;
-  const outdatedCount = packages.filter(p => p.installed && p.outdated).length;
-  const availableCount = packages.filter(p => !p.installed).length;
+  const getPackageIcon = (type: PackageInfo['type']) => {
+    return type === 'devDependency' ? (
+      <Package className="h-4 w-4 text-orange-500" />
+    ) : (
+      <Package className="h-4 w-4 text-blue-500" />
+    );
+  };
+
+  const hasUpdates = packages.some(pkg => pkg.installed && pkg.latest && pkg.version !== pkg.latest);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center space-x-2">
+          <Package className="h-5 w-5 animate-spin" />
+          <span>Loading packages...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 border border-slate-700 rounded-lg">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-800 border-b border-slate-700 px-4 py-3">
-        <div className="flex items-center space-x-2">
-          <Package className="w-5 h-5 text-blue-400" />
-          <h3 className="text-sm font-semibold text-white">Package Manager</h3>
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Package className="h-5 w-5" />
+            <h3 className="font-semibold">Package Manager</h3>
+            {hasUpdates && (
+              <Badge variant="secondary" className="text-xs">
+                Updates Available
+              </Badge>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {packages.filter(p => p.installed).length} installed
+          </div>
         </div>
-        
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => window.location.reload()}
-          disabled={isLoading}
-          className="text-slate-400 hover:text-white"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
 
-      {/* Search */}
-      <div className="p-4 border-b border-slate-700">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
+        {/* Install New Package */}
+        <div className="flex space-x-2 mb-4">
           <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={newPackage}
+            onChange={(e) => setNewPackage(e.target.value)}
+            placeholder="Package name (e.g., lodash, axios)"
+            onKeyPress={(e) => e.key === 'Enter' && handleInstallPackage(newPackage)}
+          />
+          <Button 
+            onClick={() => handleInstallPackage(newPackage)}
+            disabled={isInstalling || !newPackage.trim()}
+          >
+            {isInstalling ? (
+              <Download className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Install
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search packages..."
-            className="pl-10 bg-slate-800 border-slate-600 text-white"
+            className="pl-9"
           />
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b border-slate-700 px-4 py-2">
-          <TabsList className="bg-slate-800 w-full">
-            <TabsTrigger value="installed" className="data-[state=active]:bg-slate-700">
-              Installed ({installedCount})
-            </TabsTrigger>
-            <TabsTrigger value="available" className="data-[state=active]:bg-slate-700">
-              Available ({availableCount})
-            </TabsTrigger>
-            <TabsTrigger value="outdated" className="data-[state=active]:bg-slate-700">
-              Outdated ({outdatedCount})
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value={activeTab} className="h-full m-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-3">
-                {filteredPackages.length === 0 ? (
-                  <div className="text-center text-slate-500 py-8">
-                    <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No packages found</p>
-                  </div>
-                ) : (
-                  filteredPackages.map((pkg) => (
-                    <div
-                      key={pkg.name}
-                      className="bg-slate-800 rounded-lg p-4 hover:bg-slate-750 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h4 className="text-sm font-semibold text-white">{pkg.name}</h4>
-                            
-                            {pkg.installed && (
-                              <Badge variant="default" className="text-xs">
-                                v{pkg.version}
-                              </Badge>
-                            )}
-                            
-                            {pkg.outdated && (
-                              <Badge variant="destructive" className="text-xs">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                Outdated
-                              </Badge>
-                            )}
-                            
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                pkg.category === 'devDependency' 
-                                  ? 'text-yellow-400 border-yellow-400' 
-                                  : 'text-blue-400 border-blue-400'
-                              }`}
-                            >
-                              {pkg.category === 'devDependency' ? 'Dev' : 'Prod'}
-                            </Badge>
-                          </div>
-                          
-                          <p className="text-xs text-slate-400 mb-2 line-clamp-2">
-                            {pkg.description}
-                          </p>
-                          
-                          <div className="flex items-center space-x-4 text-xs text-slate-500">
-                            {pkg.size && <span>Size: {pkg.size}</span>}
-                            {pkg.license && <span>License: {pkg.license}</span>}
-                            {pkg.latest && !pkg.installed && <span>Latest: v{pkg.latest}</span>}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2 ml-4">
-                          {pkg.homepage && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => window.open(pkg.homepage, '_blank')}
-                              className="text-slate-400 hover:text-white h-8 w-8 p-0"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
-                          )}
-                          
-                          {pkg.installed ? (
-                            <div className="flex items-center space-x-1">
-                              {pkg.outdated && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdate(pkg.name)}
-                                  disabled={isLoading}
-                                  className="bg-blue-600 hover:bg-blue-700 text-xs h-8"
-                                >
-                                  Update
-                                </Button>
-                              )}
-                              
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUninstall(pkg.name)}
-                                disabled={isLoading}
-                                className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white text-xs h-8"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() => handleInstall(pkg.name, false)}
-                              disabled={isLoading}
-                              className="bg-green-600 hover:bg-green-700 text-xs h-8"
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              Install
-                            </Button>
-                          )}
-                        </div>
+      {/* Package List */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-2">
+          {filteredPackages.length > 0 ? (
+            filteredPackages.map((pkg) => (
+              <Card key={pkg.name} className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    {getPackageIcon(pkg.type)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-medium truncate">{pkg.name}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {pkg.version}
+                        </Badge>
+                        {pkg.latest && pkg.version !== pkg.latest && (
+                          <Badge variant="secondary" className="text-xs">
+                            {pkg.latest} available
+                          </Badge>
+                        )}
                       </div>
+                      {pkg.description && (
+                        <p className="text-sm text-muted-foreground truncate">
+                          {pkg.description}
+                        </p>
+                      )}
                     </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {pkg.latest && pkg.version !== pkg.latest && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUpdatePackage(pkg.name)}
+                      >
+                        Update
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUninstallPackage(pkg.name)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-muted-foreground">No packages found</p>
+              {searchTerm && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Try adjusting your search terms
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      </Tabs>
+      </ScrollArea>
     </div>
   );
 };

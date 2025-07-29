@@ -11,6 +11,10 @@ import { realTimeAIAgent } from '@/services/realTimeAIAgent';
 import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 import { Send, Play, Folder, File, Loader2, Eye } from 'lucide-react';
 import { LivePreview } from '@/components/LivePreview';
+import { Terminal } from '@/components/Terminal';
+import { PackageManager } from '@/components/PackageManager';
+import { BuildOutput } from '@/components/BuildOutput';
+import { FileTabs } from '@/components/FileTabs';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileNode {
@@ -35,6 +39,14 @@ const EditorPage: React.FC = () => {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [fileContent, setFileContent] = useState('');
+  const [openTabs, setOpenTabs] = useState<Array<{
+    id: string;
+    name: string;
+    path: string;
+    isDirty?: boolean;
+  }>>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'build' | 'packages'>('terminal');
   const [streamingStats, setStreamingStats] = useState<StreamingStats>({
     tokensReceived: 0,
     responseTime: 0,
@@ -133,9 +145,21 @@ const EditorPage: React.FC = () => {
   const handleFileSelect = async (file: FileNode) => {
     setSelectedFile(file);
     if (file.type === 'file') {
+      // Add to tabs if not already open
+      if (!openTabs.find(tab => tab.id === file.id)) {
+        const newTab = {
+          id: file.id,
+          name: file.name,
+          path: file.path,
+          isDirty: false
+        };
+        setOpenTabs(prev => [...prev, newTab]);
+      }
+      setActiveTabId(file.id);
+
       try {
         const content = await dynamicCodeModifier.readFile(file.path);
-        setFileContent(content);
+        setFileContent(content || '');
       } catch (error) {
         console.error('Failed to read file:', error);
         setFileContent('// Error loading file content');
@@ -145,12 +169,54 @@ const EditorPage: React.FC = () => {
 
   const handleContentChange = async (newContent: string) => {
     setFileContent(newContent);
+    
+    // Mark tab as dirty
+    if (activeTabId) {
+      setOpenTabs(prev => prev.map(tab => 
+        tab.id === activeTabId ? { ...tab, isDirty: true } : tab
+      ));
+    }
+
     if (selectedFile && selectedFile.type === 'file') {
       try {
         await dynamicCodeModifier.updateFile(selectedFile.path, newContent);
         await updateFileContent(selectedFile.id, newContent);
       } catch (error) {
         console.error('Failed to update file:', error);
+      }
+    }
+  };
+
+  const handleTabClick = async (tabId: string) => {
+    const tab = openTabs.find(t => t.id === tabId);
+    if (tab) {
+      const file = files.find(f => f.id === tabId);
+      if (file) {
+        setSelectedFile(file);
+        setActiveTabId(tabId);
+        
+        try {
+          const content = await dynamicCodeModifier.readFile(tab.path);
+          setFileContent(content || '');
+        } catch (error) {
+          console.error('Failed to read file:', error);
+          setFileContent('// Error loading file content');
+        }
+      }
+    }
+  };
+
+  const handleTabClose = (tabId: string) => {
+    setOpenTabs(prev => prev.filter(tab => tab.id !== tabId));
+    
+    if (activeTabId === tabId) {
+      const remainingTabs = openTabs.filter(tab => tab.id !== tabId);
+      if (remainingTabs.length > 0) {
+        handleTabClick(remainingTabs[remainingTabs.length - 1].id);
+      } else {
+        setSelectedFile(null);
+        setActiveTabId(null);
+        setFileContent('');
       }
     }
   };
@@ -175,20 +241,27 @@ const EditorPage: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - File Explorer */}
-        <div className="w-80 border-r bg-card">
+        <div className="w-80 border-r bg-card flex flex-col">
           <div className="p-4 border-b">
             <h3 className="font-medium flex items-center space-x-2">
               <Folder className="h-4 w-4" />
               <span>Project Files</span>
             </h3>
           </div>
-          <ScrollArea className="flex-1">
-            <FileTree 
-              files={files} 
-              onFileSelect={handleFileSelect}
-              selectedFileId={selectedFile?.id}
-            />
-          </ScrollArea>
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <FileTree 
+                files={files} 
+                onFileSelect={handleFileSelect}
+                selectedFileId={selectedFile?.id}
+              />
+            </ScrollArea>
+          </div>
+          
+          {/* Terminal at bottom of sidebar */}
+          <div className="h-64 border-t">
+            <Terminal />
+          </div>
         </div>
 
         {/* Main Content Area */}
@@ -244,12 +317,13 @@ const EditorPage: React.FC = () => {
 
             {/* Code Editor */}
             <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b">
-                <h3 className="font-medium flex items-center space-x-2">
-                  <File className="h-4 w-4" />
-                  <span>{selectedFile ? selectedFile.name : 'Select a file to edit'}</span>
-                </h3>
-              </div>
+              {/* File Tabs */}
+              <FileTabs
+                tabs={openTabs}
+                activeTabId={activeTabId}
+                onTabClick={handleTabClick}
+                onTabClose={handleTabClose}
+              />
               
               {selectedFile && selectedFile.type === 'file' ? (
                 <div className="flex-1 p-4">
@@ -268,6 +342,48 @@ const EditorPage: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Bottom Panel */}
+            <div className="h-80 border-t">
+              <div className="flex items-center border-b">
+                <button
+                  onClick={() => setBottomPanel('terminal')}
+                  className={`px-4 py-2 text-sm font-medium border-r ${
+                    bottomPanel === 'terminal' 
+                      ? 'bg-background text-foreground border-b-2 border-b-primary' 
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Terminal
+                </button>
+                <button
+                  onClick={() => setBottomPanel('build')}
+                  className={`px-4 py-2 text-sm font-medium border-r ${
+                    bottomPanel === 'build' 
+                      ? 'bg-background text-foreground border-b-2 border-b-primary' 
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Build
+                </button>
+                <button
+                  onClick={() => setBottomPanel('packages')}
+                  className={`px-4 py-2 text-sm font-medium ${
+                    bottomPanel === 'packages' 
+                      ? 'bg-background text-foreground border-b-2 border-b-primary' 
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Packages
+                </button>
+              </div>
+              
+              <div className="h-full">
+                {bottomPanel === 'terminal' && <Terminal />}
+                {bottomPanel === 'build' && <BuildOutput />}
+                {bottomPanel === 'packages' && <PackageManager />}
+              </div>
             </div>
           </div>
 

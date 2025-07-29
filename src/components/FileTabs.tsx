@@ -1,111 +1,148 @@
-
 import React from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { X, Plus, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { X, File, FileText, Code, Palette } from 'lucide-react';
 
-interface CodeFile {
+interface FileTab {
   id: string;
   name: string;
-  content: string;
-  language: string;
+  path: string;
+  isDirty?: boolean;
+  language?: string;
 }
 
 interface FileTabsProps {
-  files: CodeFile[];
-  onDeleteFile: (fileId: string) => void;
-  onCreateFile: (fileName: string) => void;
+  tabs: FileTab[];
+  activeTabId?: string | null;
+  onTabClick: (id: string) => void;
+  onTabClose: (id: string) => void;
+  maxTabs?: number;
 }
 
 export const FileTabs: React.FC<FileTabsProps> = ({
-  files,
-  onDeleteFile,
-  onCreateFile
+  tabs,
+  activeTabId,
+  onTabClick,
+  onTabClose,
+  maxTabs = 10
 }) => {
-  const [newFileName, setNewFileName] = React.useState('');
-  const [isCreating, setIsCreating] = React.useState(false);
-
-  const handleCreateFile = () => {
-    if (newFileName.trim()) {
-      onCreateFile(newFileName.trim());
-      setNewFileName('');
-      setIsCreating(false);
-    }
-  };
-
-  const getFileIcon = (fileName: string) => {
+  const getFileIcon = (fileName: string, language?: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
+    
     switch (ext) {
       case 'tsx':
       case 'jsx':
-        return '⚛️';
+        return <Code className="h-3 w-3 text-cyan-500" />;
       case 'ts':
       case 'js':
-        return '📜';
+        return <Code className="h-3 w-3 text-yellow-500" />;
       case 'css':
-        return '🎨';
+      case 'scss':
+      case 'sass':
+        return <Palette className="h-3 w-3 text-pink-500" />;
+      case 'html':
+        return <FileText className="h-3 w-3 text-orange-500" />;
       case 'json':
-        return '📋';
+        return <File className="h-3 w-3 text-green-500" />;
       case 'md':
-        return '📖';
+        return <FileText className="h-3 w-3 text-gray-500" />;
       default:
-        return '📄';
+        return <File className="h-3 w-3 text-gray-400" />;
     }
   };
 
-  return (
-    <div className="flex items-center bg-slate-800 border-b border-slate-700 px-2 py-1">
-      <TabsList className="bg-transparent h-8 p-0 space-x-1 flex-1">
-        {files.map((file) => (
-          <div key={file.id} className="flex items-center bg-slate-700 rounded-md">
-            <TabsTrigger
-              value={file.id}
-              className="flex items-center space-x-2 px-3 py-1 text-sm data-[state=active]:bg-slate-600 data-[state=active]:text-white"
-            >
-              <span>{getFileIcon(file.name)}</span>
-              <span>{file.name}</span>
-            </TabsTrigger>
-            {files.length > 1 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => onDeleteFile(file.id)}
-                className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-600"
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            )}
-          </div>
-        ))}
-      </TabsList>
+  const handleTabClick = (e: React.MouseEvent, tabId: string) => {
+    e.preventDefault();
+    onTabClick(tabId);
+  };
 
-      <div className="flex items-center space-x-2 ml-2">
-        {isCreating ? (
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateFile();
-                if (e.key === 'Escape') setIsCreating(false);
-              }}
-              onBlur={handleCreateFile}
-              placeholder="filename.tsx"
-              className="bg-slate-700 text-white text-sm px-2 py-1 rounded border border-slate-600 focus:border-blue-400 focus:outline-none w-32"
-              autoFocus
-            />
+  const handleTabClose = (e: React.MouseEvent, tabId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onTabClose(tabId);
+  };
+
+  const visibleTabs = tabs.slice(0, maxTabs);
+  const hiddenTabsCount = Math.max(0, tabs.length - maxTabs);
+
+  if (tabs.length === 0) {
+    return (
+      <div className="border-b bg-muted/20 px-4 py-2">
+        <div className="text-sm text-muted-foreground">No files open</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b bg-background">
+      <div className="flex items-center overflow-hidden">
+        {/* File Tabs */}
+        <div className="flex items-center flex-1 overflow-x-auto scrollbar-hide">
+          {visibleTabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            
+            return (
+              <div
+                key={tab.id}
+                className={`
+                  group flex items-center space-x-2 px-3 py-2 border-r border-border
+                  cursor-pointer transition-colors hover:bg-muted/50
+                  ${isActive 
+                    ? 'bg-background border-b-2 border-b-primary' 
+                    : 'bg-muted/20 hover:bg-muted/40'
+                  }
+                `}
+                onClick={(e) => handleTabClick(e, tab.id)}
+              >
+                {getFileIcon(tab.name, tab.language)}
+                
+                <span className={`
+                  text-sm truncate max-w-32
+                  ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}
+                `}>
+                  {tab.name}
+                </span>
+                
+                {tab.isDirty && (
+                  <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                )}
+                
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => handleTabClose(e, tab.id)}
+                  className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Hidden Tabs Indicator */}
+        {hiddenTabsCount > 0 && (
+          <div className="px-3 py-2 border-l border-border">
+            <Badge variant="secondary" className="text-xs">
+              +{hiddenTabsCount} more
+            </Badge>
           </div>
-        ) : (
+        )}
+
+        {/* Tab Actions */}
+        <div className="flex items-center px-2 border-l border-border">
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setIsCreating(true)}
-            className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+            onClick={() => {
+              // Close all tabs
+              tabs.forEach(tab => onTabClose(tab.id));
+            }}
+            className="h-6 text-xs text-muted-foreground hover:text-foreground"
           >
-            <Plus className="w-3 h-3" />
+            Close All
           </Button>
-        )}
+        </div>
       </div>
     </div>
   );
