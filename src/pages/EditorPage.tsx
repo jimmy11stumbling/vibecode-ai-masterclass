@@ -9,7 +9,8 @@ import { FileTree } from '@/components/FileTree';
 import { useProjectFiles } from '@/hooks/useProjectFiles';
 import { realTimeAIAgent } from '@/services/realTimeAIAgent';
 import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
-import { Send, Play, Folder, File, Loader2 } from 'lucide-react';
+import { Send, Play, Folder, File, Loader2, Eye } from 'lucide-react';
+import { LivePreview } from '@/components/LivePreview';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileNode {
@@ -89,28 +90,27 @@ const EditorPage: React.FC = () => {
             duration: 2000,
           });
           
-          // Refresh file list
-          setTimeout(() => {
-            dynamicCodeModifier.getProjectStructure().then(structure => {
-              const convertToFileNodes = (nodes: any[]): FileNode[] => {
-                return nodes.map(node => ({
-                  id: node.path.replace(/[^a-zA-Z0-9]/g, '_'),
-                  name: node.path.split('/').pop() || node.path,
-                  type: node.type,
-                  path: node.path,
-                  children: node.children ? convertToFileNodes(node.children) : undefined,
-                  content: node.content || ''
-                }));
-              };
-              setFiles(convertToFileNodes(structure));
-            });
-          }, 100);
+          // Refresh file list immediately
+          dynamicCodeModifier.getProjectStructure().then(structure => {
+            const convertToFileNodes = (nodes: any[]): FileNode[] => {
+              return nodes.map(node => ({
+                id: node.path.replace(/[^a-zA-Z0-9]/g, '_'),
+                name: node.path.split('/').pop() || node.path,
+                type: node.type,
+                path: node.path,
+                children: node.children ? convertToFileNodes(node.children) : undefined,
+                content: node.content || ''
+              }));
+            };
+            setFiles(convertToFileNodes(structure));
+          });
         },
         (stats: StreamingStats) => {
           setStreamingStats(stats);
         }
       );
 
+      setStreamingStats(prev => ({ ...prev, status: 'complete' }));
       toast({
         title: "✅ Code generation complete!",
         description: "Your application has been generated successfully.",
@@ -118,6 +118,7 @@ const EditorPage: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Streaming error:', error);
+      setStreamingStats(prev => ({ ...prev, status: 'error' }));
       toast({
         title: "❌ Generation failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",
@@ -191,80 +192,96 @@ const EditorPage: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
-          {/* AI Chat & Streaming Response */}
-          <div className="h-80 border-b flex flex-col">
-            <div className="p-4 border-b">
-              <h3 className="font-medium">AI Assistant</h3>
-            </div>
-            
-            {/* Streaming Response Area */}
-            <ScrollArea className="flex-1 p-4" ref={streamingRef}>
-              {streamingContent && (
-                <div className="bg-muted rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
-                  {streamingContent}
-                  {isStreaming && <span className="animate-pulse">|</span>}
-                </div>
-              )}
-              {!streamingContent && !isStreaming && (
-                <div className="text-center text-muted-foreground py-8">
-                  <div className="text-4xl mb-2">🤖</div>
-                  <p>Ask me to build anything!</p>
-                  <p className="text-sm">E.g., "Create a todo app with React and TypeScript"</p>
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Prompt Input */}
-            <div className="p-4 border-t">
-              <div className="flex space-x-2">
-                <Input
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe what you want to build..."
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendPrompt()}
-                  disabled={isStreaming}
-                />
-                <Button 
-                  onClick={handleSendPrompt} 
-                  disabled={isStreaming || !prompt.trim()}
-                >
-                  {isStreaming ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
+        <div className="flex-1 flex">
+          {/* Left Panel - AI Chat & Code Editor */}
+          <div className="flex-1 flex flex-col">
+            {/* AI Chat & Streaming Response */}
+            <div className="h-80 border-b flex flex-col">
+              <div className="p-4 border-b">
+                <h3 className="font-medium">AI Assistant</h3>
               </div>
+              
+              {/* Streaming Response Area */}
+              <ScrollArea className="flex-1 p-4" ref={streamingRef}>
+                {streamingContent && (
+                  <div className="bg-muted rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
+                    {streamingContent}
+                    {isStreaming && <span className="animate-pulse">|</span>}
+                  </div>
+                )}
+                {!streamingContent && !isStreaming && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <div className="text-4xl mb-2">🤖</div>
+                    <p>Ask me to build anything!</p>
+                    <p className="text-sm">E.g., "Create a todo app with React and TypeScript"</p>
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Prompt Input */}
+              <div className="p-4 border-t">
+                <div className="flex space-x-2">
+                  <Input
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Describe what you want to build..."
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendPrompt()}
+                    disabled={isStreaming}
+                  />
+                  <Button 
+                    onClick={handleSendPrompt} 
+                    disabled={isStreaming || !prompt.trim()}
+                  >
+                    {isStreaming ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Code Editor */}
+            <div className="flex-1 flex flex-col">
+              <div className="p-4 border-b">
+                <h3 className="font-medium flex items-center space-x-2">
+                  <File className="h-4 w-4" />
+                  <span>{selectedFile ? selectedFile.name : 'Select a file to edit'}</span>
+                </h3>
+              </div>
+              
+              {selectedFile && selectedFile.type === 'file' ? (
+                <div className="flex-1 p-4">
+                  <textarea
+                    value={fileContent}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    className="w-full h-full font-mono text-sm bg-background border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="File content will appear here..."
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Select a file to start editing</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Code Editor */}
-          <div className="flex-1 flex flex-col">
+          {/* Right Panel - Live Preview */}
+          <div className="w-96 border-l bg-card">
             <div className="p-4 border-b">
               <h3 className="font-medium flex items-center space-x-2">
-                <File className="h-4 w-4" />
-                <span>{selectedFile ? selectedFile.name : 'Select a file to edit'}</span>
+                <Eye className="h-4 w-4" />
+                <span>Live Preview</span>
               </h3>
             </div>
-            
-            {selectedFile && selectedFile.type === 'file' ? (
-              <div className="flex-1 p-4">
-                <textarea
-                  value={fileContent}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  className="w-full h-full font-mono text-sm bg-background border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="File content will appear here..."
-                />
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Select a file to start editing</p>
-                </div>
-              </div>
-            )}
+            <div className="flex-1">
+              <LivePreview files={files} />
+            </div>
           </div>
         </div>
       </div>

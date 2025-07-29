@@ -207,54 +207,50 @@ Build exactly what the user asks for. Create files as you think about them.`;
     content: string, 
     onFileOperation: (operation: { type: 'create' | 'update' | 'delete', path: string, content?: string }) => void
   ): void {
-    // Match CREATE_FILE operations
-    const createMatches = content.match(/🔧 CREATE_FILE: ([^\n]+)\n([\s\S]*?)🔧 END_FILE/g);
-    if (createMatches) {
-      createMatches.forEach(match => {
-        const operationId = `create_${match}`;
-        if (this.processedOperations.has(operationId)) return;
+    // Match CREATE_FILE operations - improved regex to be more robust
+    const createRegex = /🔧 CREATE_FILE:\s*([^\n]+)\n([\s\S]*?)(?=🔧 END_FILE|$)/g;
+    let createMatch;
+    while ((createMatch = createRegex.exec(content)) !== null) {
+      const path = createMatch[1].trim();
+      const fileContent = createMatch[2].trim();
+      const operationId = `create_${path}`;
+      
+      if (!this.processedOperations.has(operationId) && path && fileContent) {
+        console.log(`🔧 Creating file: ${path}`);
+        this.processedOperations.add(operationId);
         
-        const lines = match.split('\n');
-        const path = lines[0].replace('🔧 CREATE_FILE: ', '').trim();
-        const content = lines.slice(1, -1).join('\n');
+        // Create file immediately
+        dynamicCodeModifier.createFile(path, fileContent).then(() => {
+          console.log(`✅ File created: ${path}`);
+        }).catch(err => {
+          console.error(`❌ Failed to create file ${path}:`, err);
+        });
         
-        if (path && content) {
-          console.log(`🔧 Creating file: ${path}`);
-          this.processedOperations.add(operationId);
-          
-          // Create file immediately
-          dynamicCodeModifier.createFile(path, content).then(() => {
-            console.log(`✅ File created: ${path}`);
-          });
-          
-          onFileOperation({ type: 'create', path, content });
-        }
-      });
+        onFileOperation({ type: 'create', path, content: fileContent });
+      }
     }
 
-    // Match UPDATE_FILE operations
-    const updateMatches = content.match(/🔧 UPDATE_FILE: ([^\n]+)\n([\s\S]*?)🔧 END_FILE/g);
-    if (updateMatches) {
-      updateMatches.forEach(match => {
-        const operationId = `update_${match}`;
-        if (this.processedOperations.has(operationId)) return;
+    // Match UPDATE_FILE operations - improved regex
+    const updateRegex = /🔧 UPDATE_FILE:\s*([^\n]+)\n([\s\S]*?)(?=🔧 END_FILE|$)/g;
+    let updateMatch;
+    while ((updateMatch = updateRegex.exec(content)) !== null) {
+      const path = updateMatch[1].trim();
+      const fileContent = updateMatch[2].trim();
+      const operationId = `update_${path}`;
+      
+      if (!this.processedOperations.has(operationId) && path && fileContent) {
+        console.log(`🔧 Updating file: ${path}`);
+        this.processedOperations.add(operationId);
         
-        const lines = match.split('\n');
-        const path = lines[0].replace('🔧 UPDATE_FILE: ', '').trim();
-        const content = lines.slice(1, -1).join('\n');
+        // Update file immediately
+        dynamicCodeModifier.updateFile(path, fileContent).then(() => {
+          console.log(`✅ File updated: ${path}`);
+        }).catch(err => {
+          console.error(`❌ Failed to update file ${path}:`, err);
+        });
         
-        if (path && content) {
-          console.log(`🔧 Updating file: ${path}`);
-          this.processedOperations.add(operationId);
-          
-          // Update file immediately
-          dynamicCodeModifier.updateFile(path, content).then(() => {
-            console.log(`✅ File updated: ${path}`);
-          });
-          
-          onFileOperation({ type: 'update', path, content });
-        }
-      });
+        onFileOperation({ type: 'update', path, content: fileContent });
+      }
     }
   }
 
