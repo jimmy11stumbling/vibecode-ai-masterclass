@@ -257,9 +257,15 @@ export default ${componentName};`;
         <ResizablePanel defaultSize={70} minSize={50}>
           <Tabs value={activeFileId} onValueChange={setActiveFileId} className="flex-1 flex flex-col h-full">
             <FileTabs
-              files={files}
-              onDeleteFile={deleteFile}
-              onCreateFile={createNewFile}
+              tabs={files.map(file => ({
+                id: file.id,
+                name: file.name,
+                path: file.name,
+                isDirty: false
+              }))}
+              activeTabId={activeFileId}
+              onTabClick={(id) => setActiveFileId(id)}
+              onTabClose={deleteFile}
             />
 
             {files.map((file) => (
