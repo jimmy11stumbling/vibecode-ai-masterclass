@@ -132,76 +132,75 @@ export function MainLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        {/* Global Header */}
-        <header className="sticky top-0 z-50 h-14 bg-background border-b border-border flex items-center px-4">
-          <div className="flex items-center space-x-4">
-            <SidebarTrigger />
-            
-            <div className="flex items-center space-x-2">
-              <Bot className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg">Sovereign IDE</span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="text-xs">
-                <Zap className="h-3 w-3 mr-1" />
-                DeepSeek AI
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                <Database className="h-3 w-3 mr-1" />
-                RAG 2.0
-              </Badge>
-            </div>
-          </div>
-
-          <div className="flex-1 max-w-md mx-8">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
-              {getConnectionIcon()}
-              <span className="text-xs text-muted-foreground capitalize">
-                {connectionState}
-              </span>
-            </div>
-            
-            <Button variant="ghost" size="sm">
-              <Bell className="h-4 w-4" />
-            </Button>
-            
-            <Button variant="ghost" size="sm">
-              <GitBranch className="h-4 w-4" />
-            </Button>
-            
-            <div className="flex items-center space-x-2 text-sm">
-              <User className="h-4 w-4" />
-              <span className="hidden md:inline">{user?.email}</span>
-            </div>
-            
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </header>
-
-        {/* Sidebar */}
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          {/* Global Header */}
+          <header className="h-14 bg-background border-b border-border flex items-center px-4 shrink-0">
+            <div className="flex items-center space-x-4">
+              <SidebarTrigger />
+              
+              <div className="flex items-center space-x-2">
+                <Bot className="h-6 w-6 text-primary" />
+                <span className="font-bold text-lg">Sovereign IDE</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="text-xs">
+                  <Zap className="h-3 w-3 mr-1" />
+                  DeepSeek AI
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  <Database className="h-3 w-3 mr-1" />
+                  RAG 2.0
+                </Badge>
+              </div>
+            </div>
 
-        {/* Main Content */}
-        <main className="flex-1">
-          <div className="h-full">
+            <div className="flex-1 max-w-md mx-8">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {getConnectionIcon()}
+                <span className="text-xs text-muted-foreground capitalize">
+                  {connectionState}
+                </span>
+              </div>
+              
+              <Button variant="ghost" size="sm">
+                <Bell className="h-4 w-4" />
+              </Button>
+              
+              <Button variant="ghost" size="sm">
+                <GitBranch className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex items-center space-x-2 text-sm">
+                <User className="h-4 w-4" />
+                <span className="hidden md:inline">{user?.email}</span>
+              </div>
+              
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-auto">
             <Outlet />
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
