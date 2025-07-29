@@ -24,6 +24,7 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
   useEffect(() => {
     const syncFromDynamicModifier = async () => {
       try {
+        console.log('🔄 Syncing file structure...');
         const structure = await dynamicCodeModifier.getProjectStructure();
         const fileList: ProjectFile[] = [];
         
@@ -38,8 +39,10 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
           };
           
           if (node.type === 'file') {
-            // We'll load content on demand
-            file.content = '';
+            // Load actual content for files
+            dynamicCodeModifier.readFile(node.path).then(content => {
+              file.content = content || '';
+            });
           } else if (node.children) {
             file.children = node.children.map((child: any) => convertNode(child, file.id));
           }
@@ -53,6 +56,7 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
         
         setFiles(fileList);
         onProjectChange?.(fileList);
+        console.log(`📁 Synced ${fileList.length} files`);
       } catch (error) {
         console.error('Failed to sync files:', error);
       }
@@ -61,15 +65,31 @@ export const useProjectFiles = (onProjectChange?: (files: ProjectFile[]) => void
     // Initial load
     syncFromDynamicModifier();
     
-    // Set up real-time file watching
+    // Enhanced file watching with multiple triggers
     const handleFileChange = () => {
       console.log('📁 File system changed - syncing...');
       syncFromDynamicModifier();
     };
+
+    const handleForceRefresh = () => {
+      console.log('🔄 Force refreshing file system...');
+      syncFromDynamicModifier();
+    };
     
+    // Multiple event listeners for different triggers
     const unsubscribe = dynamicCodeModifier.onFileChange(handleFileChange);
+    window.addEventListener('fileSystemChanged', handleFileChange);
+    window.addEventListener('forceFileRefresh', handleForceRefresh);
     
-    return unsubscribe;
+    // Auto-refresh every 5 seconds to catch any missed changes
+    const intervalId = setInterval(syncFromDynamicModifier, 5000);
+    
+    return () => {
+      unsubscribe();
+      window.removeEventListener('fileSystemChanged', handleFileChange);
+      window.removeEventListener('forceFileRefresh', handleForceRefresh);
+      clearInterval(intervalId);
+    };
   }, [onProjectChange]);
 
   const updateFiles = useCallback(async (newFiles: ProjectFile[]) => {

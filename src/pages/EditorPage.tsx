@@ -16,6 +16,7 @@ import { PackageManager } from '@/components/PackageManager';
 import { BuildOutput } from '@/components/BuildOutput';
 import { FileTabs } from '@/components/FileTabs';
 import { useToast } from '@/hooks/use-toast';
+import { FixedAIChat } from '@/components/FixedAIChat';
 
 interface FileNode {
   id: string;
@@ -47,6 +48,7 @@ const EditorPage: React.FC = () => {
   }>>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [bottomPanel, setBottomPanel] = useState<'terminal' | 'build' | 'packages'>('terminal');
+  const [activeAITab, setActiveAITab] = useState<'streaming' | 'fixed'>('fixed');
   const [streamingStats, setStreamingStats] = useState<StreamingStats>({
     tokensReceived: 0,
     responseTime: 0,
@@ -268,51 +270,72 @@ const EditorPage: React.FC = () => {
         <div className="flex-1 flex">
           {/* Left Panel - AI Chat & Code Editor */}
           <div className="flex-1 flex flex-col">
-            {/* AI Chat & Streaming Response */}
+            {/* AI Chat Tabs */}
             <div className="h-80 border-b flex flex-col">
-              <div className="p-4 border-b">
-                <h3 className="font-medium">AI Assistant</h3>
-              </div>
-              
-              {/* Streaming Response Area */}
-              <ScrollArea className="flex-1 p-4" ref={streamingRef}>
-                {streamingContent && (
-                  <div className="bg-muted rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
-                    {streamingContent}
-                    {isStreaming && <span className="animate-pulse">|</span>}
-                  </div>
-                )}
-                {!streamingContent && !isStreaming && (
-                  <div className="text-center text-muted-foreground py-8">
-                    <div className="text-4xl mb-2">🤖</div>
-                    <p>Ask me to build anything!</p>
-                    <p className="text-sm">E.g., "Create a todo app with React and TypeScript"</p>
-                  </div>
-                )}
-              </ScrollArea>
-
-              {/* Prompt Input */}
-              <div className="p-4 border-t">
-                <div className="flex space-x-2">
-                  <Input
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe what you want to build..."
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendPrompt()}
-                    disabled={isStreaming}
-                  />
-                  <Button 
-                    onClick={handleSendPrompt} 
-                    disabled={isStreaming || !prompt.trim()}
+              <div className="border-b">
+                <div className="flex">
+                  <button
+                    onClick={() => setActiveAITab('streaming')}
+                    className={`px-4 py-2 text-sm border-r ${activeAITab === 'streaming' ? 'bg-muted' : 'hover:bg-muted/50'}`}
                   >
-                    {isStreaming ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
+                    AI Assistant (Old)
+                  </button>
+                  <button
+                    onClick={() => setActiveAITab('fixed')}
+                    className={`px-4 py-2 text-sm ${activeAITab === 'fixed' ? 'bg-muted' : 'hover:bg-muted/50'}`}
+                  >
+                    🚀 WORKING AI (NEW)
+                  </button>
                 </div>
               </div>
+              
+              {activeAITab === 'streaming' ? (
+                <>
+                  {/* Original Streaming Response Area */}
+                  <ScrollArea className="flex-1 p-4" ref={streamingRef}>
+                    {streamingContent && (
+                      <div className="bg-muted rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
+                        {streamingContent}
+                        {isStreaming && <span className="animate-pulse">|</span>}
+                      </div>
+                    )}
+                    {!streamingContent && !isStreaming && (
+                      <div className="text-center text-muted-foreground py-8">
+                        <div className="text-4xl mb-2">🤖</div>
+                        <p>Ask me to build anything!</p>
+                        <p className="text-sm">E.g., "Create a todo app with React and TypeScript"</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                  
+                  {/* AI Input */}
+                  <div className="p-4 border-t">
+                    <div className="flex space-x-2">
+                      <Input
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Describe what you want to build..."
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendPrompt()}
+                        disabled={isStreaming}
+                      />
+                      <Button 
+                        onClick={handleSendPrompt} 
+                        disabled={isStreaming || !prompt.trim()}
+                      >
+                        {isStreaming ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1">
+                  <FixedAIChat />
+                </div>
+              )}
             </div>
 
             {/* Code Editor */}

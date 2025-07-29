@@ -207,27 +207,62 @@ Build exactly what the user asks for. Create files as you think about them.`;
     content: string, 
     onFileOperation: (operation: { type: 'create' | 'update' | 'delete', path: string, content?: string }) => void
   ): void {
-    // Match CREATE_FILE operations - improved regex to be more robust
-    const createRegex = /🔧 CREATE_FILE:\s*([^\n]+)\n([\s\S]*?)(?=🔧 END_FILE|$)/g;
-    let createMatch;
-    while ((createMatch = createRegex.exec(content)) !== null) {
-      const path = createMatch[1].trim();
-      const fileContent = createMatch[2].trim();
-      const operationId = `create_${path}`;
-      
-      if (!this.processedOperations.has(operationId) && path && fileContent) {
-        console.log(`🔧 Creating file: ${path}`);
-        this.processedOperations.add(operationId);
+    // Enhanced pattern matching for code blocks and file operations
+    const patterns = [
+      // Standard file creation patterns
+      /```(\w+)?\s*(?:\/\/\s*)?(.+?\.(tsx?|jsx?|css|html|json|md))\n([\s\S]*?)```/g,
+      // CREATE_FILE patterns
+      /🔧 CREATE_FILE:\s*([^\n]+)\n([\s\S]*?)(?=🔧 END_FILE|$)/g,
+      // Alternative patterns
+      /(?:Create|create)\s+(?:file|File):\s*([^\n]+)\n([\s\S]*?)(?=\n(?:Create|create)|$)/g
+    ];
+
+    let hasCreatedFiles = false;
+
+    patterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        let path: string;
+        let fileContent: string;
         
-        // Create file immediately
-        dynamicCodeModifier.createFile(path, fileContent).then(() => {
-          console.log(`✅ File created: ${path}`);
-        }).catch(err => {
-          console.error(`❌ Failed to create file ${path}:`, err);
-        });
-        
-        onFileOperation({ type: 'create', path, content: fileContent });
+        if (pattern.source.includes('```')) {
+          // Code block pattern
+          path = match[2]?.trim() || `generated-${Date.now()}.tsx`;
+          fileContent = match[4]?.trim() || '';
+        } else {
+          // Other patterns
+          path = match[1]?.trim() || '';
+          fileContent = match[2]?.trim() || '';
+        }
+
+        if (path && fileContent && fileContent.length > 10) {
+          const operationId = `create_${path}`;
+          
+          if (!this.processedOperations.has(operationId)) {
+            console.log(`🔧 Creating file: ${path}`);
+            this.processedOperations.add(operationId);
+            hasCreatedFiles = true;
+            
+            // Create file immediately and force UI update
+            dynamicCodeModifier.createFile(path, fileContent).then(() => {
+              console.log(`✅ File created: ${path}`);
+              // Force refresh
+              window.dispatchEvent(new CustomEvent('fileSystemChanged'));
+            }).catch(err => {
+              console.error(`❌ Failed to create file ${path}:`, err);
+            });
+            
+            onFileOperation({ type: 'create', path, content: fileContent });
+          }
+        }
       }
+    });
+
+    if (hasCreatedFiles) {
+      // Trigger global file system refresh
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('forceFileRefresh'));
+      }, 100);
     }
 
     // Match UPDATE_FILE operations - improved regex
