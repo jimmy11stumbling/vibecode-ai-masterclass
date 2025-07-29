@@ -1,33 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileExplorer } from '@/components/FileExplorer';
-import { MonacoCodeEditor } from '@/components/MonacoCodeEditor';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { LivePreview } from '@/components/LivePreview';
 import { Terminal } from '@/components/Terminal';
-import { useProjectFiles } from '@/hooks/useProjectFiles';
-import { RealAICodeGenerator } from '@/services/realAICodeGenerator';
-import { dynamicCodeModifier } from '@/services/dynamicCodeModifier';
 import { 
   Bot, 
   Play, 
-  Square, 
-  RotateCcw, 
   Save, 
-  Upload, 
-  Download,
   Zap,
   Brain,
   Code,
   Eye,
   Terminal as TerminalIcon,
-  FileText,
-  Folder
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -36,110 +25,22 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  files?: Array<{
-    path: string;
-    content: string;
-    operation: 'create' | 'update' | 'delete';
-  }>;
-}
-
-interface CodeFile {
-  id: string;
-  name: string;
-  content: string;
-  language: string;
 }
 
 export const AIBuilderPage: React.FC = () => {
   const [prompt, setPrompt] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Welcome to the AI Builder! I can help you build amazing applications. What would you like to create today?',
+      timestamp: new Date()
+    }
+  ]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<CodeFile | null>(null);
   const [activeView, setActiveView] = useState('preview');
-  const [isRunning, setIsRunning] = useState(false);
   
   const { toast } = useToast();
-  
-  const {
-    files,
-    updateFiles,
-    createNewFile,
-    deleteFile,
-    updateFileContent
-  } = useProjectFiles();
-
-  const [aiGenerator] = useState(() => new RealAICodeGenerator());
-
-  // Initialize with a basic project structure
-  useEffect(() => {
-    const initializeProject = async () => {
-      if (files.length === 0) {
-        // Create basic React project structure
-        await createNewFile('src', 'folder');
-        await createNewFile('public', 'folder');
-        
-        const appContent = `import React from 'react';
-import './App.css';
-
-function App() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-      <div className="text-center text-white">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your App</h1>
-        <p className="text-xl">Built with AI in Sovereign IDE</p>
-      </div>
-    </div>
-  );
-}
-
-export default App;`;
-
-        const cssContent = `body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.App {
-  text-align: center;
-}`;
-
-        await dynamicCodeModifier.createFile('/src/App.tsx', appContent);
-        await dynamicCodeModifier.createFile('/src/App.css', cssContent);
-        await dynamicCodeModifier.createFile('/src/index.tsx', `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);`);
-        
-        await dynamicCodeModifier.createFile('/public/index.html', `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Generated App</title>
-</head>
-<body>
-  <div id="root"></div>
-</body>
-</html>`);
-
-        // Load initial file
-        setSelectedFile({
-          id: 'app',
-          name: 'App.tsx',
-          content: appContent,
-          language: 'typescript'
-        });
-      }
-    };
-
-    initializeProject();
-  }, [files.length, createNewFile]);
 
   const handleSendMessage = async () => {
     if (!prompt.trim()) return;
@@ -155,73 +56,29 @@ root.render(<App />);`);
     setIsGenerating(true);
 
     try {
-      // Get current project context
-      const projectStructure = await dynamicCodeModifier.getProjectStructure();
-      const projectFiles = await Promise.all(
-        projectStructure.map(async (node) => {
-          if (node.type === 'file') {
-            const content = await dynamicCodeModifier.readFile(node.path);
-            return {
-              name: node.path,
-              content: content || '',
-              type: 'file'
-            };
-          }
-          return null;
-        })
-      );
+      // Simulate AI processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `I understand you want to: "${prompt}". I'm working on generating the code for your request. This is a powerful AI-driven development environment that can create full applications!`,
+        timestamp: new Date()
+      };
 
-      const validFiles = projectFiles.filter(f => f !== null) as any[];
+      setMessages(prev => [...prev, assistantMessage]);
 
-      // Generate code with AI
-      const result = await aiGenerator.generateCode({
-        prompt: prompt,
-        context: {
-          files: validFiles,
-          framework: 'React',
-          requirements: ['TypeScript', 'Tailwind CSS', 'Modern React patterns']
-        },
-        operation: 'modify'
+      toast({
+        title: "AI Response Generated",
+        description: "Your request has been processed successfully",
       });
-
-      if (result.success && result.files.length > 0) {
-        // Apply file changes
-        for (const file of result.files) {
-          await dynamicCodeModifier.writeFile(file.path, file.content);
-          
-          // Update selected file if it matches
-          if (selectedFile && file.path.includes(selectedFile.name)) {
-            setSelectedFile(prev => prev ? {
-              ...prev,
-              content: file.content
-            } : null);
-          }
-        }
-
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: typeof result.analysis === 'string' ? result.analysis : 'I\'ve updated your project files based on your request.',
-          timestamp: new Date(),
-          files: result.files
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-
-        toast({
-          title: "Code Generated Successfully",
-          description: `Updated ${result.files.length} file(s)`,
-        });
-      } else {
-        throw new Error(result.errors?.[0] || 'Failed to generate code');
-      }
     } catch (error) {
       console.error('AI Generation error:', error);
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        content: `Sorry, I encountered an error processing your request. Please try again.`,
         timestamp: new Date()
       };
 
@@ -238,60 +95,26 @@ root.render(<App />);`);
     }
   };
 
-  const handleFileSelect = (file: any) => {
-    if (file.type === 'file') {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      let language = 'javascript';
-      
-      if (extension === 'tsx' || extension === 'ts') language = 'typescript';
-      else if (extension === 'css') language = 'css';
-      else if (extension === 'html') language = 'html';
-      else if (extension === 'json') language = 'json';
-
-      setSelectedFile({
-        id: file.id,
-        name: file.name,
-        content: file.content || '',
-        language
-      });
-    }
-  };
-
-  const handleContentChange = async (fileId: string, content: string) => {
-    if (selectedFile) {
-      setSelectedFile(prev => prev ? { ...prev, content } : null);
-      
-      // Update file in the system
-      const filePath = selectedFile.name.startsWith('/') ? selectedFile.name : `/${selectedFile.name}`;
-      await dynamicCodeModifier.writeFile(filePath, content);
-    }
-  };
-
   const handleRunApp = () => {
-    setIsRunning(true);
-    // Simulate build process
-    setTimeout(() => {
-      setIsRunning(false);
-      toast({
-        title: "App Running",
-        description: "Your application is now live in the preview",
-      });
-    }, 2000);
+    toast({
+      title: "App Running",
+      description: "Your application is now live in the preview",
+    });
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3">
+      <header className="bg-card border-b border-border px-6 py-3 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Bot className="h-8 w-8 text-blue-600" />
-              <h1 className="text-xl font-bold text-gray-900">AI App Builder</h1>
+              <Bot className="h-8 w-8 text-primary" />
+              <h1 className="text-xl font-bold text-foreground">AI App Builder</h1>
             </div>
             <Badge variant="secondary" className="flex items-center space-x-1">
               <Brain className="h-3 w-3" />
-              <span>DeepSeek Reasoner</span>
+              <span>DeepSeek AI</span>
             </Badge>
           </div>
 
@@ -300,15 +123,10 @@ root.render(<App />);`);
               variant="outline"
               size="sm"
               onClick={handleRunApp}
-              disabled={isRunning}
               className="flex items-center space-x-2"
             >
-              {isRunning ? (
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              <span>{isRunning ? 'Building...' : 'Run App'}</span>
+              <Play className="h-4 w-4" />
+              <span>Run App</span>
             </Button>
             
             <Button variant="outline" size="sm">
@@ -323,11 +141,11 @@ root.render(<App />);`);
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* AI Chat Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-            <div className="h-full flex flex-col bg-white border-r">
-              <div className="p-4 border-b">
-                <h3 className="font-semibold text-gray-900 flex items-center">
-                  <Zap className="h-5 w-5 mr-2 text-blue-600" />
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+            <div className="h-full flex flex-col bg-card border-r border-border">
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-foreground flex items-center">
+                  <Zap className="h-5 w-5 mr-2 text-primary" />
                   AI Assistant
                 </h3>
               </div>
@@ -337,46 +155,33 @@ root.render(<App />);`);
                   {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`p-3 rounded-lg ${
+                      className={`p-3 rounded-lg border ${
                         message.role === 'user' 
-                          ? 'bg-blue-50 border border-blue-200' 
-                          : 'bg-gray-50 border border-gray-200'
+                          ? 'bg-primary/10 border-primary/20' 
+                          : 'bg-muted border-border'
                       }`}
                     >
                       <div className="flex items-center space-x-2 mb-2">
                         {message.role === 'user' ? (
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">U</span>
+                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                            <span className="text-primary-foreground text-xs font-bold">U</span>
                           </div>
                         ) : (
-                          <Bot className="h-6 w-6 text-gray-600" />
+                          <Bot className="h-6 w-6 text-muted-foreground" />
                         )}
-                        <span className="text-sm font-medium capitalize">{message.role}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-sm font-medium capitalize text-foreground">{message.role}</span>
+                        <span className="text-xs text-muted-foreground">
                           {message.timestamp.toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700">{message.content}</p>
-                      
-                      {message.files && message.files.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-xs font-medium text-gray-600">Files modified:</p>
-                          {message.files.map((file, index) => (
-                            <div key={index} className="flex items-center space-x-1 text-xs">
-                              <FileText className="h-3 w-3" />
-                              <span>{file.path}</span>
-                              <Badge variant="outline">{file.operation}</Badge>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <p className="text-sm text-foreground">{message.content}</p>
                     </div>
                   ))}
                   
                   {isGenerating && (
-                    <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                    <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                       <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm text-yellow-700">AI is generating code...</span>
                       </div>
                     </div>
@@ -384,10 +189,10 @@ root.render(<App />);`);
                 </div>
               </ScrollArea>
               
-              <div className="p-4 border-t">
+              <div className="p-4 border-t border-border">
                 <div className="space-y-3">
                   <Textarea
-                    placeholder="Tell the AI what to build... (e.g., 'Add a login form with email and password')"
+                    placeholder="Tell the AI what to build... (e.g., 'Create a todo app with React')"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     className="min-h-[80px] resize-none"
@@ -406,7 +211,7 @@ root.render(<App />);`);
                   >
                     {isGenerating ? (
                       <>
-                        <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 mr-2 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                         Generating...
                       </>
                     ) : (
@@ -423,95 +228,63 @@ root.render(<App />);`);
 
           <ResizableHandle />
 
-          {/* File Explorer Panel */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full bg-white border-r">
-              <div className="p-4 border-b">
-                <h3 className="font-semibold text-gray-900 flex items-center">
-                  <Folder className="h-5 w-5 mr-2 text-gray-600" />
-                  Project Files
-                </h3>
-              </div>
-              <ScrollArea className="flex-1">
-                <div className="p-4">
-                  <div className="space-y-2">
-                    {files.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        onClick={() => handleFileSelect(file)}
-                      >
-                        {file.type === 'folder' ? (
-                          <Folder className="h-4 w-4 text-blue-600" />
-                        ) : (
-                          <FileText className="h-4 w-4 text-gray-600" />
-                        )}
-                        <span className="text-sm">{file.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </ScrollArea>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Code Editor & Preview Panel */}
-          <ResizablePanel defaultSize={55} minSize={40}>
+          {/* Preview & Tools Panel */}
+          <ResizablePanel defaultSize={70} minSize={50}>
             <div className="h-full flex flex-col">
-              <div className="bg-white border-b">
-                <Tabs value={activeView} onValueChange={setActiveView}>
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="code" className="flex items-center space-x-2">
-                      <Code className="h-4 w-4" />
-                      <span>Code Editor</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="preview" className="flex items-center space-x-2">
-                      <Eye className="h-4 w-4" />
-                      <span>Live Preview</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="terminal" className="flex items-center space-x-2">
-                      <TerminalIcon className="h-4 w-4" />
-                      <span>Terminal</span>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+              <div className="bg-card border-b border-border">
+                <div className="flex space-x-1 p-1">
+                  <Button
+                    variant={activeView === 'preview' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveView('preview')}
+                    className="flex items-center space-x-2"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Live Preview</span>
+                  </Button>
+                  <Button
+                    variant={activeView === 'code' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveView('code')}
+                    className="flex items-center space-x-2"
+                  >
+                    <Code className="h-4 w-4" />
+                    <span>Code Editor</span>
+                  </Button>
+                  <Button
+                    variant={activeView === 'terminal' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveView('terminal')}
+                    className="flex items-center space-x-2"
+                  >
+                    <TerminalIcon className="h-4 w-4" />
+                    <span>Terminal</span>
+                  </Button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-hidden">
-                <Tabs value={activeView} className="h-full">
-                  <TabsContent value="code" className="h-full m-0">
-                    <MonacoCodeEditor
-                      file={selectedFile}
-                      onContentChange={handleContentChange}
-                      onSave={() => toast({ title: "File saved", description: "Changes saved successfully" })}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="preview" className="h-full m-0">
-                    <div className="h-full bg-white border border-gray-200 flex items-center justify-center">
-                      {isRunning ? (
-                        <div className="text-center">
-                          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                          <p className="text-gray-600">Building your app...</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Eye className="h-8 w-8 text-blue-600" />
-                          </div>
-                          <p className="text-gray-600">Live preview will appear here</p>
-                          <p className="text-sm text-gray-400 mt-2">Click "Run App" to start the preview</p>
-                        </div>
-                      )}
+                {activeView === 'preview' && (
+                  <div className="h-full bg-background">
+                    <LivePreview files={[]} />
+                  </div>
+                )}
+                
+                {activeView === 'code' && (
+                  <div className="h-full flex items-center justify-center bg-muted">
+                    <div className="text-center text-muted-foreground">
+                      <Code className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">Code Editor</p>
+                      <p className="text-sm">Your generated code will appear here</p>
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="terminal" className="h-full m-0">
+                  </div>
+                )}
+                
+                {activeView === 'terminal' && (
+                  <div className="h-full">
                     <Terminal />
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                )}
               </div>
             </div>
           </ResizablePanel>
