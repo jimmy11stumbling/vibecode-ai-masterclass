@@ -16,6 +16,8 @@ import { TemplatesPage } from '@/pages/TemplatesPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { AIBuilderPage } from '@/pages/AIBuilderPage';
 import { ProductionTestPage } from '@/pages/ProductionTestPage';
+import Settings from '@/pages/Settings';
+import NotificationsPage from '@/pages/NotificationsPage';
 
 function App() {
   return (
@@ -44,6 +46,8 @@ function App() {
                 <Route path="templates" element={<TemplatesPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
                 <Route path="production-test" element={<ProductionTestPage />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="dashboard" element={<Navigate to="/" replace />} />
               </Route>
               
